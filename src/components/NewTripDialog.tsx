@@ -8,25 +8,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, MapPin, Home, Search, Loader2, Thermometer, Mountain, Route } from "lucide-react";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, GeoResult, countryFlag } from "@/lib/geo";
-import { supabase } from "@/integrations/supabase/client";
+import { addTrip } from "@/lib/storage";
 import { toast } from "sonner";
 
 interface Props {
-  userId: string;
   onCreated: () => void;
   defaultHome?: { lat: number; lon: number; label: string } | null;
 }
 
-export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
+export function NewTripDialog({ onCreated, defaultHome }: Props) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
-  // Step 1 - destination
   const [destQuery, setDestQuery] = useState("");
   const [destResults, setDestResults] = useState<GeoResult[]>([]);
   const [dest, setDest] = useState<GeoResult | null>(null);
 
-  // Step 2 - home + meta
   const [homeQuery, setHomeQuery] = useState(defaultHome?.label ?? "");
   const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
   const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(defaultHome ?? null);
@@ -37,7 +34,6 @@ export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Live preview metrics
   const [preview, setPreview] = useState<{ temp: number | null; alt: number | null; dist: number | null }>({
     temp: null, alt: null, dist: null,
   });
@@ -46,10 +42,11 @@ export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
     if (!open) {
       setStep(1); setDest(null); setDestQuery(""); setDestResults([]);
       setTitle(""); setNotes(""); setPreview({ temp: null, alt: null, dist: null });
+      // keep home as default for next time
+      if (defaultHome) { setHome(defaultHome); setHomeQuery(defaultHome.label); }
     }
-  }, [open]);
+  }, [open, defaultHome]);
 
-  // Debounced search dest
   useEffect(() => {
     const t = setTimeout(async () => {
       if (destQuery.length < 2) { setDestResults([]); return; }
@@ -61,7 +58,6 @@ export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
     return () => clearTimeout(t);
   }, [destQuery]);
 
-  // Debounced search home
   useEffect(() => {
     const t = setTimeout(async () => {
       if (homeQuery.length < 2 || home?.label === homeQuery) { setHomeResults([]); return; }
@@ -71,7 +67,7 @@ export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
     return () => clearTimeout(t);
   }, [homeQuery, home?.label]);
 
-  const pickDest = async (p: GeoResult) => {
+  const pickDest = (p: GeoResult) => {
     setDest(p);
     setDestResults([]);
     setDestQuery(`${p.name}, ${p.country}`);
@@ -88,7 +84,6 @@ export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
   const goToStep2 = async () => {
     if (!dest) return;
     setStep(2);
-    // fetch elevation + temperature for destination
     const [alt, temp] = await Promise.all([
       fetchElevation(dest.latitude, dest.longitude),
       fetchTemperature(dest.latitude, dest.longitude, tripDate),
@@ -96,14 +91,12 @@ export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
     setPreview((p) => ({ ...p, alt, temp }));
   };
 
-  // recompute distance when home changes
   useEffect(() => {
     if (dest && home) {
       setPreview((p) => ({ ...p, dist: distanceKm(home.lat, home.lon, dest.latitude, dest.longitude) }));
     }
   }, [home, dest]);
 
-  // refetch temp if date changes
   useEffect(() => {
     if (step === 2 && dest) {
       fetchTemperature(dest.latitude, dest.longitude, tripDate).then((temp) =>
@@ -112,36 +105,37 @@ export function NewTripDialog({ userId, onCreated, defaultHome }: Props) {
     }
   }, [tripDate, step, dest]);
 
-  const save = async () => {
+  const save = () => {
     if (!dest || !home) {
       toast.error("Seleziona destinazione e punto di partenza");
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("trips").insert({
-      user_id: userId,
-      title: title.trim() || `Viaggio a ${dest.name}`,
-      country: dest.country,
-      city: dest.name,
-      trip_date: tripDate,
-      notes: notes.trim() || null,
-      latitude: dest.latitude,
-      longitude: dest.longitude,
-      home_latitude: home.lat,
-      home_longitude: home.lon,
-      home_label: home.label,
-      temperature_c: preview.temp,
-      altitude_m: preview.alt,
-      distance_from_home_km: preview.dist,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      addTrip({
+        title: title.trim() || `Viaggio a ${dest.name}`,
+        country: dest.country,
+        city: dest.name,
+        trip_date: tripDate,
+        notes: notes.trim() || null,
+        latitude: dest.latitude,
+        longitude: dest.longitude,
+        home_latitude: home.lat,
+        home_longitude: home.lon,
+        home_label: home.label,
+        temperature_c: preview.temp,
+        altitude_m: preview.alt,
+        distance_from_home_km: preview.dist,
+        country_code: dest.country_code,
+      });
+      toast.success("Viaggio aggiunto al tuo atlante ✈️");
+      setOpen(false);
+      onCreated();
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore salvataggio");
+    } finally {
+      setSaving(false);
     }
-    toast.success("Viaggio aggiunto al tuo atlante ✈️");
-    setOpen(false);
-    onCreated();
   };
 
   return (
