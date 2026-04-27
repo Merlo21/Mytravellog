@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      trips: {
+        Row: {
+          altitude_m: number | null
+          city: string
+          country: string
+          created_at: string
+          distance_from_home_km: number | null
+          home_label: string | null
+          home_latitude: number
+          home_longitude: number
+          id: string
+          latitude: number
+          longitude: number
+          notes: string | null
+          temperature_c: number | null
+          title: string
+          trip_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          altitude_m?: number | null
+          city: string
+          country: string
+          created_at?: string
+          distance_from_home_km?: number | null
+          home_label?: string | null
+          home_latitude: number
+          home_longitude: number
+          id?: string
+          latitude: number
+          longitude: number
+          notes?: string | null
+          temperature_c?: number | null
+          title: string
+          trip_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          altitude_m?: number | null
+          city?: string
+          country?: string
+          created_at?: string
+          distance_from_home_km?: number | null
+          home_label?: string | null
+          home_latitude?: number
+          home_longitude?: number
+          id?: string
+          latitude?: number
+          longitude?: number
+          notes?: string | null
+          temperature_c?: number | null
+          title?: string
+          trip_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
