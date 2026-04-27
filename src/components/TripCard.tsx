@@ -1,24 +1,22 @@
-import { Trip } from "@/lib/types";
+import { LocalTrip } from "@/lib/storage";
 import { Thermometer, Mountain, Route, Calendar, Trash2 } from "lucide-react";
 import { countryFlag } from "@/lib/geo";
-import { supabase } from "@/integrations/supabase/client";
+import { deleteTrip } from "@/lib/storage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 interface Props {
-  trip: Trip;
+  trip: LocalTrip;
   selected?: boolean;
   onClick?: () => void;
   onDeleted?: () => void;
-  countryCode?: string;
 }
 
-export function TripCard({ trip, selected, onClick, onDeleted, countryCode }: Props) {
-  const remove = async (e: React.MouseEvent) => {
+export function TripCard({ trip, selected, onClick, onDeleted }: Props) {
+  const remove = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Eliminare questo viaggio?")) return;
-    const { error } = await supabase.from("trips").delete().eq("id", trip.id);
-    if (error) return toast.error(error.message);
+    deleteTrip(trip.id);
     toast.success("Viaggio eliminato");
     onDeleted?.();
   };
@@ -34,7 +32,7 @@ export function TripCard({ trip, selected, onClick, onDeleted, countryCode }: Pr
         ${selected ? "border-primary/60 shadow-glow" : ""}`}
     >
       <div className="flex items-start gap-3">
-        <div className="text-3xl">{countryFlag(countryCode)}</div>
+        <div className="text-3xl">{countryFlag(trip.country_code)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
