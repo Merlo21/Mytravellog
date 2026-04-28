@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import maplibregl, { Map as MlMap, LngLatBoundsLike } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import * as THREE from "three";
 import { LocalTrip } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
-import { Play, Square, Video, Mountain, Layers, Globe2 } from "lucide-react";
+import { Play, Square, Video, RotateCw } from "lucide-react";
 
 interface Props {
   trips: LocalTrip[];
@@ -11,377 +10,537 @@ interface Props {
   selectedId?: string | null;
 }
 
-type LngLat = [number, number]; // [lon, lat]
+// ---- helpers ----
+const EARTH_RADIUS = 1;
+
+function latLonToVec3(lat: number, lon: number, radius = EARTH_RADIUS): THREE.Vector3 {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lon + 180) * (Math.PI / 180);
+  const x = -radius * Math.sin(phi) * Math.cos(theta);
+  const z = radius * Math.sin(phi) * Math.sin(theta);
+  const y = radius * Math.cos(phi);
+  return new THREE.Vector3(x, y, z);
+}
 
 function chronological(trips: LocalTrip[]) {
   return [...trips].sort((a, b) => a.trip_date.localeCompare(b.trip_date));
 }
 
-/** Smooth great-circle-ish curve via quadratic Bezier (perpendicular offset for arch). */
-function curveBetween(a: LngLat, b: LngLat, segments = 64): LngLat[] {
-  const [lon1, lat1] = a;
-  const [lon2, lat2] = b;
-  const dx = lon2 - lon1;
-  const dy = lat2 - lat1;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const offset = Math.min(dist * 0.18, 12);
-  const nx = -dy / (dist || 1);
-  const ny = dx / (dist || 1);
-  const cLon = (lon1 + lon2) / 2 + nx * offset;
-  const cLat = (lat1 + lat2) / 2 + ny * offset;
-  const pts: LngLat[] = [];
+/** Great-circle arc between two points on the sphere, raised above the surface. */
+function arcPoints(a: THREE.Vector3, b: THREE.Vector3, segments = 64): THREE.Vector3[] {
+  const angle = a.angleTo(b);
+  const archHeight = 0.05 + Math.min(0.35, angle * 0.18);
+  const pts: THREE.Vector3[] = [];
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
-    const lon = (1 - t) * (1 - t) * lon1 + 2 * (1 - t) * t * cLon + t * t * lon2;
-    const lat = (1 - t) * (1 - t) * lat1 + 2 * (1 - t) * t * cLat + t * t * lat2;
-    pts.push([lon, lat]);
+    // SLERP on the sphere
+    const sinAngle = Math.sin(angle) || 1;
+    const w1 = Math.sin((1 - t) * angle) / sinAngle;
+    const w2 = Math.sin(t * angle) / sinAngle;
+    const p = a.clone().multiplyScalar(w1).add(b.clone().multiplyScalar(w2)).normalize();
+    // Raise above surface in a parabola so it visibly arcs out
+    const lift = 1 + Math.sin(t * Math.PI) * archHeight;
+    pts.push(p.multiplyScalar(lift));
   }
   return pts;
 }
 
-function buildRoute(trips: LocalTrip[]) {
-  const ordered = chronological(trips);
-  if (ordered.length === 0) return { flat: [] as LngLat[], nodes: [] as LngLat[] };
-  const home: LngLat = [ordered[0].home_longitude, ordered[0].home_latitude];
-  const nodes: LngLat[] = [home, ...ordered.map((t) => [t.longitude, t.latitude] as LngLat)];
-  const flat: LngLat[] = [];
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const seg = curveBetween(nodes[i], nodes[i + 1], 48);
-    if (i === 0) flat.push(...seg);
-    else flat.push(...seg.slice(1));
-  }
-  return { flat, nodes };
-}
-
-type StyleKey = "vector" | "satellite" | "topo";
-
-// Free, no-API-key vector + raster styles.
-const STYLES: Record<StyleKey, { url: string | maplibregl.StyleSpecification; label: string }> = {
-  // OpenFreeMap "Liberty" — full vector tiles with country/state/city/town labels at all zooms.
-  vector: { url: "https://tiles.openfreemap.org/styles/liberty", label: "Vettoriale" },
-  // Esri World Imagery — high-detail satellite raster.
-  satellite: {
-    label: "Satellite",
-    url: {
-      version: 8,
-      sources: {
-        sat: {
-          type: "raster",
-          tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-          tileSize: 256,
-          attribution: "Tiles © Esri — World Imagery",
-          maxzoom: 19,
-        },
-      },
-      layers: [{ id: "sat", type: "raster", source: "sat" }],
-    } as maplibregl.StyleSpecification,
-  },
-  // OpenTopoMap — topographic with hillshade and contours.
-  topo: {
-    label: "Topo",
-    url: {
-      version: 8,
-      sources: {
-        topo: {
-          type: "raster",
-          tiles: [
-            "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
-            "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
-            "https://c.tile.opentopomap.org/{z}/{x}/{y}.png",
-          ],
-          tileSize: 256,
-          attribution: "© OpenStreetMap, SRTM | © OpenTopoMap",
-          maxzoom: 17,
-        },
-      },
-      layers: [{ id: "topo", type: "raster", source: "topo" }],
-    } as maplibregl.StyleSpecification,
-  },
-};
-
-const ROUTE_SOURCE = "atlas-route";
-const ROUTE_FULL_LAYER = "atlas-route-full";
-const ROUTE_LIVE_LAYER = "atlas-route-live";
-const ROUTE_LIVE_SOURCE = "atlas-route-live-src";
-const POINTS_SOURCE = "atlas-points";
-const POINTS_LAYER = "atlas-points";
-const POINTS_LABELS_LAYER = "atlas-points-labels";
-const HOME_SOURCE = "atlas-home";
-const HOME_LAYER = "atlas-home";
+// ---- texture URLs (free, no key) ----
+// NASA Blue Marble (day) + bump + clouds via three-globe community CDN
+const TEX_DAY = "https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg";
+const TEX_BUMP = "https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png";
+const TEX_CLOUDS = "https://unpkg.com/three-globe@2.31.0/example/img/earth-clouds.png";
+const TEX_NIGHT = "https://unpkg.com/three-globe@2.31.0/example/img/earth-night.jpg";
 
 export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
-  const [styleKey, setStyleKey] = useState<StyleKey>("vector");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const stateRef = useRef<{
+    renderer?: THREE.WebGLRenderer;
+    scene?: THREE.Scene;
+    camera?: THREE.PerspectiveCamera;
+    earth?: THREE.Mesh;
+    clouds?: THREE.Mesh;
+    atmosphere?: THREE.Mesh;
+    stars?: THREE.Points;
+    markersGroup?: THREE.Group;
+    routesGroup?: THREE.Group;
+    labelsRoot?: HTMLDivElement;
+    raycaster?: THREE.Raycaster;
+    targetCamPos?: THREE.Vector3;
+    autoRotate: boolean;
+    isDragging: boolean;
+    lastPointer?: { x: number; y: number };
+    rotation: { x: number; y: number };
+    rotVelocity: { x: number; y: number };
+    zoom: number;
+    raf?: number;
+  }>({
+    autoRotate: true,
+    isDragging: false,
+    rotation: { x: 0, y: 0 },
+    rotVelocity: { x: 0, y: 0 },
+    zoom: 3.2,
+  });
+
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MlMap | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const [autoRotate, setAutoRotate] = useState(true);
+  useEffect(() => { stateRef.current.autoRotate = autoRotate; }, [autoRotate]);
 
-  const { flat, nodes } = useMemo(() => buildRoute(trips), [trips]);
   const orderedTrips = useMemo(() => chronological(trips), [trips]);
-  const flatRef = useRef<LngLat[]>([]);
-  useEffect(() => { flatRef.current = flat; }, [flat]);
+  const onSelectRef = useRef(onSelectTrip);
+  useEffect(() => { onSelectRef.current = onSelectTrip; }, [onSelectTrip]);
 
-  // ---- init map once ----
+  // ---- init scene once ----
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: STYLES[styleKey].url as any,
-      center: [10, 30],
-      zoom: 1.6,
-      minZoom: 0.8,
-      maxZoom: 18,
-      attributionControl: { compact: true },
-      // Preserve drawing buffer so we can grab the canvas for video recording
-      preserveDrawingBuffer: true,
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // Scene & camera
+    const scene = new THREE.Scene();
+    scene.background = null;
+
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.01, 1000);
+    camera.position.set(0, 0, stateRef.current.zoom);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+
+    // ---- Earth ----
+    const loader = new THREE.TextureLoader();
+    loader.crossOrigin = "anonymous";
+    const dayTex = loader.load(TEX_DAY);
+    dayTex.colorSpace = THREE.SRGBColorSpace;
+    const bumpTex = loader.load(TEX_BUMP);
+    const nightTex = loader.load(TEX_NIGHT);
+    nightTex.colorSpace = THREE.SRGBColorSpace;
+
+    const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 96, 96);
+    const earthMat = new THREE.MeshPhongMaterial({
+      map: dayTex,
+      bumpMap: bumpTex,
+      bumpScale: 0.015,
+      specular: new THREE.Color(0x223344),
+      shininess: 18,
+      emissiveMap: nightTex,
+      emissive: new THREE.Color(0x88aaff),
+      emissiveIntensity: 0.35,
     });
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-left");
-    map.on("load", () => {
-      // Globe projection — true 3D sphere.
-      try { (map as any).setProjection({ type: "globe" }); } catch {}
-      // Atmosphere/sky tint to make the sphere read clearly on dark bg.
-      try {
-        map.setSky({
-          "sky-color": "#0a1228",
-          "horizon-color": "#1a3a6b",
-          "fog-color": "#0a1228",
-          "sky-horizon-blend": 0.6,
-          "horizon-fog-blend": 0.6,
-          "fog-ground-blend": 0.05,
-          "atmosphere-blend": [
-            "interpolate", ["linear"], ["zoom"], 0, 1, 5, 0.6, 8, 0,
-          ],
-        } as any);
-      } catch {}
-      addRouteLayers(map);
-      refreshRouteData(map);
-      fitToTrips(map);
+    const earth = new THREE.Mesh(earthGeo, earthMat);
+    scene.add(earth);
+
+    // ---- Clouds ----
+    const cloudsTex = loader.load(TEX_CLOUDS);
+    const cloudsMat = new THREE.MeshPhongMaterial({
+      map: cloudsTex,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
     });
-    mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS * 1.005, 64, 64), cloudsMat);
+    scene.add(clouds);
+
+    // ---- Atmosphere glow (custom shader) ----
+    const atmMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      uniforms: {
+        glowColor: { value: new THREE.Color(0x4ab3ff) },
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        uniform vec3 glowColor;
+        void main() {
+          float intensity = pow(0.62 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.4);
+          gl_FragColor = vec4(glowColor, 1.0) * intensity;
+        }
+      `,
+    });
+    const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS * 1.18, 64, 64), atmMat);
+    scene.add(atmosphere);
+
+    // ---- Lights ----
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(5, 3, 5);
+    scene.add(sun);
+    const ambient = new THREE.AmbientLight(0x223355, 0.55);
+    scene.add(ambient);
+
+    // ---- Stars ----
+    const starsGeo = new THREE.BufferGeometry();
+    const starCount = 4000;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 80 + Math.random() * 40;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      starPositions[i * 3 + 2] = r * Math.cos(phi);
+    }
+    starsGeo.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
+    const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.25, sizeAttenuation: true, transparent: true, opacity: 0.85 });
+    const stars = new THREE.Points(starsGeo, starsMat);
+    scene.add(stars);
+
+    // ---- Markers / routes group (children of earth so they rotate with it) ----
+    const markersGroup = new THREE.Group();
+    earth.add(markersGroup);
+    const routesGroup = new THREE.Group();
+    earth.add(routesGroup);
+
+    // ---- Labels overlay ----
+    const labelsRoot = document.createElement("div");
+    labelsRoot.style.position = "absolute";
+    labelsRoot.style.inset = "0";
+    labelsRoot.style.pointerEvents = "none";
+    labelsRoot.style.overflow = "hidden";
+    container.appendChild(labelsRoot);
+
+    // ---- Pointer interaction ----
+    const raycaster = new THREE.Raycaster();
+    const onPointerDown = (e: PointerEvent) => {
+      stateRef.current.isDragging = true;
+      stateRef.current.lastPointer = { x: e.clientX, y: e.clientY };
+      stateRef.current.rotVelocity = { x: 0, y: 0 };
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!stateRef.current.isDragging || !stateRef.current.lastPointer) return;
+      const dx = e.clientX - stateRef.current.lastPointer.x;
+      const dy = e.clientY - stateRef.current.lastPointer.y;
+      stateRef.current.rotation.y += dx * 0.005;
+      stateRef.current.rotation.x += dy * 0.005;
+      stateRef.current.rotation.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, stateRef.current.rotation.x));
+      stateRef.current.rotVelocity = { x: dy * 0.005, y: dx * 0.005 };
+      stateRef.current.lastPointer = { x: e.clientX, y: e.clientY };
+    };
+    const onPointerUp = () => { stateRef.current.isDragging = false; };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1.1 : 0.9;
+      stateRef.current.zoom = Math.max(1.25, Math.min(8, stateRef.current.zoom * factor));
+    };
+    const onClick = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const ndc = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(markersGroup.children, false);
+      const first = hits[0];
+      const id = (first?.object as any)?.userData?.tripId;
+      if (id) {
+        const t = trips.find((x) => x.id === id);
+        if (t && onSelectRef.current) onSelectRef.current(t);
+      }
+    };
+    renderer.domElement.style.cursor = "grab";
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+    renderer.domElement.addEventListener("click", onClick);
+
+    // ---- Resize ----
+    const onResize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    };
+    const ro = new ResizeObserver(onResize);
+    ro.observe(container);
+
+    // ---- Animation loop ----
+    const labelEls = new Map<string, HTMLDivElement>();
+    const updateLabels = () => {
+      // Project each marker child world position to screen
+      markersGroup.children.forEach((child) => {
+        const id = (child as any).userData?.labelId as string | undefined;
+        if (!id) return;
+        const text = (child as any).userData?.text as string;
+        const worldPos = new THREE.Vector3();
+        child.getWorldPosition(worldPos);
+        const projected = worldPos.clone().project(camera);
+        const dot = worldPos.clone().normalize().dot(camera.position.clone().normalize());
+        const visible = dot > 0.1 && projected.z < 1;
+        let el = labelEls.get(id);
+        if (!el) {
+          el = document.createElement("div");
+          el.style.position = "absolute";
+          el.style.transform = "translate(-50%, -130%)";
+          el.style.padding = "2px 8px";
+          el.style.borderRadius = "8px";
+          el.style.fontSize = "11px";
+          el.style.fontFamily = "ui-monospace, monospace";
+          el.style.fontWeight = "600";
+          el.style.color = "#e6f8ff";
+          el.style.background = "rgba(4,17,31,0.72)";
+          el.style.backdropFilter = "blur(6px)";
+          el.style.border = "1px solid rgba(34,211,238,0.35)";
+          el.style.whiteSpace = "nowrap";
+          el.style.pointerEvents = "none";
+          el.style.transition = "opacity 0.2s";
+          el.textContent = text;
+          labelsRoot.appendChild(el);
+          labelEls.set(id, el);
+        }
+        if (visible) {
+          const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
+          const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
+          el.style.left = `${x}px`;
+          el.style.top = `${y}px`;
+          el.style.opacity = "1";
+        } else {
+          el.style.opacity = "0";
+        }
+      });
+      // Cleanup orphans
+      const validIds = new Set(markersGroup.children.map((c: any) => c.userData?.labelId).filter(Boolean));
+      labelEls.forEach((el, id) => {
+        if (!validIds.has(id)) {
+          el.remove();
+          labelEls.delete(id);
+        }
+      });
+    };
+
+    const animate = () => {
+      const s = stateRef.current;
+      // Inertia + auto-rotate
+      if (!s.isDragging) {
+        if (s.autoRotate && Math.abs(s.rotVelocity.x) < 0.0005 && Math.abs(s.rotVelocity.y) < 0.0005) {
+          s.rotation.y += 0.0008;
+        } else {
+          s.rotation.y += s.rotVelocity.y;
+          s.rotation.x += s.rotVelocity.x;
+          s.rotVelocity.x *= 0.94;
+          s.rotVelocity.y *= 0.94;
+        }
+        s.rotation.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, s.rotation.x));
+      }
+      earth.rotation.y = s.rotation.y;
+      earth.rotation.x = s.rotation.x;
+      clouds.rotation.y = s.rotation.y + 0.0003 * performance.now() * 0.001;
+      clouds.rotation.x = s.rotation.x;
+      atmosphere.rotation.copy(earth.rotation);
+
+      // Smooth zoom
+      const targetZ = s.zoom;
+      camera.position.z += (targetZ - camera.position.z) * 0.12;
+
+      renderer.render(scene, camera);
+      updateLabels();
+      s.raf = requestAnimationFrame(animate);
+    };
+    animate();
+
+    stateRef.current.renderer = renderer;
+    stateRef.current.scene = scene;
+    stateRef.current.camera = camera;
+    stateRef.current.earth = earth;
+    stateRef.current.clouds = clouds;
+    stateRef.current.atmosphere = atmosphere;
+    stateRef.current.stars = stars;
+    stateRef.current.markersGroup = markersGroup;
+    stateRef.current.routesGroup = routesGroup;
+    stateRef.current.labelsRoot = labelsRoot;
+    stateRef.current.raycaster = raycaster;
+
+    return () => {
+      if (stateRef.current.raf) cancelAnimationFrame(stateRef.current.raf);
+      ro.disconnect();
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      renderer.domElement.removeEventListener("wheel", onWheel);
+      renderer.domElement.removeEventListener("click", onClick);
+      labelEls.forEach((el) => el.remove());
+      labelsRoot.remove();
+      renderer.dispose();
+      container.removeChild(renderer.domElement);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- handle style change ----
+  // ---- rebuild markers + routes when trips change ----
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.setStyle(STYLES[styleKey].url as any);
-    map.once("styledata", () => {
-      try { (map as any).setProjection({ type: "globe" }); } catch {}
-      addRouteLayers(map);
-      refreshRouteData(map);
-    });
-  }, [styleKey]);
+    const { markersGroup, routesGroup } = stateRef.current;
+    if (!markersGroup || !routesGroup) return;
 
-  // ---- update data when trips change ----
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    refreshRouteData(map);
-    fitToTrips(map);
-  }, [trips]);
+    // Clear
+    while (markersGroup.children.length) {
+      const c = markersGroup.children.pop()!;
+      (c as any).geometry?.dispose?.();
+      (c as any).material?.dispose?.();
+    }
+    while (routesGroup.children.length) {
+      const c = routesGroup.children.pop()!;
+      (c as any).geometry?.dispose?.();
+      (c as any).material?.dispose?.();
+    }
 
-  function addRouteLayers(map: MlMap) {
-    if (!map.getSource(ROUTE_SOURCE)) {
-      map.addSource(ROUTE_SOURCE, { type: "geojson", data: emptyLine() });
-    }
-    if (!map.getSource(ROUTE_LIVE_SOURCE)) {
-      map.addSource(ROUTE_LIVE_SOURCE, { type: "geojson", data: emptyLine() });
-    }
-    if (!map.getSource(POINTS_SOURCE)) {
-      map.addSource(POINTS_SOURCE, { type: "geojson", data: emptyFC() });
-    }
-    if (!map.getSource(HOME_SOURCE)) {
-      map.addSource(HOME_SOURCE, { type: "geojson", data: emptyFC() });
-    }
-    if (!map.getLayer(ROUTE_FULL_LAYER)) {
-      map.addLayer({
-        id: ROUTE_FULL_LAYER,
-        type: "line",
-        source: ROUTE_SOURCE,
-        paint: {
-          "line-color": "#22d3ee",
-          "line-width": 1.2,
-          "line-opacity": 0.35,
-          "line-dasharray": [2, 2],
-        },
-        layout: { "line-cap": "round", "line-join": "round" },
-      });
-    }
-    if (!map.getLayer(ROUTE_LIVE_LAYER)) {
-      map.addLayer({
-        id: ROUTE_LIVE_LAYER,
-        type: "line",
-        source: ROUTE_LIVE_SOURCE,
-        paint: {
-          "line-color": "#5eead4",
-          "line-width": 3,
-          "line-opacity": 0.95,
-          "line-blur": 0.5,
-        },
-        layout: { "line-cap": "round", "line-join": "round" },
-      });
-    }
-    if (!map.getLayer(POINTS_LAYER)) {
-      map.addLayer({
-        id: POINTS_LAYER,
-        type: "circle",
-        source: POINTS_SOURCE,
-        paint: {
-          "circle-radius": ["case", ["get", "selected"], 9, 6],
-          "circle-color": "#22d3ee",
-          "circle-stroke-color": "#04111f",
-          "circle-stroke-width": 2,
-          "circle-opacity": 0.95,
-        },
-      });
-    }
-    if (!map.getLayer(POINTS_LABELS_LAYER)) {
-      map.addLayer({
-        id: POINTS_LABELS_LAYER,
-        type: "symbol",
-        source: POINTS_SOURCE,
-        layout: {
-          "text-field": ["concat", ["to-string", ["get", "idx"]], ". ", ["get", "city"]],
-          "text-size": 11,
-          "text-offset": [0, 1.4],
-          "text-anchor": "top",
-          "text-font": ["Noto Sans Regular"],
-          "text-allow-overlap": false,
-        },
-        paint: {
-          "text-color": "#e6f8ff",
-          "text-halo-color": "#04111f",
-          "text-halo-width": 1.4,
-        },
-      });
-    }
-    if (!map.getLayer(HOME_LAYER)) {
-      map.addLayer({
-        id: HOME_LAYER,
-        type: "circle",
-        source: HOME_SOURCE,
-        paint: {
-          "circle-radius": 8,
-          "circle-color": "#fbbf24",
-          "circle-stroke-color": "#04111f",
-          "circle-stroke-width": 2,
-        },
-      });
-    }
-    map.on("click", POINTS_LAYER, (e) => {
-      const f = e.features?.[0];
-      const id = f?.properties?.id as string | undefined;
-      if (id && onSelectTripRef.current) onSelectTripRef.current(id);
-    });
-    map.on("mouseenter", POINTS_LAYER, () => { map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", POINTS_LAYER, () => { map.getCanvas().style.cursor = ""; });
-  }
+    if (orderedTrips.length === 0) return;
 
-  // Keep latest onSelectTrip available to map event handlers
-  const onSelectTripRef = useRef<((id: string) => void) | null>(null);
-  useEffect(() => {
-    onSelectTripRef.current = (id: string) => {
-      const t = trips.find((x) => x.id === id);
-      if (t) onSelectTrip?.(t);
-    };
-  }, [trips, onSelectTrip]);
-
-  function refreshRouteData(map: MlMap) {
-    const fullSrc = map.getSource(ROUTE_SOURCE) as maplibregl.GeoJSONSource | undefined;
-    const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource | undefined;
-    const ptsSrc = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource | undefined;
-    const homeSrc = map.getSource(HOME_SOURCE) as maplibregl.GeoJSONSource | undefined;
-    fullSrc?.setData(flat.length > 1 ? lineFC(flat) : emptyLine());
-    liveSrc?.setData(emptyLine());
-    ptsSrc?.setData({
-      type: "FeatureCollection",
-      features: orderedTrips.map((t, i) => ({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [t.longitude, t.latitude] },
-        properties: { id: t.id, idx: i + 1, city: t.city, selected: t.id === selectedId },
-      })),
-    });
-    if (orderedTrips[0]) {
-      homeSrc?.setData({
-        type: "FeatureCollection",
-        features: [{
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [orderedTrips[0].home_longitude, orderedTrips[0].home_latitude] },
-          properties: {},
-        }],
-      });
-    } else {
-      homeSrc?.setData(emptyFC());
-    }
-  }
-
-  // Re-apply selected styling when selection changes
-  useEffect(() => {
-    const map = mapRef.current;
-    if (map && map.isStyleLoaded()) refreshRouteData(map);
-  }, [selectedId]);
-
-  function fitToTrips(map: MlMap) {
-    if (nodes.length === 0) return;
-    if (nodes.length === 1) {
-      map.flyTo({ center: nodes[0], zoom: 4, duration: 1500 });
-      return;
-    }
-    const bounds = nodes.reduce(
-      (b, c) => b.extend(c as [number, number]),
-      new maplibregl.LngLatBounds(nodes[0] as [number, number], nodes[0] as [number, number])
+    // Home marker
+    const home = orderedTrips[0];
+    const homePos = latLonToVec3(home.home_latitude, home.home_longitude, EARTH_RADIUS * 1.005);
+    const homeMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
     );
-    map.fitBounds(bounds as LngLatBoundsLike, { padding: 80, duration: 1500, maxZoom: 6 });
-  }
+    homeMesh.position.copy(homePos);
+    (homeMesh as any).userData = { tripId: null, labelId: "home", text: home.home_label || "Casa" };
+    markersGroup.add(homeMesh);
 
-  // ---- replay animation ----
+    // Trip markers + labels
+    const tripPositions: THREE.Vector3[] = [];
+    orderedTrips.forEach((t, i) => {
+      const pos = latLonToVec3(t.latitude, t.longitude, EARTH_RADIUS * 1.005);
+      tripPositions.push(pos);
+      const isSel = t.id === selectedId;
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(isSel ? 0.022 : 0.014, 16, 16),
+        new THREE.MeshBasicMaterial({ color: isSel ? 0x5eead4 : 0x22d3ee })
+      );
+      dot.position.copy(pos);
+      (dot as any).userData = { tripId: t.id, labelId: `t-${t.id}`, text: `${i + 1}. ${t.city}` };
+      markersGroup.add(dot);
+    });
+
+    // Routes: home -> first -> second -> ... (chronological)
+    const routeNodes = [homePos, ...tripPositions];
+    for (let i = 0; i < routeNodes.length - 1; i++) {
+      const pts = arcPoints(routeNodes[i], routeNodes[i + 1], 64);
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.85 });
+      const line = new THREE.Line(geo, mat);
+      routesGroup.add(line);
+    }
+  }, [orderedTrips, selectedId]);
+
+  // ---- focus on selected trip ----
+  useEffect(() => {
+    if (!selectedId) return;
+    const t = orderedTrips.find((x) => x.id === selectedId);
+    if (!t) return;
+    // Rotate the earth so this point faces the camera
+    const lat = t.latitude * (Math.PI / 180);
+    const lon = t.longitude * (Math.PI / 180);
+    stateRef.current.rotation.y = -lon - Math.PI / 2;
+    stateRef.current.rotation.x = lat;
+    stateRef.current.rotVelocity = { x: 0, y: 0 };
+    stateRef.current.zoom = Math.min(stateRef.current.zoom, 2.2);
+  }, [selectedId, orderedTrips]);
+
+  // ---- Replay (animate route + spin to follow) ----
+  const replayRafRef = useRef<number | null>(null);
   const playReplay = () => {
-    const map = mapRef.current;
-    if (!map || flat.length === 0 || playing) return;
+    const { routesGroup } = stateRef.current;
+    if (!routesGroup || orderedTrips.length === 0 || playing) return;
     setPlaying(true);
-    const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource;
-    const start = performance.now();
-    const duration = Math.min(15000, 2500 + orderedTrips.length * 1200);
+    setAutoRotate(false);
+
+    const home = orderedTrips[0];
+    const homePos = latLonToVec3(home.home_latitude, home.home_longitude, EARTH_RADIUS * 1.005);
+    const allArcs: { points: THREE.Vector3[]; target: { lat: number; lon: number } }[] = [];
+    let prev = homePos;
+    orderedTrips.forEach((t) => {
+      const pos = latLonToVec3(t.latitude, t.longitude, EARTH_RADIUS * 1.005);
+      allArcs.push({ points: arcPoints(prev, pos, 80), target: { lat: t.latitude, lon: t.longitude } });
+      prev = pos;
+    });
+
+    // Hide static routes during replay
+    routesGroup.children.forEach((c) => ((c as THREE.Line).material as any).opacity = 0.15);
+
+    const liveGeo = new THREE.BufferGeometry();
+    const liveMat = new THREE.LineBasicMaterial({ color: 0x5eead4, transparent: true, opacity: 1 });
+    const liveLine = new THREE.Line(liveGeo, liveMat);
+    routesGroup.add(liveLine);
+
+    let arcIdx = 0;
+    let t0 = performance.now();
+    const perArc = 1800;
+    const accumulated: THREE.Vector3[] = [];
+
     const step = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const count = Math.max(2, Math.floor(flat.length * t));
-      const partial = flat.slice(0, count);
-      liveSrc.setData(lineFC(partial));
-      const lead = partial[partial.length - 1];
-      map.panTo(lead, { duration: 200, essential: true });
-      if (t < 1) rafRef.current = requestAnimationFrame(step);
-      else {
-        setPlaying(false);
-        fitToTrips(map);
+      const arc = allArcs[arcIdx];
+      const t = Math.min(1, (now - t0) / perArc);
+      const count = Math.max(2, Math.floor(arc.points.length * t));
+      const partial = arc.points.slice(0, count);
+      const merged = [...accumulated, ...partial];
+      liveGeo.setFromPoints(merged);
+
+      // Rotate globe so the leading point faces camera
+      const target = arc.target;
+      const lat = target.lat * (Math.PI / 180);
+      const lon = target.lon * (Math.PI / 180);
+      const desiredY = -lon - Math.PI / 2;
+      const desiredX = lat;
+      stateRef.current.rotation.y += (desiredY - stateRef.current.rotation.y) * 0.06;
+      stateRef.current.rotation.x += (desiredX - stateRef.current.rotation.x) * 0.06;
+      stateRef.current.zoom += (2.0 - stateRef.current.zoom) * 0.04;
+
+      if (t >= 1) {
+        accumulated.push(...arc.points);
+        arcIdx++;
+        t0 = now;
+        if (arcIdx >= allArcs.length) {
+          // Finished
+          setPlaying(false);
+          // Restore static routes
+          routesGroup.children.forEach((c) => {
+            if (c === liveLine) return;
+            ((c as THREE.Line).material as any).opacity = 0.85;
+          });
+          // Remove live line after a brief beat
+          setTimeout(() => {
+            routesGroup.remove(liveLine);
+            liveGeo.dispose();
+            liveMat.dispose();
+          }, 800);
+          stateRef.current.zoom = 3.0;
+          return;
+        }
       }
+      replayRafRef.current = requestAnimationFrame(step);
     };
-    rafRef.current = requestAnimationFrame(step);
+    replayRafRef.current = requestAnimationFrame(step);
   };
 
   const stopReplay = () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (replayRafRef.current) cancelAnimationFrame(replayRafRef.current);
     setPlaying(false);
-    const map = mapRef.current;
-    if (map) {
-      const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource;
-      liveSrc?.setData(lineFC(flat));
-    }
+    const { routesGroup } = stateRef.current;
+    routesGroup?.children.forEach((c) => ((c as THREE.Line).material as any).opacity = 0.85);
   };
 
-  // ---- record replay as WebM video using map canvas ----
+  // ---- Record video ----
   const recordReplay = async () => {
-    const map = mapRef.current;
-    if (!map || flat.length === 0 || recording) return;
-    const canvas = map.getCanvas();
-    // Force a repaint each frame so the captureStream sees fresh content.
-    map.triggerRepaint();
-    const stream = (canvas as HTMLCanvasElement).captureStream(30);
-    const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-      ? "video/webm;codecs=vp9"
-      : "video/webm";
+    const renderer = stateRef.current.renderer;
+    if (!renderer || recording) return;
+    const canvas = renderer.domElement;
+    const stream = canvas.captureStream(30);
+    const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
     const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 5_000_000 });
     const chunks: Blob[] = [];
     recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
@@ -390,56 +549,37 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `atlas-viaggio-${new Date().toISOString().slice(0, 10)}.webm`;
+      a.download = `atlas-globo-${new Date().toISOString().slice(0, 10)}.webm`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       setRecording(false);
     };
     setRecording(true);
     recorder.start();
-
-    const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource;
-    const start = performance.now();
-    const duration = Math.min(15000, 2500 + orderedTrips.length * 1200);
-
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const count = Math.max(2, Math.floor(flat.length * t));
-      const partial = flat.slice(0, count);
-      liveSrc.setData(lineFC(partial));
-      const lead = partial[partial.length - 1];
-      // Smooth zoom-in along the path to highlight detail (cities/streets at higher zoom)
-      const zoom = 2 + t * 3.2;
-      map.jumpTo({ center: lead, zoom });
-      map.triggerRepaint();
-      if (t < 1) requestAnimationFrame(tick);
-      else {
-        // Final beauty shot: zoom out to whole route, hold ~1.5s
-        fitToTrips(map);
-        setTimeout(() => recorder.stop(), 1500);
-      }
-    };
-    requestAnimationFrame(tick);
+    playReplay();
+    // Stop ~1s after the replay ends
+    const totalMs = 1800 * Math.max(1, orderedTrips.length) + 1500;
+    setTimeout(() => recorder.state !== "inactive" && recorder.stop(), totalMs);
   };
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border bg-[hsl(var(--ocean))]">
+    <div
+      className="relative w-full h-full rounded-2xl overflow-hidden border border-border"
+      style={{ background: "radial-gradient(ellipse at center, #061226 0%, #02060f 70%, #000 100%)" }}
+    >
       <div ref={containerRef} className="w-full h-full" />
 
-      {/* Top-right: style switcher */}
+      {/* Top-right: auto-rotate toggle */}
       <div className="absolute top-3 right-3 glass-card flex p-1 gap-1 z-[400]">
-        {(Object.keys(STYLES) as StyleKey[]).map((k) => (
-          <button
-            key={k}
-            onClick={() => setStyleKey(k)}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-1 ${
-              styleKey === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {k === "topo" ? <Mountain className="w-3 h-3" /> : k === "satellite" ? <Layers className="w-3 h-3" /> : <Globe2 className="w-3 h-3" />}
-            {STYLES[k].label}
-          </button>
-        ))}
+        <button
+          onClick={() => setAutoRotate((v) => !v)}
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-1 ${
+            autoRotate ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <RotateCw className="w-3 h-3" />
+          {autoRotate ? "Auto-rotate" : "Manuale"}
+        </button>
       </div>
 
       {/* Bottom-left: replay controls */}
@@ -468,17 +608,11 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
         <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-primary" /> Tappa</div>
         <div className="flex items-center gap-1.5"><div className="w-4 h-0.5 bg-primary" /> Percorso</div>
       </div>
+
+      {/* Hint */}
+      <div className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 pointer-events-none">
+        Trascina per ruotare · Scroll per zoom
+      </div>
     </div>
   );
-}
-
-// ---- helpers ----
-function lineFC(coords: LngLat[]): GeoJSON.Feature<GeoJSON.LineString> {
-  return { type: "Feature", geometry: { type: "LineString", coordinates: coords }, properties: {} };
-}
-function emptyLine(): GeoJSON.Feature<GeoJSON.LineString> {
-  return { type: "Feature", geometry: { type: "LineString", coordinates: [] }, properties: {} };
-}
-function emptyFC(): GeoJSON.FeatureCollection {
-  return { type: "FeatureCollection", features: [] };
 }
