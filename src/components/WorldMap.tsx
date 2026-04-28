@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Tooltip, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import maplibregl, { Map as MlMap, LngLatBoundsLike } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { LocalTrip } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
-import { Play, Square, Video, Mountain, Layers } from "lucide-react";
+import { Play, Square, Video, Mountain, Layers, Globe2 } from "lucide-react";
 
 interface Props {
   trips: LocalTrip[];
@@ -12,157 +11,351 @@ interface Props {
   selectedId?: string | null;
 }
 
-type LatLng = [number, number];
+type LngLat = [number, number]; // [lon, lat]
 
-/** Sort by chronological visit date (oldest -> newest) */
-function chronological(trips: LocalTrip[]): LocalTrip[] {
+function chronological(trips: LocalTrip[]) {
   return [...trips].sort((a, b) => a.trip_date.localeCompare(b.trip_date));
 }
 
-/** Build a smooth great-circle-ish curve between two points using a quadratic bezier in lat/lon space. */
-function curveBetween(a: LatLng, b: LatLng, segments = 64): LatLng[] {
-  const [lat1, lon1] = a;
-  const [lat2, lon2] = b;
-  // midpoint pushed perpendicular to give a sinuous arc
-  const midLat = (lat1 + lat2) / 2;
-  const midLon = (lon1 + lon2) / 2;
+/** Smooth great-circle-ish curve via quadratic Bezier (perpendicular offset for arch). */
+function curveBetween(a: LngLat, b: LngLat, segments = 64): LngLat[] {
+  const [lon1, lat1] = a;
+  const [lon2, lat2] = b;
   const dx = lon2 - lon1;
   const dy = lat2 - lat1;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  // offset perpendicular, scaled by distance — gives nice arching like FindPenguins
   const offset = Math.min(dist * 0.18, 12);
   const nx = -dy / (dist || 1);
   const ny = dx / (dist || 1);
-  const cLat = midLat + ny * offset;
-  const cLon = midLon + nx * offset;
-  const pts: LatLng[] = [];
+  const cLon = (lon1 + lon2) / 2 + nx * offset;
+  const cLat = (lat1 + lat2) / 2 + ny * offset;
+  const pts: LngLat[] = [];
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
-    const lat = (1 - t) * (1 - t) * lat1 + 2 * (1 - t) * t * cLat + t * t * lat2;
     const lon = (1 - t) * (1 - t) * lon1 + 2 * (1 - t) * t * cLon + t * t * lon2;
-    pts.push([lat, lon]);
+    const lat = (1 - t) * (1 - t) * lat1 + 2 * (1 - t) * t * cLat + t * t * lat2;
+    pts.push([lon, lat]);
   }
   return pts;
 }
 
-/** Build the full chronological route through all trips, starting from home. */
-function buildRoute(trips: LocalTrip[]): { segments: LatLng[][]; flat: LatLng[]; nodes: LatLng[] } {
+function buildRoute(trips: LocalTrip[]) {
   const ordered = chronological(trips);
-  if (ordered.length === 0) return { segments: [], flat: [], nodes: [] };
-  const home: LatLng = [ordered[0].home_latitude, ordered[0].home_longitude];
-  const nodes: LatLng[] = [home, ...ordered.map((t) => [t.latitude, t.longitude] as LatLng)];
-  const segments: LatLng[][] = [];
-  const flat: LatLng[] = [];
+  if (ordered.length === 0) return { flat: [] as LngLat[], nodes: [] as LngLat[] };
+  const home: LngLat = [ordered[0].home_longitude, ordered[0].home_latitude];
+  const nodes: LngLat[] = [home, ...ordered.map((t) => [t.longitude, t.latitude] as LngLat)];
+  const flat: LngLat[] = [];
   for (let i = 0; i < nodes.length - 1; i++) {
     const seg = curveBetween(nodes[i], nodes[i + 1], 48);
-    segments.push(seg);
     if (i === 0) flat.push(...seg);
     else flat.push(...seg.slice(1));
   }
-  return { segments, flat, nodes };
+  return { flat, nodes };
 }
 
-/** Custom div icons — pulsing dot for visited cities, home star. */
-const tripIcon = (label: string, selected: boolean) =>
-  L.divIcon({
-    className: "atlas-marker",
-    html: `<div class="relative flex items-center justify-center">
-      <div class="absolute w-8 h-8 rounded-full bg-primary/30 ${selected ? "animate-ping" : ""}"></div>
-      <div class="relative w-3.5 h-3.5 rounded-full bg-primary border-2 border-background shadow-[0_0_12px_hsl(var(--primary))]"></div>
-      <div class="absolute -bottom-5 whitespace-nowrap text-[10px] font-mono uppercase tracking-wider text-foreground bg-background/80 backdrop-blur px-1.5 py-0.5 rounded border border-border">${label}</div>
-    </div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
+type StyleKey = "vector" | "satellite" | "topo";
 
-const homeIcon = L.divIcon({
-  className: "atlas-marker",
-  html: `<div class="relative flex items-center justify-center">
-    <div class="absolute w-10 h-10 rounded-full bg-accent/25"></div>
-    <div class="relative w-4 h-4 rotate-45 bg-accent border-2 border-background shadow-[0_0_14px_hsl(var(--accent))]"></div>
-  </div>`,
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-});
-
-/** Helper component: imperatively expose the map instance via callback. */
-function MapBinder({ onReady }: { onReady: (m: L.Map) => void }) {
-  const map = useMap();
-  useEffect(() => { onReady(map); }, [map, onReady]);
-  return null;
-}
-
-type LayerKey = "topo" | "satellite" | "dark";
-
-const LAYERS: Record<LayerKey, { url: string; attribution: string; maxZoom: number; label: string }> = {
-  topo: {
-    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-    attribution: "© OpenStreetMap, SRTM | © OpenTopoMap",
-    maxZoom: 17,
-    label: "Topo",
-  },
+// Free, no-API-key vector + raster styles.
+const STYLES: Record<StyleKey, { url: string | maplibregl.StyleSpecification; label: string }> = {
+  // OpenFreeMap "Liberty" — full vector tiles with country/state/city/town labels at all zooms.
+  vector: { url: "https://tiles.openfreemap.org/styles/liberty", label: "Vettoriale" },
+  // Esri World Imagery — high-detail satellite raster.
   satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: "Tiles © Esri — Source: Esri, Earthstar Geographics",
-    maxZoom: 19,
     label: "Satellite",
+    url: {
+      version: 8,
+      sources: {
+        sat: {
+          type: "raster",
+          tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+          tileSize: 256,
+          attribution: "Tiles © Esri — World Imagery",
+          maxzoom: 19,
+        },
+      },
+      layers: [{ id: "sat", type: "raster", source: "sat" }],
+    } as maplibregl.StyleSpecification,
   },
-  dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: "© OpenStreetMap, © CARTO",
-    maxZoom: 19,
-    label: "Dark",
+  // OpenTopoMap — topographic with hillshade and contours.
+  topo: {
+    label: "Topo",
+    url: {
+      version: 8,
+      sources: {
+        topo: {
+          type: "raster",
+          tiles: [
+            "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+            "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
+            "https://c.tile.opentopomap.org/{z}/{x}/{y}.png",
+          ],
+          tileSize: 256,
+          attribution: "© OpenStreetMap, SRTM | © OpenTopoMap",
+          maxzoom: 17,
+        },
+      },
+      layers: [{ id: "topo", type: "raster", source: "topo" }],
+    } as maplibregl.StyleSpecification,
   },
 };
 
+const ROUTE_SOURCE = "atlas-route";
+const ROUTE_FULL_LAYER = "atlas-route-full";
+const ROUTE_LIVE_LAYER = "atlas-route-live";
+const ROUTE_LIVE_SOURCE = "atlas-route-live-src";
+const POINTS_SOURCE = "atlas-points";
+const POINTS_LAYER = "atlas-points";
+const POINTS_LABELS_LAYER = "atlas-points-labels";
+const HOME_SOURCE = "atlas-home";
+const HOME_LAYER = "atlas-home";
+
 export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
-  const [layer, setLayer] = useState<LayerKey>("topo");
-  const [progress, setProgress] = useState(1); // 0..1 — how much of route to draw
+  const [styleKey, setStyleKey] = useState<StyleKey>("vector");
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
-  const mapRef = useRef<L.Map | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MlMap | null>(null);
   const rafRef = useRef<number | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
 
-  const { segments, flat, nodes } = useMemo(() => buildRoute(trips), [trips]);
+  const { flat, nodes } = useMemo(() => buildRoute(trips), [trips]);
   const orderedTrips = useMemo(() => chronological(trips), [trips]);
+  const flatRef = useRef<LngLat[]>([]);
+  useEffect(() => { flatRef.current = flat; }, [flat]);
 
-  // Visible portion of the route based on progress (0..1)
-  const visibleRoute = useMemo(() => {
-    if (flat.length === 0) return [];
-    const count = Math.max(2, Math.floor(flat.length * progress));
-    return flat.slice(0, count);
-  }, [flat, progress]);
-
-  // Fit map to all nodes when trips change
+  // ---- init map once ----
   useEffect(() => {
-    if (!mapRef.current || nodes.length === 0) return;
-    const bounds = L.latLngBounds(nodes.map(([lat, lon]) => L.latLng(lat, lon)));
-    mapRef.current.fitBounds(bounds.pad(0.25), { animate: true, duration: 1.2 });
-  }, [nodes.length]);
+    if (!containerRef.current || mapRef.current) return;
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: STYLES[styleKey].url as any,
+      center: [10, 30],
+      zoom: 1.6,
+      minZoom: 0.8,
+      maxZoom: 18,
+      attributionControl: { compact: true },
+      // Preserve drawing buffer so we can grab the canvas for video recording
+      preserveDrawingBuffer: true,
+    });
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-left");
+    map.on("load", () => {
+      // Globe projection — true 3D sphere.
+      try { (map as any).setProjection({ type: "globe" }); } catch {}
+      // Atmosphere/sky tint to make the sphere read clearly on dark bg.
+      try {
+        map.setSky({
+          "sky-color": "#0a1228",
+          "horizon-color": "#1a3a6b",
+          "fog-color": "#0a1228",
+          "sky-horizon-blend": 0.6,
+          "horizon-fog-blend": 0.6,
+          "fog-ground-blend": 0.05,
+          "atmosphere-blend": [
+            "interpolate", ["linear"], ["zoom"], 0, 1, 5, 0.6, 8, 0,
+          ],
+        } as any);
+      } catch {}
+      addRouteLayers(map);
+      refreshRouteData(map);
+      fitToTrips(map);
+    });
+    mapRef.current = map;
+    return () => { map.remove(); mapRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  /** Animated replay: drives `progress` from 0 to 1 and pans camera to current point. */
+  // ---- handle style change ----
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setStyle(STYLES[styleKey].url as any);
+    map.once("styledata", () => {
+      try { (map as any).setProjection({ type: "globe" }); } catch {}
+      addRouteLayers(map);
+      refreshRouteData(map);
+    });
+  }, [styleKey]);
+
+  // ---- update data when trips change ----
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    refreshRouteData(map);
+    fitToTrips(map);
+  }, [trips]);
+
+  function addRouteLayers(map: MlMap) {
+    if (!map.getSource(ROUTE_SOURCE)) {
+      map.addSource(ROUTE_SOURCE, { type: "geojson", data: emptyLine() });
+    }
+    if (!map.getSource(ROUTE_LIVE_SOURCE)) {
+      map.addSource(ROUTE_LIVE_SOURCE, { type: "geojson", data: emptyLine() });
+    }
+    if (!map.getSource(POINTS_SOURCE)) {
+      map.addSource(POINTS_SOURCE, { type: "geojson", data: emptyFC() });
+    }
+    if (!map.getSource(HOME_SOURCE)) {
+      map.addSource(HOME_SOURCE, { type: "geojson", data: emptyFC() });
+    }
+    if (!map.getLayer(ROUTE_FULL_LAYER)) {
+      map.addLayer({
+        id: ROUTE_FULL_LAYER,
+        type: "line",
+        source: ROUTE_SOURCE,
+        paint: {
+          "line-color": "#22d3ee",
+          "line-width": 1.2,
+          "line-opacity": 0.35,
+          "line-dasharray": [2, 2],
+        },
+        layout: { "line-cap": "round", "line-join": "round" },
+      });
+    }
+    if (!map.getLayer(ROUTE_LIVE_LAYER)) {
+      map.addLayer({
+        id: ROUTE_LIVE_LAYER,
+        type: "line",
+        source: ROUTE_LIVE_SOURCE,
+        paint: {
+          "line-color": "#5eead4",
+          "line-width": 3,
+          "line-opacity": 0.95,
+          "line-blur": 0.5,
+        },
+        layout: { "line-cap": "round", "line-join": "round" },
+      });
+    }
+    if (!map.getLayer(POINTS_LAYER)) {
+      map.addLayer({
+        id: POINTS_LAYER,
+        type: "circle",
+        source: POINTS_SOURCE,
+        paint: {
+          "circle-radius": ["case", ["get", "selected"], 9, 6],
+          "circle-color": "#22d3ee",
+          "circle-stroke-color": "#04111f",
+          "circle-stroke-width": 2,
+          "circle-opacity": 0.95,
+        },
+      });
+    }
+    if (!map.getLayer(POINTS_LABELS_LAYER)) {
+      map.addLayer({
+        id: POINTS_LABELS_LAYER,
+        type: "symbol",
+        source: POINTS_SOURCE,
+        layout: {
+          "text-field": ["concat", ["to-string", ["get", "idx"]], ". ", ["get", "city"]],
+          "text-size": 11,
+          "text-offset": [0, 1.4],
+          "text-anchor": "top",
+          "text-font": ["Noto Sans Regular"],
+          "text-allow-overlap": false,
+        },
+        paint: {
+          "text-color": "#e6f8ff",
+          "text-halo-color": "#04111f",
+          "text-halo-width": 1.4,
+        },
+      });
+    }
+    if (!map.getLayer(HOME_LAYER)) {
+      map.addLayer({
+        id: HOME_LAYER,
+        type: "circle",
+        source: HOME_SOURCE,
+        paint: {
+          "circle-radius": 8,
+          "circle-color": "#fbbf24",
+          "circle-stroke-color": "#04111f",
+          "circle-stroke-width": 2,
+        },
+      });
+    }
+    map.on("click", POINTS_LAYER, (e) => {
+      const f = e.features?.[0];
+      const id = f?.properties?.id as string | undefined;
+      if (id && onSelectTripRef.current) onSelectTripRef.current(id);
+    });
+    map.on("mouseenter", POINTS_LAYER, () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", POINTS_LAYER, () => { map.getCanvas().style.cursor = ""; });
+  }
+
+  // Keep latest onSelectTrip available to map event handlers
+  const onSelectTripRef = useRef<((id: string) => void) | null>(null);
+  useEffect(() => {
+    onSelectTripRef.current = (id: string) => {
+      const t = trips.find((x) => x.id === id);
+      if (t) onSelectTrip?.(t);
+    };
+  }, [trips, onSelectTrip]);
+
+  function refreshRouteData(map: MlMap) {
+    const fullSrc = map.getSource(ROUTE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    const ptsSrc = map.getSource(POINTS_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    const homeSrc = map.getSource(HOME_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    fullSrc?.setData(flat.length > 1 ? lineFC(flat) : emptyLine());
+    liveSrc?.setData(emptyLine());
+    ptsSrc?.setData({
+      type: "FeatureCollection",
+      features: orderedTrips.map((t, i) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [t.longitude, t.latitude] },
+        properties: { id: t.id, idx: i + 1, city: t.city, selected: t.id === selectedId },
+      })),
+    });
+    if (orderedTrips[0]) {
+      homeSrc?.setData({
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [orderedTrips[0].home_longitude, orderedTrips[0].home_latitude] },
+          properties: {},
+        }],
+      });
+    } else {
+      homeSrc?.setData(emptyFC());
+    }
+  }
+
+  // Re-apply selected styling when selection changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && map.isStyleLoaded()) refreshRouteData(map);
+  }, [selectedId]);
+
+  function fitToTrips(map: MlMap) {
+    if (nodes.length === 0) return;
+    if (nodes.length === 1) {
+      map.flyTo({ center: nodes[0], zoom: 4, duration: 1500 });
+      return;
+    }
+    const bounds = nodes.reduce(
+      (b, c) => b.extend(c as [number, number]),
+      new maplibregl.LngLatBounds(nodes[0] as [number, number], nodes[0] as [number, number])
+    );
+    map.fitBounds(bounds as LngLatBoundsLike, { padding: 80, duration: 1500, maxZoom: 6 });
+  }
+
+  // ---- replay animation ----
   const playReplay = () => {
-    if (flat.length === 0 || playing) return;
+    const map = mapRef.current;
+    if (!map || flat.length === 0 || playing) return;
     setPlaying(true);
-    setProgress(0);
+    const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource;
     const start = performance.now();
-    const duration = Math.min(15000, 2500 + orderedTrips.length * 1200); // ~1.2s per leg, max 15s
+    const duration = Math.min(15000, 2500 + orderedTrips.length * 1200);
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
-      setProgress(t);
-      // pan camera to leading edge
-      const idx = Math.min(flat.length - 1, Math.floor(flat.length * t));
-      const [lat, lon] = flat[idx];
-      mapRef.current?.panTo([lat, lon], { animate: true, duration: 0.3 });
+      const count = Math.max(2, Math.floor(flat.length * t));
+      const partial = flat.slice(0, count);
+      liveSrc.setData(lineFC(partial));
+      const lead = partial[partial.length - 1];
+      map.panTo(lead, { duration: 200, essential: true });
       if (t < 1) rafRef.current = requestAnimationFrame(step);
       else {
         setPlaying(false);
-        // refit to whole route at end
-        if (mapRef.current && nodes.length > 1) {
-          const bounds = L.latLngBounds(nodes.map(([la, lo]) => L.latLng(la, lo)));
-          mapRef.current.fitBounds(bounds.pad(0.25), { animate: true, duration: 1.5 });
-        }
+        fitToTrips(map);
       }
     };
     rafRef.current = requestAnimationFrame(step);
@@ -171,207 +364,80 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
   const stopReplay = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     setPlaying(false);
-    setProgress(1);
-  };
-
-  /** Record the replay as a WebM video using MediaRecorder on a captured canvas of the map element. */
-  const recordReplay = async () => {
-    if (!mapRef.current || flat.length === 0) return;
-    const container = mapRef.current.getContainer();
-    // Use HTMLCanvasElement-based capture via html2canvas-like trick is heavy.
-    // Instead, capture a stream from a hidden canvas that mirrors the map via DOM screenshots is not feasible without extra deps.
-    // Approach: capture the page region using getDisplayMedia is intrusive.
-    // Lightweight approach: use canvas captureStream of an offscreen canvas where we draw markers + path on a static map background.
-    // To keep it simple and dependency-free, we capture the visible map container via `captureStream` of a <canvas> we paint each frame with map screenshot via SVG foreignObject -> blob.
-    // Given the complexity, we use a simpler but effective approach: record the entire map container by drawing it into a canvas every frame using `html-to-image`-style technique would add deps.
-    // Solution: leverage the browser's `CanvasCaptureMediaStreamTrack` from a canvas where we render the route + a snapshot tile collage.
-
-    try {
-      // Snapshot the current map tiles into an offscreen canvas using SVG foreignObject
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
-      const stream = canvas.captureStream(30);
-      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
-      const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
-      recorderRef.current = recorder;
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `atlas-viaggio-${new Date().toISOString().slice(0, 10)}.webm`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-        setRecording(false);
-      };
-
-      setRecording(true);
-      recorder.start();
-
-      // Take a snapshot of the map container by serializing tile <img> positions into the canvas.
-      const drawSnapshot = () => {
-        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("background-color") || "#000";
-        ctx.fillRect(0, 0, w, h);
-        const tiles = container.querySelectorAll<HTMLImageElement>(".leaflet-tile-loaded");
-        tiles.forEach((img) => {
-          const transform = img.style.transform; // translate3d(x, y, 0)
-          const m = /translate3d\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px/.exec(transform);
-          if (!m) return;
-          const x = parseFloat(m[1]);
-          const y = parseFloat(m[2]);
-          try { ctx.drawImage(img, x, y, img.width || 256, img.height || 256); } catch {}
-        });
-        // Draw route polyline
-        if (visibleRouteRef.current.length > 1 && mapRef.current) {
-          ctx.beginPath();
-          visibleRouteRef.current.forEach(([lat, lon], i) => {
-            const p = mapRef.current!.latLngToContainerPoint([lat, lon]);
-            if (i === 0) ctx.moveTo(p.x, p.y);
-            else ctx.lineTo(p.x, p.y);
-          });
-          ctx.strokeStyle = "rgba(34, 211, 238, 0.95)";
-          ctx.lineWidth = 3;
-          ctx.shadowColor = "rgba(34, 211, 238, 0.7)";
-          ctx.shadowBlur = 10;
-          ctx.stroke();
-          ctx.shadowBlur = 0;
-          // Leading dot
-          const last = visibleRouteRef.current[visibleRouteRef.current.length - 1];
-          const lp = mapRef.current.latLngToContainerPoint(last);
-          ctx.beginPath();
-          ctx.arc(lp.x, lp.y, 6, 0, Math.PI * 2);
-          ctx.fillStyle = "#22d3ee";
-          ctx.fill();
-        }
-      };
-
-      // Run replay while continuously snapshotting
-      const start = performance.now();
-      const duration = Math.min(15000, 2500 + orderedTrips.length * 1200);
-      setProgress(0);
-      const tick = (now: number) => {
-        const t = Math.min(1, (now - start) / duration);
-        setProgress(t);
-        const idx = Math.min(flat.length - 1, Math.floor(flat.length * t));
-        mapRef.current?.panTo(flat[idx], { animate: false });
-        drawSnapshot();
-        if (t < 1) requestAnimationFrame(tick);
-        else {
-          // Hold final frame for 1.2s
-          let extra = 0;
-          const hold = () => {
-            extra += 16;
-            drawSnapshot();
-            if (extra < 1200) requestAnimationFrame(hold);
-            else recorder.stop();
-          };
-          requestAnimationFrame(hold);
-        }
-      };
-      requestAnimationFrame(tick);
-    } catch (e) {
-      console.error("Recording failed", e);
-      setRecording(false);
+    const map = mapRef.current;
+    if (map) {
+      const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource;
+      liveSrc?.setData(lineFC(flat));
     }
   };
 
-  // Keep visibleRoute available to the recording closure
-  const visibleRouteRef = useRef<LatLng[]>([]);
-  useEffect(() => { visibleRouteRef.current = visibleRoute; }, [visibleRoute]);
+  // ---- record replay as WebM video using map canvas ----
+  const recordReplay = async () => {
+    const map = mapRef.current;
+    if (!map || flat.length === 0 || recording) return;
+    const canvas = map.getCanvas();
+    // Force a repaint each frame so the captureStream sees fresh content.
+    map.triggerRepaint();
+    const stream = (canvas as HTMLCanvasElement).captureStream(30);
+    const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9"
+      : "video/webm";
+    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 5_000_000 });
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `atlas-viaggio-${new Date().toISOString().slice(0, 10)}.webm`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setRecording(false);
+    };
+    setRecording(true);
+    recorder.start();
 
-  const home: LatLng | null = nodes[0] ?? null;
+    const liveSrc = map.getSource(ROUTE_LIVE_SOURCE) as maplibregl.GeoJSONSource;
+    const start = performance.now();
+    const duration = Math.min(15000, 2500 + orderedTrips.length * 1200);
+
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const count = Math.max(2, Math.floor(flat.length * t));
+      const partial = flat.slice(0, count);
+      liveSrc.setData(lineFC(partial));
+      const lead = partial[partial.length - 1];
+      // Smooth zoom-in along the path to highlight detail (cities/streets at higher zoom)
+      const zoom = 2 + t * 3.2;
+      map.jumpTo({ center: lead, zoom });
+      map.triggerRepaint();
+      if (t < 1) requestAnimationFrame(tick);
+      else {
+        // Final beauty shot: zoom out to whole route, hold ~1.5s
+        fitToTrips(map);
+        setTimeout(() => recorder.stop(), 1500);
+      }
+    };
+    requestAnimationFrame(tick);
+  };
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border bg-[hsl(var(--ocean))]">
-      <MapContainer
-        center={[20, 10]}
-        zoom={2}
-        minZoom={2}
-        maxZoom={LAYERS[layer].maxZoom}
-        worldCopyJump
-        zoomControl={false}
-        style={{ width: "100%", height: "100%", background: "hsl(var(--ocean))" }}
-      >
-        <MapBinder onReady={(m) => { mapRef.current = m; }} />
-        <TileLayer
-          key={layer}
-          url={LAYERS[layer].url}
-          attribution={LAYERS[layer].attribution}
-          maxZoom={LAYERS[layer].maxZoom}
-          // Subtle dark tint via CSS filter on topo to fit the dark theme
-          className={layer === "topo" ? "atlas-tile-tint" : ""}
-        />
+      <div ref={containerRef} className="w-full h-full" />
 
-        {/* Faded full route preview underneath */}
-        {flat.length > 1 && (
-          <Polyline
-            positions={flat}
-            pathOptions={{ color: "hsl(175 84% 55%)", weight: 1.5, opacity: 0.25, dashArray: "4 6" }}
-          />
-        )}
-
-        {/* Active (animated/visible) route on top */}
-        {visibleRoute.length > 1 && (
-          <Polyline
-            positions={visibleRoute}
-            pathOptions={{ color: "hsl(175 84% 55%)", weight: 3, opacity: 0.95, lineCap: "round", lineJoin: "round" }}
-          />
-        )}
-
-        {/* Leading point during replay */}
-        {playing && visibleRoute.length > 0 && (
-          <CircleMarker
-            center={visibleRoute[visibleRoute.length - 1]}
-            radius={6}
-            pathOptions={{ color: "hsl(175 95% 65%)", fillColor: "hsl(175 95% 65%)", fillOpacity: 1, weight: 2 }}
-          />
-        )}
-
-        {/* Home */}
-        {home && (
-          <Marker position={home} icon={homeIcon}>
-            <Tooltip direction="top" offset={[0, -10]}>
-              <span className="font-mono text-[10px] uppercase">Casa</span>
-            </Tooltip>
-          </Marker>
-        )}
-
-        {/* Trip markers in chronological order */}
-        {orderedTrips.map((t, i) => (
-          <Marker
-            key={t.id}
-            position={[t.latitude, t.longitude]}
-            icon={tripIcon(`${i + 1}. ${t.city}`, selectedId === t.id)}
-            eventHandlers={{ click: () => onSelectTrip?.(t) }}
-          >
-            <Tooltip direction="top" offset={[0, -10]}>
-              <div className="text-xs">
-                <div className="font-semibold">{t.city}, {t.country}</div>
-                <div className="text-[10px] opacity-70">{t.trip_date}</div>
-              </div>
-            </Tooltip>
-          </Marker>
-        ))}
-      </MapContainer>
-
-      {/* Top-right: layer switcher */}
+      {/* Top-right: style switcher */}
       <div className="absolute top-3 right-3 glass-card flex p-1 gap-1 z-[400]">
-        {(Object.keys(LAYERS) as LayerKey[]).map((k) => (
+        {(Object.keys(STYLES) as StyleKey[]).map((k) => (
           <button
             key={k}
-            onClick={() => setLayer(k)}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-colors ${
-              layer === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            onClick={() => setStyleKey(k)}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-1 ${
+              styleKey === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {k === "topo" ? <Mountain className="inline w-3 h-3 mr-1" /> : <Layers className="inline w-3 h-3 mr-1" />}
-            {LAYERS[k].label}
+            {k === "topo" ? <Mountain className="w-3 h-3" /> : k === "satellite" ? <Layers className="w-3 h-3" /> : <Globe2 className="w-3 h-3" />}
+            {STYLES[k].label}
           </button>
         ))}
       </div>
@@ -389,13 +455,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
             </Button>
           )}
           <div className="w-px h-5 bg-border mx-0.5" />
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={recordReplay}
-            disabled={recording || playing}
-            className="h-8 gap-1.5"
-          >
+          <Button size="sm" variant="ghost" onClick={recordReplay} disabled={recording || playing} className="h-8 gap-1.5">
             <Video className={`w-3.5 h-3.5 ${recording ? "text-destructive animate-pulse" : ""}`} />
             {recording ? "Registrazione…" : "Esporta video"}
           </Button>
@@ -404,16 +464,21 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
 
       {/* Bottom-right: legend */}
       <div className="absolute bottom-3 right-3 glass-card px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground z-[400]">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rotate-45 bg-accent" /> Casa
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-primary" /> Tappa
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5 bg-primary" /> Percorso
-        </div>
+        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-accent" /> Casa</div>
+        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-primary" /> Tappa</div>
+        <div className="flex items-center gap-1.5"><div className="w-4 h-0.5 bg-primary" /> Percorso</div>
       </div>
     </div>
   );
+}
+
+// ---- helpers ----
+function lineFC(coords: LngLat[]): GeoJSON.Feature<GeoJSON.LineString> {
+  return { type: "Feature", geometry: { type: "LineString", coordinates: coords }, properties: {} };
+}
+function emptyLine(): GeoJSON.Feature<GeoJSON.LineString> {
+  return { type: "Feature", geometry: { type: "LineString", coordinates: [] }, properties: {} };
+}
+function emptyFC(): GeoJSON.FeatureCollection {
+  return { type: "FeatureCollection", features: [] };
 }
