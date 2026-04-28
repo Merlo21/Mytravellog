@@ -113,3 +113,33 @@
     border-radius: 3px;
   }
 }
+
+/* Leaflet dark-theme integration */
+.leaflet-container {
+  background: hsl(var(--ocean));
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+.atlas-tile-tint {
+  filter: brightness(0.78) saturate(1.05) hue-rotate(-8deg) contrast(1.05);
+}
+.leaflet-control-attribution {
+  background: hsl(var(--card) / 0.7) !important;
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 9px !important;
+  backdrop-filter: blur(6px);
+  border-radius: 6px 0 0 0;
+}
+.leaflet-control-attribution a {
+  color: hsl(var(--primary)) !important;
+}
+.leaflet-tooltip {
+  background: hsl(var(--popover) / 0.95) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: var(--shadow-card) !important;
+  border-radius: 8px !important;
+  padding: 4px 8px !important;
+  backdrop-filter: blur(8px);
+}
+.leaflet-tooltip-top:before { border-top-color: hsl(var(--border)) !important; }
+.atlas-marker { background: transparent !important; border: none !important; }
