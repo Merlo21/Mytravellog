@@ -139,7 +139,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-left");
     map.on("load", () => {
       // Globe projection — true 3D sphere.
-      try { map.setProjection({ type: "globe" } as any); } catch {}
+      try { (map as any).setProjection({ type: "globe" }); } catch {}
       // Atmosphere/sky tint to make the sphere read clearly on dark bg.
       try {
         map.setSky({
@@ -169,7 +169,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     if (!map) return;
     map.setStyle(STYLES[styleKey].url as any);
     map.once("styledata", () => {
-      try { map.setProjection({ type: "globe" } as any); } catch {}
+      try { (map as any).setProjection({ type: "globe" }); } catch {}
       addRouteLayers(map);
       refreshRouteData(map);
     });
