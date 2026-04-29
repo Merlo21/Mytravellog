@@ -124,12 +124,18 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     const nightTex = loader.load(TEX_NIGHT);
     nightTex.colorSpace = THREE.SRGBColorSpace;
 
-    const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 96, 96);
-    const earthMat = new THREE.MeshLambertMaterial({
+    const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 192, 192);
+    const specTex = loader.load(TEX_SPEC);
+    const earthMat = new THREE.MeshPhongMaterial({
       map: dayTex,
+      bumpMap: bumpTex,
+      bumpScale: 0.035,
+      specularMap: specTex,
+      specular: new THREE.Color(0x223344),
+      shininess: 8,
       emissiveMap: nightTex,
       emissive: new THREE.Color(0x99b0c8),
-      emissiveIntensity: 0.35,
+      emissiveIntensity: 0.3,
     });
     // Painterly palette: deep blue ocean, olive/yellow land, warm deserts
     earthMat.onBeforeCompile = (shader) => {
