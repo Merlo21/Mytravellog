@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { feature } from "topojson-client";
 import { LocalTrip } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Play, Square, Video, RotateCw } from "lucide-react";
@@ -46,11 +47,14 @@ function arcPoints(a: THREE.Vector3, b: THREE.Vector3, segments = 64): THREE.Vec
 }
 
 // ---- texture URLs (free, no key) ----
-// NASA Blue Marble (day) + bump + clouds via three-globe community CDN
-const TEX_DAY = "https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg";
-const TEX_BUMP = "https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png";
-const TEX_CLOUDS = "https://unpkg.com/three-globe@2.31.0/example/img/earth-clouds.png";
-const TEX_NIGHT = "https://unpkg.com/three-globe@2.31.0/example/img/earth-night.jpg";
+// 8K NASA Blue Marble + topology + clouds + city lights
+const TEX_DAY = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/2_no_clouds_8k.jpg";
+const TEX_BUMP = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/elev_bump_8k.jpg";
+const TEX_CLOUDS = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/fair_clouds_8k.jpg";
+const TEX_NIGHT = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/5_night_8k.jpg";
+const TEX_SPEC = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/water_8k.png";
+// Country borders (lightweight TopoJSON-style geojson, ~110m)
+const GEO_BORDERS = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -120,12 +124,18 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     const nightTex = loader.load(TEX_NIGHT);
     nightTex.colorSpace = THREE.SRGBColorSpace;
 
-    const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 96, 96);
-    const earthMat = new THREE.MeshLambertMaterial({
+    const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 192, 192);
+    const specTex = loader.load(TEX_SPEC);
+    const earthMat = new THREE.MeshPhongMaterial({
       map: dayTex,
+      bumpMap: bumpTex,
+      bumpScale: 0.035,
+      specularMap: specTex,
+      specular: new THREE.Color(0x223344),
+      shininess: 8,
       emissiveMap: nightTex,
       emissive: new THREE.Color(0x99b0c8),
-      emissiveIntensity: 0.35,
+      emissiveIntensity: 0.3,
     });
     // Painterly palette: deep blue ocean, olive/yellow land, warm deserts
     earthMat.onBeforeCompile = (shader) => {
@@ -175,6 +185,36 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     };
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
+
+    // ---- Country borders (loaded async) ----
+    const bordersGroup = new THREE.Group();
+    earth.add(bordersGroup);
+    fetch(GEO_BORDERS)
+      .then((r) => r.json())
+      .then((topo: any) => {
+        const geo: any = feature(topo, topo.objects.countries);
+        const mat = new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.35,
+          depthWrite: false,
+        });
+        const R = EARTH_RADIUS * 1.001;
+        const addRing = (ring: number[][]) => {
+          const pts: THREE.Vector3[] = [];
+          for (const [lon, lat] of ring) pts.push(latLonToVec3(lat, lon, R));
+          const g = new THREE.BufferGeometry().setFromPoints(pts);
+          bordersGroup.add(new THREE.Line(g, mat));
+        };
+        for (const f of geo.features) {
+          const g = f.geometry;
+          if (!g) continue;
+          if (g.type === "Polygon") g.coordinates.forEach(addRing);
+          else if (g.type === "MultiPolygon")
+            g.coordinates.forEach((poly: number[][][]) => poly.forEach(addRing));
+        }
+      })
+      .catch(() => {});
 
     // ---- Clouds ----
     const cloudsTex = loader.load(TEX_CLOUDS);
