@@ -186,6 +186,36 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
+    // ---- Country borders (loaded async) ----
+    const bordersGroup = new THREE.Group();
+    earth.add(bordersGroup);
+    fetch(GEO_BORDERS)
+      .then((r) => r.json())
+      .then((topo: any) => {
+        const geo: any = feature(topo, topo.objects.countries);
+        const mat = new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.35,
+          depthWrite: false,
+        });
+        const R = EARTH_RADIUS * 1.001;
+        const addRing = (ring: number[][]) => {
+          const pts: THREE.Vector3[] = [];
+          for (const [lon, lat] of ring) pts.push(latLonToVec3(lat, lon, R));
+          const g = new THREE.BufferGeometry().setFromPoints(pts);
+          bordersGroup.add(new THREE.Line(g, mat));
+        };
+        for (const f of geo.features) {
+          const g = f.geometry;
+          if (!g) continue;
+          if (g.type === "Polygon") g.coordinates.forEach(addRing);
+          else if (g.type === "MultiPolygon")
+            g.coordinates.forEach((poly: number[][][]) => poly.forEach(addRing));
+        }
+      })
+      .catch(() => {});
+
     // ---- Clouds ----
     const cloudsTex = loader.load(TEX_CLOUDS);
     const cloudsMat = new THREE.MeshPhongMaterial({
