@@ -121,17 +121,13 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     nightTex.colorSpace = THREE.SRGBColorSpace;
 
     const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 96, 96);
-    const earthMat = new THREE.MeshPhongMaterial({
+    const earthMat = new THREE.MeshLambertMaterial({
       map: dayTex,
-      bumpMap: bumpTex,
-      bumpScale: 0.015,
-      specular: new THREE.Color(0x4477aa),
-      shininess: 25,
       emissiveMap: nightTex,
-      emissive: new THREE.Color(0xbbd4ee),
-      emissiveIntensity: 0.5,
+      emissive: new THREE.Color(0x99b0c8),
+      emissiveIntensity: 0.35,
     });
-    // Tonemap-style color boost: lighten ocean blue, brighten greens, sand & snow
+    // Painterly palette: deep blue ocean, olive/yellow land, warm deserts
     earthMat.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <map_fragment>",
@@ -139,22 +135,21 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
         #include <map_fragment>
         {
           vec3 c = diffuseColor.rgb;
-          // Detect ocean (blue dominant, low red)
-          float oceanMask = smoothstep(0.0, 0.25, c.b - max(c.r, c.g - 0.05));
-          vec3 oceanTint = mix(c, vec3(0.25, 0.55, 0.78), 0.55);
-          c = mix(c, oceanTint, oceanMask);
-          // Detect land (green dominant) -> brighter & more saturated green
-          float greenMask = smoothstep(0.0, 0.15, c.g - max(c.r, c.b));
-          vec3 greenTint = c * vec3(0.95, 1.25, 0.95) + vec3(0.05, 0.12, 0.05);
-          c = mix(c, greenTint, greenMask * 0.7);
-          // Detect desert/sand (warm yellow-brown) -> lighten
-          float sandMask = smoothstep(0.0, 0.1, min(c.r, c.g) - c.b) * step(0.35, c.r);
-          c = mix(c, c * 1.18 + vec3(0.08, 0.06, 0.03), sandMask * 0.6);
-          // Brighten highlights (mountains/snow)
-          float bright = (c.r + c.g + c.b) / 3.0;
-          c += vec3(smoothstep(0.55, 0.9, bright)) * 0.15;
-          // Global gentle lift
-          c = pow(c, vec3(0.9)) * 1.08;
+          // Ocean: deep navy blue (like reference)
+          float oceanMask = smoothstep(0.0, 0.18, c.b - max(c.r, c.g - 0.04));
+          vec3 oceanTint = vec3(0.04, 0.10, 0.22);
+          c = mix(c, oceanTint, oceanMask * 0.92);
+          // Land green areas -> warmer olive/yellow-green
+          float greenMask = smoothstep(0.0, 0.12, c.g - max(c.r * 0.95, c.b));
+          vec3 greenTint = vec3(0.42, 0.58, 0.18);
+          c = mix(c, greenTint, greenMask * 0.65);
+          // Desert/dry land -> warm sandy yellow
+          float sandMask = smoothstep(0.0, 0.08, min(c.r, c.g) - c.b) * step(0.30, c.r);
+          vec3 sandTint = vec3(0.78, 0.70, 0.38);
+          c = mix(c, sandTint, sandMask * 0.55);
+          // Slight global lift on land only
+          float landMask = 1.0 - oceanMask;
+          c = mix(c, c * 1.12, landMask * 0.5);
           diffuseColor.rgb = clamp(c, 0.0, 1.0);
         }
         `
