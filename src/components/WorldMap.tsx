@@ -131,6 +131,35 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       emissive: new THREE.Color(0xbbd4ee),
       emissiveIntensity: 0.5,
     });
+    // Tonemap-style color boost: lighten ocean blue, brighten greens, sand & snow
+    earthMat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <map_fragment>",
+        `
+        #include <map_fragment>
+        {
+          vec3 c = diffuseColor.rgb;
+          // Detect ocean (blue dominant, low red)
+          float oceanMask = smoothstep(0.0, 0.25, c.b - max(c.r, c.g - 0.05));
+          vec3 oceanTint = mix(c, vec3(0.25, 0.55, 0.78), 0.55);
+          c = mix(c, oceanTint, oceanMask);
+          // Detect land (green dominant) -> brighter & more saturated green
+          float greenMask = smoothstep(0.0, 0.15, c.g - max(c.r, c.b));
+          vec3 greenTint = c * vec3(0.95, 1.25, 0.95) + vec3(0.05, 0.12, 0.05);
+          c = mix(c, greenTint, greenMask * 0.7);
+          // Detect desert/sand (warm yellow-brown) -> lighten
+          float sandMask = smoothstep(0.0, 0.1, min(c.r, c.g) - c.b) * step(0.35, c.r);
+          c = mix(c, c * 1.18 + vec3(0.08, 0.06, 0.03), sandMask * 0.6);
+          // Brighten highlights (mountains/snow)
+          float bright = (c.r + c.g + c.b) / 3.0;
+          c += vec3(smoothstep(0.55, 0.9, bright)) * 0.15;
+          // Global gentle lift
+          c = pow(c, vec3(0.9)) * 1.08;
+          diffuseColor.rgb = clamp(c, 0.0, 1.0);
+        }
+        `
+      );
+    };
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
