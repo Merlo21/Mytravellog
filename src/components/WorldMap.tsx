@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { feature } from "topojson-client";
 import { LocalTrip } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Play, Square, Video, RotateCw } from "lucide-react";
