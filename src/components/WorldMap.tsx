@@ -125,11 +125,11 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       map: dayTex,
       bumpMap: bumpTex,
       bumpScale: 0.015,
-      specular: new THREE.Color(0x223344),
-      shininess: 18,
+      specular: new THREE.Color(0x335577),
+      shininess: 22,
       emissiveMap: nightTex,
-      emissive: new THREE.Color(0x88aaff),
-      emissiveIntensity: 0.35,
+      emissive: new THREE.Color(0xaaccff),
+      emissiveIntensity: 0.55,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
@@ -151,7 +151,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       blending: THREE.AdditiveBlending,
       transparent: true,
       uniforms: {
-        glowColor: { value: new THREE.Color(0x4ab3ff) },
+        glowColor: { value: new THREE.Color(0x9fd8ff) },
       },
       vertexShader: `
         varying vec3 vNormal;
@@ -166,8 +166,8 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
         varying vec3 vNormal;
         uniform vec3 glowColor;
         void main() {
-          float intensity = pow(0.62 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.4);
-          gl_FragColor = vec4(glowColor, 1.0) * intensity;
+          float intensity = pow(0.72 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+          gl_FragColor = vec4(glowColor, 1.0) * intensity * 1.4;
         }
       `,
     });
@@ -175,11 +175,14 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     scene.add(atmosphere);
 
     // ---- Lights ----
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
     sun.position.set(5, 3, 5);
     scene.add(sun);
-    const ambient = new THREE.AmbientLight(0x223355, 0.55);
+    const ambient = new THREE.AmbientLight(0x6688bb, 1.1);
     scene.add(ambient);
+    const fill = new THREE.DirectionalLight(0xaaccff, 0.6);
+    fill.position.set(-5, -2, -3);
+    scene.add(fill);
 
     // ---- Stars ----
     const starsGeo = new THREE.BufferGeometry();
