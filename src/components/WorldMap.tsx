@@ -125,11 +125,11 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       map: dayTex,
       bumpMap: bumpTex,
       bumpScale: 0.015,
-      specular: new THREE.Color(0x2a4055),
-      shininess: 20,
+      specular: new THREE.Color(0x4477aa),
+      shininess: 25,
       emissiveMap: nightTex,
-      emissive: new THREE.Color(0x99bbdd),
-      emissiveIntensity: 0.4,
+      emissive: new THREE.Color(0xbbd4ee),
+      emissiveIntensity: 0.5,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
@@ -175,12 +175,12 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     scene.add(atmosphere);
 
     // ---- Lights ----
-    const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+    const sun = new THREE.DirectionalLight(0xffffff, 2.4);
     sun.position.set(5, 3, 5);
     scene.add(sun);
-    const ambient = new THREE.AmbientLight(0x4a6688, 0.7);
+    const ambient = new THREE.AmbientLight(0x88aacc, 1.0);
     scene.add(ambient);
-    const fill = new THREE.DirectionalLight(0x88aacc, 0.35);
+    const fill = new THREE.DirectionalLight(0xaaccee, 0.6);
     fill.position.set(-5, -2, -3);
     scene.add(fill);
 
