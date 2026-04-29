@@ -147,8 +147,8 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
           float sandMask = smoothstep(0.0, 0.05, min(c.r, c.g) - c.b) * smoothstep(0.26, 0.42, c.r);
           float warmth = smoothstep(0.0, 0.18, c.r - c.g);
           float lum = (c.r + c.g + c.b) / 3.0;
-          // Procedural micro-variation using world position noise (cheap hash)
-          vec2 nseed = vUv * vec2(420.0, 220.0);
+          // Procedural micro-variation using map UVs (cheap hash)
+          vec2 nseed = vMapUv * vec2(420.0, 220.0);
           float n1 = fract(sin(dot(floor(nseed), vec2(12.9898, 78.233))) * 43758.5453);
           float n2 = fract(sin(dot(floor(nseed * 0.35), vec2(39.346, 11.135))) * 24634.6345);
           float dunes = mix(n1, n2, 0.5) - 0.5;
