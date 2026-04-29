@@ -125,11 +125,11 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       map: dayTex,
       bumpMap: bumpTex,
       bumpScale: 0.015,
-      specular: new THREE.Color(0x335577),
-      shininess: 22,
+      specular: new THREE.Color(0x2a4055),
+      shininess: 20,
       emissiveMap: nightTex,
-      emissive: new THREE.Color(0xaaccff),
-      emissiveIntensity: 0.55,
+      emissive: new THREE.Color(0x99bbdd),
+      emissiveIntensity: 0.4,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
@@ -151,7 +151,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       blending: THREE.AdditiveBlending,
       transparent: true,
       uniforms: {
-        glowColor: { value: new THREE.Color(0x9fd8ff) },
+        glowColor: { value: new THREE.Color(0x7ec4ff) },
       },
       vertexShader: `
         varying vec3 vNormal;
@@ -166,8 +166,8 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
         varying vec3 vNormal;
         uniform vec3 glowColor;
         void main() {
-          float intensity = pow(0.72 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-          gl_FragColor = vec4(glowColor, 1.0) * intensity * 1.4;
+          float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.3);
+          gl_FragColor = vec4(glowColor, 1.0) * intensity * 1.0;
         }
       `,
     });
@@ -175,12 +175,12 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     scene.add(atmosphere);
 
     // ---- Lights ----
-    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.8);
     sun.position.set(5, 3, 5);
     scene.add(sun);
-    const ambient = new THREE.AmbientLight(0x6688bb, 1.1);
+    const ambient = new THREE.AmbientLight(0x4a6688, 0.7);
     scene.add(ambient);
-    const fill = new THREE.DirectionalLight(0xaaccff, 0.6);
+    const fill = new THREE.DirectionalLight(0x88aacc, 0.35);
     fill.position.set(-5, -2, -3);
     scene.add(fill);
 
