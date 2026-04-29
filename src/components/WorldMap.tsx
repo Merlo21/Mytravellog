@@ -143,13 +143,28 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
           float greenMask = smoothstep(0.0, 0.12, c.g - max(c.r * 0.95, c.b));
           vec3 greenTint = vec3(0.42, 0.58, 0.18);
           c = mix(c, greenTint, greenMask * 0.65);
-          // Desert/dry land -> luminous warm sand with subtle variation
-          float sandMask = smoothstep(0.0, 0.06, min(c.r, c.g) - c.b) * smoothstep(0.28, 0.45, c.r);
-          float warmth = smoothstep(0.0, 0.15, c.r - c.g);
-          vec3 sandLight = vec3(0.92, 0.82, 0.52);
-          vec3 sandDeep  = vec3(0.82, 0.62, 0.30);
-          vec3 sandTint = mix(sandLight, sandDeep, warmth);
-          c = mix(c, sandTint, sandMask * 0.78);
+          // Desert/dry land -> realistic sand with multi-tone variation
+          float sandMask = smoothstep(0.0, 0.05, min(c.r, c.g) - c.b) * smoothstep(0.26, 0.42, c.r);
+          float warmth = smoothstep(0.0, 0.18, c.r - c.g);
+          float lum = (c.r + c.g + c.b) / 3.0;
+          // Procedural micro-variation using world position noise (cheap hash)
+          vec2 nseed = vUv * vec2(420.0, 220.0);
+          float n1 = fract(sin(dot(floor(nseed), vec2(12.9898, 78.233))) * 43758.5453);
+          float n2 = fract(sin(dot(floor(nseed * 0.35), vec2(39.346, 11.135))) * 24634.6345);
+          float dunes = mix(n1, n2, 0.5) - 0.5;
+          // Palette stops: bright bone-white sand, golden, warm ocra, dry rust
+          vec3 sandPale  = vec3(0.96, 0.90, 0.72);
+          vec3 sandGold  = vec3(0.90, 0.78, 0.46);
+          vec3 sandOcra  = vec3(0.80, 0.58, 0.28);
+          vec3 sandDry   = vec3(0.62, 0.42, 0.20);
+          vec3 sandTint = mix(sandPale, sandGold, smoothstep(0.0, 0.5, warmth));
+          sandTint = mix(sandTint, sandOcra, smoothstep(0.4, 0.85, warmth));
+          sandTint = mix(sandTint, sandDry, smoothstep(0.75, 1.0, warmth) * 0.7);
+          // Brighten flat bright zones (dune crests), darken slightly the troughs
+          sandTint *= 1.0 + dunes * 0.18;
+          // Highlight luminous bright sand
+          sandTint = mix(sandTint, sandPale, smoothstep(0.55, 0.85, lum) * 0.45);
+          c = mix(c, sandTint, sandMask * 0.85);
           // Slight global lift on land only
           float landMask = 1.0 - oceanMask;
           c = mix(c, c * 1.12, landMask * 0.5);
