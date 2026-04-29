@@ -143,10 +143,13 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
           float greenMask = smoothstep(0.0, 0.12, c.g - max(c.r * 0.95, c.b));
           vec3 greenTint = vec3(0.42, 0.58, 0.18);
           c = mix(c, greenTint, greenMask * 0.65);
-          // Desert/dry land -> warm sandy yellow
-          float sandMask = smoothstep(0.0, 0.08, min(c.r, c.g) - c.b) * step(0.30, c.r);
-          vec3 sandTint = vec3(0.78, 0.70, 0.38);
-          c = mix(c, sandTint, sandMask * 0.55);
+          // Desert/dry land -> luminous warm sand with subtle variation
+          float sandMask = smoothstep(0.0, 0.06, min(c.r, c.g) - c.b) * smoothstep(0.28, 0.45, c.r);
+          float warmth = smoothstep(0.0, 0.15, c.r - c.g);
+          vec3 sandLight = vec3(0.92, 0.82, 0.52);
+          vec3 sandDeep  = vec3(0.82, 0.62, 0.30);
+          vec3 sandTint = mix(sandLight, sandDeep, warmth);
+          c = mix(c, sandTint, sandMask * 0.78);
           // Slight global lift on land only
           float landMask = 1.0 - oceanMask;
           c = mix(c, c * 1.12, landMask * 0.5);
