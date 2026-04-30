@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Compass } from "lucide-react";
 import { LocalTrip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
+import { ContinentsMap } from "@/components/ContinentsMap";
 
 const Stats = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
