@@ -29,8 +29,6 @@ export function StatsSection({ trips }: Props) {
 
   const visible = showAll ? countries : countries.slice(0, 8);
 
-  if (count === 0) return null;
-
   return (
     <section className="mb-8 animate-fade-up">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -50,25 +48,31 @@ export function StatsSection({ trips }: Props) {
 
       <div>
         <h2 className="text-lg font-bold mb-3">Elenco dei paesi</h2>
-        <div className="flex flex-wrap gap-2">
-          {visible.map((c) => (
-            <div
-              key={c.name}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border hover:border-primary/40 transition-colors"
-            >
-              <span className="text-base leading-none">{countryFlag(c.code)}</span>
-              <span className="text-sm font-medium">{c.name}</span>
-            </div>
-          ))}
-          {countries.length > 8 && (
-            <button
-              onClick={() => setShowAll((v) => !v)}
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-muted/40 border border-border text-sm font-semibold text-primary hover:bg-muted/60 transition-colors"
-            >
-              {showAll ? "Mostra meno" : `Mostra tutto (${countries.length})`}
-            </button>
-          )}
-        </div>
+        {countries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nessun paese ancora. Aggiungi il tuo primo viaggio per popolare le statistiche.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {visible.map((c) => (
+              <div
+                key={c.name}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border hover:border-primary/40 transition-colors"
+              >
+                <span className="text-base leading-none">{countryFlag(c.code)}</span>
+                <span className="text-sm font-medium">{c.name}</span>
+              </div>
+            ))}
+            {countries.length > 8 && (
+              <button
+                onClick={() => setShowAll((v) => !v)}
+                className="inline-flex items-center px-3 py-1.5 rounded-full bg-muted/40 border border-border text-sm font-semibold text-primary hover:bg-muted/60 transition-colors"
+              >
+                {showAll ? "Mostra meno" : `Mostra tutto (${countries.length})`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
