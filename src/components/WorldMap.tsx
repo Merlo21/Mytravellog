@@ -297,6 +297,26 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     labelsRoot.style.overflow = "hidden";
     container.appendChild(labelsRoot);
 
+    // ---- Hover tooltip ----
+    const tooltip = document.createElement("div");
+    tooltip.style.position = "absolute";
+    tooltip.style.pointerEvents = "none";
+    tooltip.style.padding = "8px 10px";
+    tooltip.style.borderRadius = "10px";
+    tooltip.style.fontSize = "11px";
+    tooltip.style.fontFamily = "ui-monospace, monospace";
+    tooltip.style.color = "#e6f8ff";
+    tooltip.style.background = "rgba(4,17,31,0.92)";
+    tooltip.style.backdropFilter = "blur(8px)";
+    tooltip.style.border = "1px solid rgba(34,211,238,0.45)";
+    tooltip.style.boxShadow = "0 8px 28px rgba(0,0,0,0.45)";
+    tooltip.style.transform = "translate(12px, -50%)";
+    tooltip.style.opacity = "0";
+    tooltip.style.transition = "opacity 0.15s";
+    tooltip.style.whiteSpace = "nowrap";
+    tooltip.style.zIndex = "500";
+    container.appendChild(tooltip);
+
     // ---- Pointer interaction ----
     const raycaster = new THREE.Raycaster();
     const onPointerDown = (e: PointerEvent) => {
