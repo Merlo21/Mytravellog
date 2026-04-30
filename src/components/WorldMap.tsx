@@ -531,6 +531,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       renderer.domElement.removeEventListener("click", onClick);
       labelEls.forEach((el) => el.remove());
       labelsRoot.remove();
+      tooltip.remove();
       renderer.dispose();
       container.removeChild(renderer.domElement);
     };
