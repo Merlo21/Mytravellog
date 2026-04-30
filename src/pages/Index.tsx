@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { LocalTrip, loadTrips } from "@/lib/storage";
 import { WorldMap } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { StatsSection } from "@/components/StatsSection";
-import { Compass, Globe, MapPin, Plane } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart } from "lucide-react";
 
 const Index = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
