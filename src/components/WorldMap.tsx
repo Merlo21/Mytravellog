@@ -94,6 +94,8 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
   const orderedTrips = useMemo(() => chronological(trips), [trips]);
   const onSelectRef = useRef(onSelectTrip);
   useEffect(() => { onSelectRef.current = onSelectTrip; }, [onSelectTrip]);
+  const tripsRef = useRef(trips);
+  useEffect(() => { tripsRef.current = trips; }, [trips]);
 
   // ---- init scene once ----
   useEffect(() => {
