@@ -40,8 +40,16 @@ const Index = () => {
               </p>
             </div>
           </div>
-          <NewTripDialog onCreated={refresh} defaultHome={defaultHome} />
-        </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/statistiche"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
+            >
+              <PieChart className="w-4 h-4 text-primary" />
+              Statistiche
+            </Link>
+            <NewTripDialog onCreated={refresh} defaultHome={defaultHome} />
+          </div>
       </header>
 
       <div className="container mx-auto px-6 py-8">
