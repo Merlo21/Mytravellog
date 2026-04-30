@@ -87,9 +87,9 @@ export function ContinentsMap({ trips }: Props) {
 
   return (
     <div className="glass-card p-5 animate-fade-up">
-      <h2 className="text-lg font-bold mb-4">Mappa del mondo</h2>
+      <h2 className="text-lg font-bold mb-4 text-foreground">Mappa del mondo</h2>
 
-      <div className="w-full">
+      <div className="w-full rounded-xl bg-white p-3">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
@@ -97,7 +97,7 @@ export function ContinentsMap({ trips }: Props) {
           role="img"
           aria-label="Mappa dei continenti visitati"
         >
-          <rect x={0} y={0} width={W} height={H} fill="transparent" />
+          <rect x={0} y={0} width={W} height={H} fill="#ffffff" />
           {countries.map((c) => {
             const cont = classifyContinent(c.centroid[1], c.centroid[0]);
             const isVisited = cont ? visited.has(cont) : false;
@@ -105,33 +105,13 @@ export function ContinentsMap({ trips }: Props) {
               <path
                 key={c.id}
                 d={c.path}
-                fill={isVisited ? "hsl(var(--primary))" : "hsl(var(--muted))"}
-                stroke="hsl(var(--background))"
-                strokeWidth={0.4}
-                opacity={isVisited ? 0.95 : 0.55}
+                fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
+                stroke="#ffffff"
+                strokeWidth={0.5}
+                strokeLinejoin="round"
               />
             );
           })}
-
-          {tripPoints.map((m) => (
-            <g key={m.id}>
-              <circle
-                cx={m.p[0]}
-                cy={m.p[1]}
-                r={4.5}
-                fill="hsl(var(--primary))"
-                opacity={0.25}
-              />
-              <circle
-                cx={m.p[0]}
-                cy={m.p[1]}
-                r={2}
-                fill="hsl(var(--primary))"
-                stroke="hsl(var(--background))"
-                strokeWidth={0.6}
-              />
-            </g>
-          ))}
         </svg>
       </div>
 
