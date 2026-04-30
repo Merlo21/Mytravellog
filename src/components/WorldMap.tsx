@@ -326,14 +326,63 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       (e.target as Element).setPointerCapture?.(e.pointerId);
     };
     const onPointerMove = (e: PointerEvent) => {
-      if (!stateRef.current.isDragging || !stateRef.current.lastPointer) return;
-      const dx = e.clientX - stateRef.current.lastPointer.x;
-      const dy = e.clientY - stateRef.current.lastPointer.y;
-      stateRef.current.rotation.y += dx * 0.005;
-      stateRef.current.rotation.x += dy * 0.005;
-      stateRef.current.rotation.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, stateRef.current.rotation.x));
-      stateRef.current.rotVelocity = { x: dy * 0.005, y: dx * 0.005 };
-      stateRef.current.lastPointer = { x: e.clientX, y: e.clientY };
+      if (stateRef.current.isDragging && stateRef.current.lastPointer) {
+        const dx = e.clientX - stateRef.current.lastPointer.x;
+        const dy = e.clientY - stateRef.current.lastPointer.y;
+        stateRef.current.rotation.y += dx * 0.005;
+        stateRef.current.rotation.x += dy * 0.005;
+        stateRef.current.rotation.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, stateRef.current.rotation.x));
+        stateRef.current.rotVelocity = { x: dy * 0.005, y: dx * 0.005 };
+        stateRef.current.lastPointer = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (
+        e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top || e.clientY > rect.bottom
+      ) {
+        tooltip.style.opacity = "0";
+        renderer.domElement.style.cursor = "grab";
+        return;
+      }
+      const ndc = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(markersGroup.children, false);
+      const first = hits[0];
+      const id = (first?.object as any)?.userData?.tripId;
+      const homeHit = (first?.object as any)?.userData?.labelId === "home";
+      if (id) {
+        const t = tripsRef.current.find((x) => x.id === id);
+        if (t) {
+          const tempStr = t.temperature_c != null ? `${Math.round(t.temperature_c)}°C` : "—";
+          const altStr = t.altitude_m != null ? `${Math.round(t.altitude_m)} m` : "—";
+          tooltip.innerHTML = `
+            <div style="font-weight:700;color:#5eead4;margin-bottom:4px;font-size:12px;">${t.city}</div>
+            <div style="color:#94a3b8;font-size:10px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">${t.country}</div>
+            <div style="display:flex;gap:10px;">
+              <div><span style="color:#94a3b8;">🌡 </span><strong>${tempStr}</strong></div>
+              <div><span style="color:#94a3b8;">⛰ </span><strong>${altStr}</strong></div>
+            </div>`;
+          tooltip.style.left = `${e.clientX - rect.left}px`;
+          tooltip.style.top = `${e.clientY - rect.top}px`;
+          tooltip.style.opacity = "1";
+          renderer.domElement.style.cursor = "pointer";
+          return;
+        }
+      } else if (homeHit) {
+        const home = tripsRef.current[0];
+        tooltip.innerHTML = `<div style="font-weight:700;color:#fbbf24;">🏠 ${home?.home_label || "Casa"}</div>`;
+        tooltip.style.left = `${e.clientX - rect.left}px`;
+        tooltip.style.top = `${e.clientY - rect.top}px`;
+        tooltip.style.opacity = "1";
+        renderer.domElement.style.cursor = "pointer";
+        return;
+      }
+      tooltip.style.opacity = "0";
+      renderer.domElement.style.cursor = "grab";
     };
     const onPointerUp = () => { stateRef.current.isDragging = false; };
     const onWheel = (e: WheelEvent) => {
@@ -352,7 +401,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const first = hits[0];
       const id = (first?.object as any)?.userData?.tripId;
       if (id) {
-        const t = trips.find((x) => x.id === id);
+        const t = tripsRef.current.find((x) => x.id === id);
         if (t && onSelectRef.current) onSelectRef.current(t);
       }
     };
