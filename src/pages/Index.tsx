@@ -50,6 +50,7 @@ const Index = () => {
             </Link>
             <NewTripDialog onCreated={refresh} defaultHome={defaultHome} />
           </div>
+        </div>
       </header>
 
       <div className="container mx-auto px-6 py-8">
@@ -59,8 +60,6 @@ const Index = () => {
           <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
           <StatCard icon={<Compass />} label="Km totali" value={stats.km.toLocaleString("it-IT")} accent="accent" />
         </section>
-
-        <StatsSection trips={trips} />
 
         <section className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
           <div className="h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
