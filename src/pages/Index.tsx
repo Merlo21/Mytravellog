@@ -52,6 +52,8 @@ const Index = () => {
           <StatCard icon={<Compass />} label="Km totali" value={stats.km.toLocaleString("it-IT")} accent="accent" />
         </section>
 
+        <StatsSection trips={trips} />
+
         <section className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
           <div className="h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
             <WorldMap
