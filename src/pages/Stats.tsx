@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Compass } from "lucide-react";
 import { LocalTrip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
+import { ContinentsMap } from "@/components/ContinentsMap";
 
 const Stats = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
@@ -36,8 +37,9 @@ const Stats = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-8 space-y-8">
         <StatsSection trips={trips} />
+        <ContinentsMap trips={trips} />
       </div>
     </main>
   );
