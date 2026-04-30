@@ -3,6 +3,7 @@ import { LocalTrip, loadTrips } from "@/lib/storage";
 import { WorldMap } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
+import { StatsSection } from "@/components/StatsSection";
 import { Compass, Globe, MapPin, Plane } from "lucide-react";
 
 const Index = () => {
