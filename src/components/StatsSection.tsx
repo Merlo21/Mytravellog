@@ -29,8 +29,6 @@ export function StatsSection({ trips }: Props) {
 
   const visible = showAll ? countries : countries.slice(0, 8);
 
-  if (count === 0) return null;
-
   return (
     <section className="mb-8 animate-fade-up">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
