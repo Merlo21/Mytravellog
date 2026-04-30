@@ -37,8 +37,9 @@ const Stats = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container mx-auto px-6 py-8 space-y-8">
         <StatsSection trips={trips} />
+        <ContinentsMap trips={trips} />
       </div>
     </main>
   );
