@@ -15,12 +15,14 @@ export function StatsSection({ trips }: Props) {
   const [showAll, setShowAll] = useState(false);
 
   const countries = useMemo(() => {
-    const map = new Map<string, { name: string; code?: string }>();
+    const map = new Map<string, { name: string; code?: string; visits: number }>();
     for (const t of trips) {
       const key = t.country_code || t.country;
-      if (!map.has(key)) map.set(key, { name: t.country, code: t.country_code });
+      const existing = map.get(key);
+      if (existing) existing.visits += 1;
+      else map.set(key, { name: t.country, code: t.country_code, visits: 1 });
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "it"));
+    return Array.from(map.values()).sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name, "it"));
   }, [trips]);
 
   const count = countries.length;
