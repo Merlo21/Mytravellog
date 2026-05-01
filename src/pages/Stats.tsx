@@ -4,6 +4,7 @@ import { ArrowLeft, Compass } from "lucide-react";
 import { LocalTrip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
 import { ContinentsMap } from "@/components/ContinentsMap";
+import { TravelHighlights } from "@/components/TravelHighlights";
 
 const Stats = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
