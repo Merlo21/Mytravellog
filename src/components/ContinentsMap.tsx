@@ -132,7 +132,7 @@ export function ContinentsMap({ trips }: Props) {
 
       <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
         {CONTINENTS.map((c) => {
-          const v = visited.has(c);
+          const v = visitedContinents.has(c);
           return (
             <div
               key={c}
