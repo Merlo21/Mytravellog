@@ -188,3 +188,37 @@ function polyCentroid(geom: any): [number, number] {
   for (const [x, y] of coords) { lon += x; lat += y; }
   return [lon / coords.length, lat / coords.length];
 }
+
+function extractPolygons(geom: any): number[][][][] {
+  if (!geom) return [];
+  if (geom.type === "Polygon") return [geom.coordinates];
+  if (geom.type === "MultiPolygon") return geom.coordinates;
+  return [];
+}
+
+function pointInRing(lon: number, lat: number, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersect =
+      (yi > lat) !== (yj > lat) &&
+      lon < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInCountry(lon: number, lat: number, polygons: number[][][][]): boolean {
+  for (const poly of polygons) {
+    if (!poly.length) continue;
+    if (pointInRing(lon, lat, poly[0])) {
+      let inHole = false;
+      for (let h = 1; h < poly.length; h++) {
+        if (pointInRing(lon, lat, poly[h])) { inHole = true; break; }
+      }
+      if (!inHole) return true;
+    }
+  }
+  return false;
+}
