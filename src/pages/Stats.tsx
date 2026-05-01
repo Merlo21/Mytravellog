@@ -4,6 +4,7 @@ import { ArrowLeft, Compass } from "lucide-react";
 import { LocalTrip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
 import { ContinentsMap } from "@/components/ContinentsMap";
+import { TravelHighlights } from "@/components/TravelHighlights";
 
 const Stats = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
@@ -40,6 +41,7 @@ const Stats = () => {
       <div className="container mx-auto px-6 py-8 space-y-8">
         <StatsSection trips={trips} />
         <ContinentsMap trips={trips} />
+        <TravelHighlights trips={trips} />
       </div>
     </main>
   );
