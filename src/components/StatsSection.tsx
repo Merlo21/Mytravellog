@@ -15,12 +15,14 @@ export function StatsSection({ trips }: Props) {
   const [showAll, setShowAll] = useState(false);
 
   const countries = useMemo(() => {
-    const map = new Map<string, { name: string; code?: string }>();
+    const map = new Map<string, { name: string; code?: string; visits: number }>();
     for (const t of trips) {
       const key = t.country_code || t.country;
-      if (!map.has(key)) map.set(key, { name: t.country, code: t.country_code });
+      const existing = map.get(key);
+      if (existing) existing.visits += 1;
+      else map.set(key, { name: t.country, code: t.country_code, visits: 1 });
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "it"));
+    return Array.from(map.values()).sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name, "it"));
   }, [trips]);
 
   const count = countries.length;
@@ -61,6 +63,9 @@ export function StatsSection({ trips }: Props) {
               >
                 <span className="text-base leading-none">{countryFlag(c.code)}</span>
                 <span className="text-sm font-medium">{c.name}</span>
+                <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                  {c.visits}
+                </span>
               </div>
             ))}
             {countries.length > 8 && (
