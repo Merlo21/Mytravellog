@@ -30,12 +30,16 @@ function classifyContinent(lat: number, lon: number): Continent | null {
 }
 
 const W = 720;
-const H = 360;
+const H = 460;
+// Crop the poles (Antarctica + extreme north) so landmasses look natural,
+// not stretched. Latitudes outside this range are clipped to the edges.
+const LAT_MAX = 83;
+const LAT_MIN = -58;
 
 function project(lon: number, lat: number): [number, number] {
-  // Equirectangular
   const x = ((lon + 180) / 360) * W;
-  const y = ((90 - lat) / 180) * H;
+  const clamped = Math.max(LAT_MIN, Math.min(LAT_MAX, lat));
+  const y = ((LAT_MAX - clamped) / (LAT_MAX - LAT_MIN)) * H;
   return [x, y];
 }
 
