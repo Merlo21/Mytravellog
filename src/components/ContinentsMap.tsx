@@ -29,8 +29,8 @@ function classifyContinent(lat: number, lon: number): Continent | null {
   return null;
 }
 
-const W = 720;
-const H = 460;
+const W = 450;
+const H = 281;
 // Crop the poles (Antarctica + extreme north) so landmasses look natural,
 // not stretched. Latitudes outside this range are clipped to the edges.
 const LAT_MAX = 83;
