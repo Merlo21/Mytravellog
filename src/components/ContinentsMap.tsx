@@ -51,6 +51,7 @@ type CountryFeat = {
   id: string;
   path: string;
   centroid: [number, number]; // lon, lat
+  polygons: number[][][][]; // list of polygons; each polygon = list of rings of [lon,lat]
 };
 
 export function ContinentsMap({ trips }: Props) {
@@ -67,7 +68,8 @@ export function ContinentsMap({ trips }: Props) {
         const feats: CountryFeat[] = geo.features.map((f: any) => {
           const path = geoToPath(f.geometry);
           const c = polyCentroid(f.geometry);
-          return { id: String(f.id), path, centroid: c };
+          const polygons = extractPolygons(f.geometry);
+          return { id: String(f.id), path, centroid: c, polygons };
         });
         setCountries(feats);
       })
@@ -75,7 +77,7 @@ export function ContinentsMap({ trips }: Props) {
     return () => { cancelled = true; };
   }, []);
 
-  const visited = useMemo(() => {
+  const visitedContinents = useMemo(() => {
     const set = new Set<Continent>();
     for (const t of trips) {
       const c = classifyContinent(t.latitude, t.longitude);
@@ -84,10 +86,19 @@ export function ContinentsMap({ trips }: Props) {
     return set;
   }, [trips]);
 
-  const tripPoints = useMemo(
-    () => trips.map((t) => ({ id: t.id, p: project(t.longitude, t.latitude), city: t.city })),
-    [trips]
-  );
+  const visitedCountryIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!countries.length) return set;
+    for (const t of trips) {
+      for (const c of countries) {
+        if (pointInCountry(t.longitude, t.latitude, c.polygons)) {
+          set.add(c.id);
+          break;
+        }
+      }
+    }
+    return set;
+  }, [trips, countries]);
 
   return (
     <div className="glass-card p-5 animate-fade-up">
@@ -99,12 +110,11 @@ export function ContinentsMap({ trips }: Props) {
           viewBox={`0 0 ${W} ${H}`}
           className="w-full h-auto block"
           role="img"
-          aria-label="Mappa dei continenti visitati"
+          aria-label="Mappa dei paesi visitati"
         >
           <rect x={0} y={0} width={W} height={H} fill="#ffffff" />
           {countries.map((c) => {
-            const cont = classifyContinent(c.centroid[1], c.centroid[0]);
-            const isVisited = cont ? visited.has(cont) : false;
+            const isVisited = visitedCountryIds.has(c.id);
             return (
               <path
                 key={c.id}
@@ -119,9 +129,10 @@ export function ContinentsMap({ trips }: Props) {
         </svg>
       </div>
 
+
       <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
         {CONTINENTS.map((c) => {
-          const v = visited.has(c);
+          const v = visitedContinents.has(c);
           return (
             <div
               key={c}
@@ -176,4 +187,38 @@ function polyCentroid(geom: any): [number, number] {
   let lon = 0, lat = 0;
   for (const [x, y] of coords) { lon += x; lat += y; }
   return [lon / coords.length, lat / coords.length];
+}
+
+function extractPolygons(geom: any): number[][][][] {
+  if (!geom) return [];
+  if (geom.type === "Polygon") return [geom.coordinates];
+  if (geom.type === "MultiPolygon") return geom.coordinates;
+  return [];
+}
+
+function pointInRing(lon: number, lat: number, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersect =
+      (yi > lat) !== (yj > lat) &&
+      lon < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInCountry(lon: number, lat: number, polygons: number[][][][]): boolean {
+  for (const poly of polygons) {
+    if (!poly.length) continue;
+    if (pointInRing(lon, lat, poly[0])) {
+      let inHole = false;
+      for (let h = 1; h < poly.length; h++) {
+        if (pointInRing(lon, lat, poly[h])) { inHole = true; break; }
+      }
+      if (!inHole) return true;
+    }
+  }
+  return false;
 }
