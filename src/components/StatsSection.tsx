@@ -30,15 +30,18 @@ export function StatsSection({ trips }: Props) {
 
 
   const countries = useMemo(() => {
-    const map = new Map<string, { name: string; code?: string; visits: number }>();
+    const map = new Map<string, { key: string; name: string; code?: string; visits: number }>();
     for (const t of trips) {
       const key = t.country_code || t.country;
       const existing = map.get(key);
       if (existing) existing.visits += 1;
-      else map.set(key, { name: t.country, code: t.country_code, visits: 1 });
+      else map.set(key, { key, name: t.country, code: t.country_code, visits: 1 });
     }
     return Array.from(map.values()).sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name, "it"));
   }, [trips]);
+
+  const selectedCountry = selectedKey ? countries.find((c) => c.key === selectedKey) ?? null : null;
+  const selectedTrips = selectedKey ? (tripsByCountry.get(selectedKey) ?? []).slice().sort((a, b) => b.trip_date.localeCompare(a.trip_date)) : [];
 
   const count = countries.length;
   const percent = Math.min(100, (count / TOTAL_COUNTRIES) * 100);
