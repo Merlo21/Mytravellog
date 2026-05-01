@@ -99,8 +99,64 @@ export function StatsSection({ trips }: Props) {
           </div>
         )}
       </div>
+
+      <Dialog open={!!selectedCountry} onOpenChange={(o) => !o && setSelectedKey(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <span className="text-2xl leading-none">{countryFlag(selectedCountry?.code)}</span>
+              <span>{selectedCountry?.name}</span>
+              <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                {selectedTrips.length} {selectedTrips.length === 1 ? "viaggio" : "viaggi"}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+            {selectedTrips.map((t) => (
+              <div key={t.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-semibold">{t.title}</div>
+                  <div className="inline-flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    {formatDateIt(t.trip_date)}
+                  </div>
+                </div>
+                <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="w-3.5 h-3.5" /> {t.city}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Route className="w-4 h-4 text-primary" />
+                    <span className="font-semibold">
+                      {t.distance_from_home_km != null
+                        ? `${Math.round(t.distance_from_home_km).toLocaleString("it-IT")} km`
+                        : "—"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">da casa</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mountain className="w-4 h-4 text-emerald-500" />
+                    <span className="font-semibold">
+                      {t.altitude_m != null ? `${Math.round(t.altitude_m).toLocaleString("it-IT")} m` : "—"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">altitudine</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
+}
+
+function formatDateIt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return iso;
+  }
 }
 
 function StatHero({
