@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { LocalTrip } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CalendarDays, Route, Mountain, MapPin } from "lucide-react";
 import earthImg from "@/assets/stat-earth.jpg";
 import forestImg from "@/assets/stat-forest.jpg";
 
@@ -13,17 +15,33 @@ interface Props {
 
 export function StatsSection({ trips }: Props) {
   const [showAll, setShowAll] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  const tripsByCountry = useMemo(() => {
+    const map = new Map<string, LocalTrip[]>();
+    for (const t of trips) {
+      const key = t.country_code || t.country;
+      const arr = map.get(key) ?? [];
+      arr.push(t);
+      map.set(key, arr);
+    }
+    return map;
+  }, [trips]);
+
 
   const countries = useMemo(() => {
-    const map = new Map<string, { name: string; code?: string; visits: number }>();
+    const map = new Map<string, { key: string; name: string; code?: string; visits: number }>();
     for (const t of trips) {
       const key = t.country_code || t.country;
       const existing = map.get(key);
       if (existing) existing.visits += 1;
-      else map.set(key, { name: t.country, code: t.country_code, visits: 1 });
+      else map.set(key, { key, name: t.country, code: t.country_code, visits: 1 });
     }
     return Array.from(map.values()).sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name, "it"));
   }, [trips]);
+
+  const selectedCountry = selectedKey ? countries.find((c) => c.key === selectedKey) ?? null : null;
+  const selectedTrips = selectedKey ? (tripsByCountry.get(selectedKey) ?? []).slice().sort((a, b) => b.trip_date.localeCompare(a.trip_date)) : [];
 
   const count = countries.length;
   const percent = Math.min(100, (count / TOTAL_COUNTRIES) * 100);
@@ -57,16 +75,18 @@ export function StatsSection({ trips }: Props) {
         ) : (
           <div className="flex flex-wrap gap-2">
             {visible.map((c) => (
-              <div
-                key={c.name}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border hover:border-primary/40 transition-colors"
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setSelectedKey(c.key)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border hover:border-primary/40 hover:bg-muted/60 transition-colors cursor-pointer"
               >
                 <span className="text-base leading-none">{countryFlag(c.code)}</span>
                 <span className="text-sm font-medium">{c.name}</span>
                 <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
                   {c.visits}
                 </span>
-              </div>
+              </button>
             ))}
             {countries.length > 8 && (
               <button
@@ -79,8 +99,64 @@ export function StatsSection({ trips }: Props) {
           </div>
         )}
       </div>
+
+      <Dialog open={!!selectedCountry} onOpenChange={(o) => !o && setSelectedKey(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <span className="text-2xl leading-none">{countryFlag(selectedCountry?.code)}</span>
+              <span>{selectedCountry?.name}</span>
+              <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                {selectedTrips.length} {selectedTrips.length === 1 ? "viaggio" : "viaggi"}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+            {selectedTrips.map((t) => (
+              <div key={t.id} className="rounded-xl border border-border bg-muted/30 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-semibold">{t.title}</div>
+                  <div className="inline-flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    {formatDateIt(t.trip_date)}
+                  </div>
+                </div>
+                <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="w-3.5 h-3.5" /> {t.city}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Route className="w-4 h-4 text-primary" />
+                    <span className="font-semibold">
+                      {t.distance_from_home_km != null
+                        ? `${Math.round(t.distance_from_home_km).toLocaleString("it-IT")} km`
+                        : "—"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">da casa</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mountain className="w-4 h-4 text-emerald-500" />
+                    <span className="font-semibold">
+                      {t.altitude_m != null ? `${Math.round(t.altitude_m).toLocaleString("it-IT")} m` : "—"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">altitudine</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
+}
+
+function formatDateIt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return iso;
+  }
 }
 
 function StatHero({
