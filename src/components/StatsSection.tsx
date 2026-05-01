@@ -15,6 +15,19 @@ interface Props {
 
 export function StatsSection({ trips }: Props) {
   const [showAll, setShowAll] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  const tripsByCountry = useMemo(() => {
+    const map = new Map<string, LocalTrip[]>();
+    for (const t of trips) {
+      const key = t.country_code || t.country;
+      const arr = map.get(key) ?? [];
+      arr.push(t);
+      map.set(key, arr);
+    }
+    return map;
+  }, [trips]);
+
 
   const countries = useMemo(() => {
     const map = new Map<string, { name: string; code?: string; visits: number }>();
