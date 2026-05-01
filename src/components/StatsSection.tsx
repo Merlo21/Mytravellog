@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { LocalTrip } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CalendarDays, Route, Mountain, MapPin } from "lucide-react";
 import earthImg from "@/assets/stat-earth.jpg";
 import forestImg from "@/assets/stat-forest.jpg";
 
