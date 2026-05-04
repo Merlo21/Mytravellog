@@ -57,57 +57,6 @@ type CountryFeat = {
 export function ContinentsMap({ trips }: Props) {
   const [countries, setCountries] = useState<CountryFeat[]>([]);
   const svgRef = useRef<SVGSVGElement>(null);
-  // Pan/zoom state — viewBox driven
-  const [view, setView] = useState({ x: 0, y: 0, w: W, h: H });
-  const dragRef = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
-
-  const zoom = W / view.w; // 1 = no zoom
-  const showCities = zoom >= 2.2;
-
-  function clamp(v: typeof view) {
-    const w = Math.min(W, Math.max(W / 12, v.w));
-    const h = (w * H) / W;
-    const x = Math.max(0, Math.min(W - w, v.x));
-    const y = Math.max(0, Math.min(H - h, v.y));
-    return { x, y, w, h };
-  }
-
-  function handleWheel(e: React.WheelEvent<SVGSVGElement>) {
-    e.preventDefault();
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width;
-    const py = (e.clientY - rect.top) / rect.height;
-    const factor = e.deltaY < 0 ? 0.85 : 1.18;
-    const newW = view.w * factor;
-    const newH = view.h * factor;
-    const cx = view.x + px * view.w;
-    const cy = view.y + py * view.h;
-    setView(clamp({ x: cx - px * newW, y: cy - py * newH, w: newW, h: newH }));
-  }
-
-  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    dragRef.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
-  }
-  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
-    if (!dragRef.current || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const dx = ((e.clientX - dragRef.current.x) / rect.width) * view.w;
-    const dy = ((e.clientY - dragRef.current.y) / rect.height) * view.h;
-    setView(clamp({ ...view, x: dragRef.current.vx - dx, y: dragRef.current.vy - dy }));
-  }
-  function handlePointerUp() { dragRef.current = null; }
-
-  function zoomBy(factor: number) {
-    const cx = view.x + view.w / 2;
-    const cy = view.y + view.h / 2;
-    const newW = view.w * factor;
-    const newH = view.h * factor;
-    setView(clamp({ x: cx - newW / 2, y: cy - newH / 2, w: newW, h: newH }));
-  }
-  function resetView() { setView({ x: 0, y: 0, w: W, h: H }); }
 
   useEffect(() => {
     let cancelled = false;
@@ -151,40 +100,15 @@ export function ContinentsMap({ trips }: Props) {
     return set;
   }, [trips, countries]);
 
-  // Unique cities (by lat/lon rounded) for marker rendering
-  const cities = useMemo(() => {
-    const map = new Map<string, { lat: number; lon: number; city: string; country: string; count: number }>();
-    for (const t of trips) {
-      const k = `${t.latitude.toFixed(2)},${t.longitude.toFixed(2)}`;
-      const cur = map.get(k);
-      if (cur) cur.count += 1;
-      else map.set(k, { lat: t.latitude, lon: t.longitude, city: t.city, country: t.country, count: 1 });
-    }
-    return [...map.values()];
-  }, [trips]);
-
   return (
     <div className="glass-card p-5 animate-fade-up">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-foreground">Mappa del mondo</h2>
-        <div className="flex items-center gap-1">
-          <button onClick={() => zoomBy(0.8)} className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted text-sm font-bold" aria-label="Zoom in">+</button>
-          <button onClick={() => zoomBy(1.25)} className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted text-sm font-bold" aria-label="Zoom out">−</button>
-          <button onClick={resetView} className="h-8 px-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-semibold" aria-label="Reset">Reset</button>
-        </div>
-      </div>
+      <h2 className="text-lg font-bold mb-4 text-foreground">Mappa del mondo</h2>
 
-      <div className="w-full rounded-xl bg-white p-3 overflow-hidden">
+      <div className="w-full rounded-xl bg-white p-3">
         <svg
           ref={svgRef}
-          viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
-          className="w-full h-auto block touch-none select-none"
-          style={{ cursor: dragRef.current ? "grabbing" : "grab" }}
-          onWheel={handleWheel}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full h-auto block"
           role="img"
           aria-label="Mappa dei paesi visitati"
         >
@@ -197,36 +121,12 @@ export function ContinentsMap({ trips }: Props) {
                 d={c.path}
                 fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
                 stroke="#ffffff"
-                strokeWidth={0.5 / zoom}
+                strokeWidth={0.5}
                 strokeLinejoin="round"
               />
             );
           })}
-          {showCities && cities.map((city, i) => {
-            const [cx, cy] = project(city.lon, city.lat);
-            const r = 2.5 / zoom;
-            return (
-              <g key={i}>
-                <circle cx={cx} cy={cy} r={r * 1.8} fill="#ef4444" fillOpacity={0.25} />
-                <circle cx={cx} cy={cy} r={r} fill="#ef4444" stroke="#ffffff" strokeWidth={0.6 / zoom} />
-                <text
-                  x={cx + r * 1.6}
-                  y={cy + r * 0.8}
-                  fontSize={6 / zoom}
-                  fill="#111827"
-                  style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 1.5 / zoom }}
-                >
-                  {city.city}
-                </text>
-              </g>
-            );
-          })}
         </svg>
-        {!showCities && (
-          <p className="mt-2 text-[11px] text-muted-foreground text-center">
-            Zooma sulla mappa per vedere le città visitate
-          </p>
-        )}
       </div>
 
 
