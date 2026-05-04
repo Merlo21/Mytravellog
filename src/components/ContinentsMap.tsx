@@ -100,40 +100,15 @@ export function ContinentsMap({ trips }: Props) {
     return set;
   }, [trips, countries]);
 
-  // Unique cities (by lat/lon rounded) for marker rendering
-  const cities = useMemo(() => {
-    const map = new Map<string, { lat: number; lon: number; city: string; country: string; count: number }>();
-    for (const t of trips) {
-      const k = `${t.latitude.toFixed(2)},${t.longitude.toFixed(2)}`;
-      const cur = map.get(k);
-      if (cur) cur.count += 1;
-      else map.set(k, { lat: t.latitude, lon: t.longitude, city: t.city, country: t.country, count: 1 });
-    }
-    return [...map.values()];
-  }, [trips]);
-
   return (
     <div className="glass-card p-5 animate-fade-up">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-foreground">Mappa del mondo</h2>
-        <div className="flex items-center gap-1">
-          <button onClick={() => zoomBy(0.8)} className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted text-sm font-bold" aria-label="Zoom in">+</button>
-          <button onClick={() => zoomBy(1.25)} className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted text-sm font-bold" aria-label="Zoom out">−</button>
-          <button onClick={resetView} className="h-8 px-2 rounded-lg bg-muted/60 hover:bg-muted text-xs font-semibold" aria-label="Reset">Reset</button>
-        </div>
-      </div>
+      <h2 className="text-lg font-bold mb-4 text-foreground">Mappa del mondo</h2>
 
-      <div className="w-full rounded-xl bg-white p-3 overflow-hidden">
+      <div className="w-full rounded-xl bg-white p-3">
         <svg
           ref={svgRef}
-          viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
-          className="w-full h-auto block touch-none select-none"
-          style={{ cursor: dragRef.current ? "grabbing" : "grab" }}
-          onWheel={handleWheel}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full h-auto block"
           role="img"
           aria-label="Mappa dei paesi visitati"
         >
@@ -146,36 +121,12 @@ export function ContinentsMap({ trips }: Props) {
                 d={c.path}
                 fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
                 stroke="#ffffff"
-                strokeWidth={0.5 / zoom}
+                strokeWidth={0.5}
                 strokeLinejoin="round"
               />
             );
           })}
-          {showCities && cities.map((city, i) => {
-            const [cx, cy] = project(city.lon, city.lat);
-            const r = 2.5 / zoom;
-            return (
-              <g key={i}>
-                <circle cx={cx} cy={cy} r={r * 1.8} fill="#ef4444" fillOpacity={0.25} />
-                <circle cx={cx} cy={cy} r={r} fill="#ef4444" stroke="#ffffff" strokeWidth={0.6 / zoom} />
-                <text
-                  x={cx + r * 1.6}
-                  y={cy + r * 0.8}
-                  fontSize={6 / zoom}
-                  fill="#111827"
-                  style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 1.5 / zoom }}
-                >
-                  {city.city}
-                </text>
-              </g>
-            );
-          })}
         </svg>
-        {!showCities && (
-          <p className="mt-2 text-[11px] text-muted-foreground text-center">
-            Zooma sulla mappa per vedere le città visitate
-          </p>
-        )}
       </div>
 
 
