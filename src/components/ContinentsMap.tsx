@@ -29,19 +29,26 @@ function classifyContinent(lat: number, lon: number): Continent | null {
   return null;
 }
 
+// Full equirectangular world dimensions (no clamping → no horizontal artifacts)
 const W = 450;
-const H = 281;
-// Crop the poles (Antarctica + extreme north) so landmasses look natural,
-// not stretched. Latitudes outside this range are clipped to the edges.
+// Full world height if we used the entire latitude range -180..180 lon, -90..90 lat
+const FULL_H = W / 2; // = 225
+// We crop the poles via viewBox instead of clamping coordinates.
+// Latitude range we want to display:
 const LAT_MAX = 83;
 const LAT_MIN = -58;
+// Visible height after cropping the poles
+const H = Math.round((FULL_H * (LAT_MAX - LAT_MIN)) / 180); // ~176
 
 function project(lon: number, lat: number): [number, number] {
   const x = ((lon + 180) / 360) * W;
-  const clamped = Math.max(LAT_MIN, Math.min(LAT_MAX, lat));
-  const y = ((LAT_MAX - clamped) / (LAT_MAX - LAT_MIN)) * H;
-  return [x, y];
+  // Map latitude linearly across the full sphere, then we crop via viewBox
+  const yFull = ((90 - lat) / 180) * FULL_H;
+  // Shift so that LAT_MAX becomes y=0 in the cropped viewBox
+  const yOffset = ((90 - LAT_MAX) / 180) * FULL_H;
+  return [x, yFull - yOffset];
 }
+
 
 interface Props {
   trips: LocalTrip[];
@@ -112,20 +119,27 @@ export function ContinentsMap({ trips }: Props) {
           role="img"
           aria-label="Mappa dei paesi visitati"
         >
+          <defs>
+            <clipPath id="map-clip">
+              <rect x={0} y={0} width={W} height={H} />
+            </clipPath>
+          </defs>
           <rect x={0} y={0} width={W} height={H} fill="#ffffff" />
-          {countries.map((c) => {
-            const isVisited = visitedCountryIds.has(c.id);
-            return (
-              <path
-                key={c.id}
-                d={c.path}
-                fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
-                stroke="#ffffff"
-                strokeWidth={0.5}
-                strokeLinejoin="round"
-              />
-            );
-          })}
+          <g clipPath="url(#map-clip)">
+            {countries.map((c) => {
+              const isVisited = visitedCountryIds.has(c.id);
+              return (
+                <path
+                  key={c.id}
+                  d={c.path}
+                  fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
+                  stroke="#ffffff"
+                  strokeWidth={0.5}
+                  strokeLinejoin="round"
+                />
+              );
+            })}
+          </g>
         </svg>
       </div>
 
