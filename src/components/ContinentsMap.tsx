@@ -119,20 +119,27 @@ export function ContinentsMap({ trips }: Props) {
           role="img"
           aria-label="Mappa dei paesi visitati"
         >
+          <defs>
+            <clipPath id="map-clip">
+              <rect x={0} y={0} width={W} height={H} />
+            </clipPath>
+          </defs>
           <rect x={0} y={0} width={W} height={H} fill="#ffffff" />
-          {countries.map((c) => {
-            const isVisited = visitedCountryIds.has(c.id);
-            return (
-              <path
-                key={c.id}
-                d={c.path}
-                fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
-                stroke="#ffffff"
-                strokeWidth={0.5}
-                strokeLinejoin="round"
-              />
-            );
-          })}
+          <g clipPath="url(#map-clip)">
+            {countries.map((c) => {
+              const isVisited = visitedCountryIds.has(c.id);
+              return (
+                <path
+                  key={c.id}
+                  d={c.path}
+                  fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
+                  stroke="#ffffff"
+                  strokeWidth={0.5}
+                  strokeLinejoin="round"
+                />
+              );
+            })}
+          </g>
         </svg>
       </div>
 
