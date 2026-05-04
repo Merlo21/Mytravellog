@@ -459,12 +459,16 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
           labelsRoot.appendChild(el);
           labelEls.set(id, el);
         }
-        if (visible) {
+        // Hide trip labels when zoomed out; fade in as user zooms in. Home label always shown when visible.
+        const isHome = id === "home";
+        const zoomVal = stateRef.current.zoom;
+        const fade = isHome ? 1 : Math.max(0, Math.min(1, (2.4 - zoomVal) / 0.6));
+        if (visible && fade > 0.01) {
           const x = (projected.x * 0.5 + 0.5) * container.clientWidth;
           const y = (-projected.y * 0.5 + 0.5) * container.clientHeight;
           el.style.left = `${x}px`;
           el.style.top = `${y}px`;
-          el.style.opacity = "1";
+          el.style.opacity = String(fade);
         } else {
           el.style.opacity = "0";
         }
