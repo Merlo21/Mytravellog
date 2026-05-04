@@ -57,6 +57,57 @@ type CountryFeat = {
 export function ContinentsMap({ trips }: Props) {
   const [countries, setCountries] = useState<CountryFeat[]>([]);
   const svgRef = useRef<SVGSVGElement>(null);
+  // Pan/zoom state — viewBox driven
+  const [view, setView] = useState({ x: 0, y: 0, w: W, h: H });
+  const dragRef = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
+
+  const zoom = W / view.w; // 1 = no zoom
+  const showCities = zoom >= 2.2;
+
+  function clamp(v: typeof view) {
+    const w = Math.min(W, Math.max(W / 12, v.w));
+    const h = (w * H) / W;
+    const x = Math.max(0, Math.min(W - w, v.x));
+    const y = Math.max(0, Math.min(H - h, v.y));
+    return { x, y, w, h };
+  }
+
+  function handleWheel(e: React.WheelEvent<SVGSVGElement>) {
+    e.preventDefault();
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const factor = e.deltaY < 0 ? 0.85 : 1.18;
+    const newW = view.w * factor;
+    const newH = view.h * factor;
+    const cx = view.x + px * view.w;
+    const cy = view.y + py * view.h;
+    setView(clamp({ x: cx - px * newW, y: cy - py * newH, w: newW, h: newH }));
+  }
+
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+  }
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (!dragRef.current || !svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const dx = ((e.clientX - dragRef.current.x) / rect.width) * view.w;
+    const dy = ((e.clientY - dragRef.current.y) / rect.height) * view.h;
+    setView(clamp({ ...view, x: dragRef.current.vx - dx, y: dragRef.current.vy - dy }));
+  }
+  function handlePointerUp() { dragRef.current = null; }
+
+  function zoomBy(factor: number) {
+    const cx = view.x + view.w / 2;
+    const cy = view.y + view.h / 2;
+    const newW = view.w * factor;
+    const newH = view.h * factor;
+    setView(clamp({ x: cx - newW / 2, y: cy - newH / 2, w: newW, h: newH }));
+  }
+  function resetView() { setView({ x: 0, y: 0, w: W, h: H }); }
 
   useEffect(() => {
     let cancelled = false;
