@@ -56,6 +56,7 @@ interface Props {
 
 type CountryFeat = {
   id: string;
+  name: string;
   path: string;
   centroid: [number, number]; // lon, lat
   polygons: number[][][][]; // list of polygons; each polygon = list of rings of [lon,lat]
