@@ -172,28 +172,35 @@ function geoToPath(geom: any): string {
   return "";
 }
 
+// Split a ring whenever consecutive points jump across the antimeridian
+// (longitude difference > 180°). Without this the equirectangular projection
+// draws a long horizontal line across the whole map for any country whose
+// polygon crosses the ±180° meridian (Russia, Antarctica, Fiji, Kiribati…).
+export function splitRingAtAntimeridian(ring: number[][]): number[][][] {
+  const segments: number[][][] = [];
+  let current: number[][] = [];
+  let prevLon: number | null = null;
+  for (const point of ring) {
+    const lon = point[0];
+    if (prevLon !== null && Math.abs(lon - prevLon) > 180) {
+      if (current.length) segments.push(current);
+      current = [];
+    }
+    current.push(point);
+    prevLon = lon;
+  }
+  if (current.length) segments.push(current);
+  return segments;
+}
+
 function polyToPath(rings: number[][][]): string {
-  // Split rings whenever consecutive points jump across the antimeridian
-  // (longitude difference > 180°). Otherwise the equirectangular projection
-  // draws a long horizontal line across the whole map (Russia, Antarctica, Fiji…).
   return rings
     .map((ring) => {
-      const segments: [number, number][][] = [];
-      let current: [number, number][] = [];
-      let prevLon: number | null = null;
-      for (const [lon, lat] of ring) {
-        if (prevLon !== null && Math.abs(lon - prevLon) > 180) {
-          if (current.length) segments.push(current);
-          current = [];
-        }
-        current.push(project(lon, lat));
-        prevLon = lon;
-      }
-      if (current.length) segments.push(current);
-
+      const segments = splitRingAtAntimeridian(ring);
       return segments
-        .map((pts) => {
-          if (pts.length < 2) return "";
+        .map((seg) => {
+          if (seg.length < 2) return "";
+          const pts = seg.map(([lon, lat]) => project(lon, lat));
           return (
             "M" +
             pts
