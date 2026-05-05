@@ -173,14 +173,36 @@ function geoToPath(geom: any): string {
 }
 
 function polyToPath(rings: number[][][]): string {
+  // Split rings whenever consecutive points jump across the antimeridian
+  // (longitude difference > 180°). Otherwise the equirectangular projection
+  // draws a long horizontal line across the whole map (Russia, Antarctica, Fiji…).
   return rings
     .map((ring) => {
-      const pts = ring.map(([lon, lat]) => project(lon, lat));
-      return (
-        "M" +
-        pts.map(([x, y], i) => `${i === 0 ? "" : "L"}${x.toFixed(2)},${y.toFixed(2)}`).join(" ") +
-        "Z"
-      );
+      const segments: [number, number][][] = [];
+      let current: [number, number][] = [];
+      let prevLon: number | null = null;
+      for (const [lon, lat] of ring) {
+        if (prevLon !== null && Math.abs(lon - prevLon) > 180) {
+          if (current.length) segments.push(current);
+          current = [];
+        }
+        current.push(project(lon, lat));
+        prevLon = lon;
+      }
+      if (current.length) segments.push(current);
+
+      return segments
+        .map((pts) => {
+          if (pts.length < 2) return "";
+          return (
+            "M" +
+            pts
+              .map(([x, y], i) => `${i === 0 ? "" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+              .join(" ")
+          );
+        })
+        .filter(Boolean)
+        .join(" ");
     })
     .join(" ");
 }
