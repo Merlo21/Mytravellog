@@ -63,6 +63,7 @@ type CountryFeat = {
 
 export function ContinentsMap({ trips }: Props) {
   const [countries, setCountries] = useState<CountryFeat[]>([]);
+  const [debug, setDebug] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export function ContinentsMap({ trips }: Props) {
           const path = geoToPath(f.geometry);
           const c = polyCentroid(f.geometry);
           const polygons = extractPolygons(f.geometry);
-          return { id: String(f.id), path, centroid: c, polygons };
+          return { id: String(f.id), name: f.properties?.name ?? String(f.id), path, centroid: c, polygons };
         });
         setCountries(feats);
       })
@@ -107,9 +108,49 @@ export function ContinentsMap({ trips }: Props) {
     return set;
   }, [trips, countries]);
 
+  // Detect countries whose polygons cross the antimeridian and capture the
+  // (projected) split points so we can highlight them in debug mode.
+  const antimeridianInfo = useMemo(() => {
+    const splits: { x: number; y: number; name: string }[] = [];
+    const names = new Set<string>();
+    for (const c of countries) {
+      let crossed = false;
+      for (const poly of c.polygons) {
+        for (const ring of poly) {
+          let prevLon: number | null = null;
+          let prevLat: number | null = null;
+          for (const [lon, lat] of ring) {
+            if (prevLon !== null && prevLat !== null && Math.abs(lon - prevLon) > 180) {
+              crossed = true;
+              const [x1, y1] = project(prevLon, prevLat);
+              const [x2, y2] = project(lon, lat);
+              splits.push({ x: x1, y: y1, name: c.name });
+              splits.push({ x: x2, y: y2, name: c.name });
+            }
+            prevLon = lon;
+            prevLat = lat;
+          }
+        }
+      }
+      if (crossed) names.add(c.name);
+    }
+    return { splits, names: Array.from(names).sort() };
+  }, [countries]);
+
   return (
     <div className="glass-card p-5 animate-fade-up">
-      <h2 className="text-lg font-bold mb-4 text-foreground">Mappa del mondo</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-bold text-foreground">Mappa del mondo</h2>
+        <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={debug}
+            onChange={(e) => setDebug(e.target.checked)}
+            className="accent-primary"
+          />
+          Debug antimeridiano
+        </label>
+      </div>
 
       <div className="w-full rounded-xl bg-white p-3">
         <svg
@@ -139,10 +180,30 @@ export function ContinentsMap({ trips }: Props) {
                 />
               );
             })}
+
+            {debug && (
+              <g>
+                <line x1={0} y1={0} x2={0} y2={H} stroke="#ef4444" strokeWidth={0.6} strokeDasharray="2,2" />
+                <line x1={W} y1={0} x2={W} y2={H} stroke="#ef4444" strokeWidth={0.6} strokeDasharray="2,2" />
+                {antimeridianInfo.splits.map((s, i) => (
+                  <circle key={i} cx={s.x} cy={s.y} r={1.4} fill="#ef4444" stroke="#ffffff" strokeWidth={0.3}>
+                    <title>{s.name}</title>
+                  </circle>
+                ))}
+              </g>
+            )}
           </g>
         </svg>
       </div>
 
+      {debug && antimeridianInfo.names.length > 0 && (
+        <div className="mt-3 rounded-lg border border-red-300/40 bg-red-500/5 p-3 text-xs">
+          <div className="font-semibold text-red-500 mb-1">
+            Paesi che attraversano ±180° ({antimeridianInfo.names.length})
+          </div>
+          <div className="text-muted-foreground">{antimeridianInfo.names.join(", ")}</div>
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
         {CONTINENTS.map((c) => {
