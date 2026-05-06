@@ -4,6 +4,7 @@ import { countryFlag } from "@/lib/geo";
 import { deleteTrip } from "@/lib/storage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
 interface Props {
   trip: LocalTrip;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function TripCard({ trip, selected, onClick, onDeleted }: Props) {
+  const { distanceUnit, temperatureUnit } = useSettings();
   const remove = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Eliminare questo viaggio?")) return;
@@ -59,19 +61,19 @@ export function TripCard({ trip, selected, onClick, onDeleted }: Props) {
             <div className={`rounded-lg p-2 text-center ${tempGradient || "bg-muted/40"}`}>
               <Thermometer className="w-3 h-3 mx-auto mb-0.5 opacity-80" />
               <div className="font-mono text-xs font-bold">
-                {trip.temperature_c != null ? `${trip.temperature_c.toFixed(0)}°` : "—"}
+                {trip.temperature_c != null ? formatTemperatureC(trip.temperature_c, temperatureUnit, 0) : "—"}
               </div>
             </div>
             <div className="rounded-lg p-2 text-center bg-muted/40">
               <Mountain className="w-3 h-3 mx-auto mb-0.5 opacity-80" />
               <div className="font-mono text-xs font-bold">
-                {trip.altitude_m != null ? `${Math.round(trip.altitude_m)}m` : "—"}
+                {formatAltitudeM(trip.altitude_m, distanceUnit)}
               </div>
             </div>
             <div className="rounded-lg p-2 text-center bg-muted/40">
               <Route className="w-3 h-3 mx-auto mb-0.5 opacity-80" />
               <div className="font-mono text-xs font-bold">
-                {trip.distance_from_home_km != null ? `${trip.distance_from_home_km}km` : "—"}
+                {formatDistanceKm(trip.distance_from_home_km, distanceUnit)}
               </div>
             </div>
           </div>
