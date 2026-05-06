@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CalendarDays, Route, Mountain, MapPin } from "lucide-react";
 import earthImg from "@/assets/stat-earth.jpg";
 import forestImg from "@/assets/stat-forest.jpg";
+import { useSettings, formatDistanceKm, formatAltitudeM } from "@/lib/settings";
 
 // Total recognized sovereign countries (UN members + observers, commonly used as 195)
 const TOTAL_COUNTRIES = 195;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function StatsSection({ trips }: Props) {
+  const { distanceUnit } = useSettings();
   const [showAll, setShowAll] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -128,16 +130,14 @@ export function StatsSection({ trips }: Props) {
                   <div className="flex items-center gap-2">
                     <Route className="w-4 h-4 text-primary" />
                     <span className="font-semibold">
-                      {t.distance_from_home_km != null
-                        ? `${Math.round(t.distance_from_home_km).toLocaleString("it-IT")} km`
-                        : "—"}
+                      {formatDistanceKm(t.distance_from_home_km, distanceUnit)}
                     </span>
                     <span className="text-xs text-muted-foreground">da casa</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mountain className="w-4 h-4 text-emerald-500" />
                     <span className="font-semibold">
-                      {t.altitude_m != null ? `${Math.round(t.altitude_m).toLocaleString("it-IT")} m` : "—"}
+                      {formatAltitudeM(t.altitude_m, distanceUnit)}
                     </span>
                     <span className="text-xs text-muted-foreground">altitudine</span>
                   </div>
