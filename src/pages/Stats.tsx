@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Compass } from "lucide-react";
+import { ArrowLeft, Compass, Settings as SettingsIcon } from "lucide-react";
 import { LocalTrip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
 import { ContinentsMap } from "@/components/ContinentsMap";
@@ -28,13 +28,22 @@ const Stats = () => {
               </p>
             </div>
           </div>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/50 hover:bg-muted text-sm font-semibold transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Indietro
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/impostazioni"
+              aria-label="Impostazioni"
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
+            >
+              <SettingsIcon className="w-4 h-4 text-primary" />
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/50 hover:bg-muted text-sm font-semibold transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Indietro
+            </Link>
+          </div>
         </div>
       </header>
 

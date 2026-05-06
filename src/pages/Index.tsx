@@ -4,11 +4,13 @@ import { LocalTrip, loadTrips } from "@/lib/storage";
 import { WorldMap } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon } from "lucide-react";
+import { formatDistanceKm, useSettings } from "@/lib/settings";
 
 const Index = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { distanceUnit } = useSettings();
 
   const refresh = () => setTrips(loadTrips());
 
@@ -48,6 +50,13 @@ const Index = () => {
               <PieChart className="w-4 h-4 text-primary" />
               Statistiche
             </Link>
+            <Link
+              to="/impostazioni"
+              aria-label="Impostazioni"
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
+            >
+              <SettingsIcon className="w-4 h-4 text-primary" />
+            </Link>
             <NewTripDialog onCreated={refresh} defaultHome={defaultHome} />
           </div>
         </div>
@@ -58,7 +67,7 @@ const Index = () => {
           <StatCard icon={<Plane />} label="Viaggi" value={stats.trips} />
           <StatCard icon={<Globe />} label="Stati" value={stats.countries} accent="primary" />
           <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
-          <StatCard icon={<Compass />} label="Km totali" value={stats.km.toLocaleString("it-IT")} accent="accent" />
+          <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
         </section>
 
         <section className="grid lg:grid-cols-[1.5fr_1fr] gap-6">

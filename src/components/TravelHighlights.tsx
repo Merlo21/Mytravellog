@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Mountain, Globe2, Sun, Snowflake, Moon, Compass } from "lucide-react";
 import { LocalTrip } from "@/lib/storage";
+import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
 interface Props {
   trips: LocalTrip[];
@@ -10,6 +11,7 @@ const EARTH_CIRCUMFERENCE_KM = 40075;
 const DISTANCE_TO_MOON_KM = 384400;
 
 export function TravelHighlights({ trips }: Props) {
+  const { distanceUnit, temperatureUnit } = useSettings();
   const highest = useMemo(
     () => trips.filter(t => t.altitude_m != null).sort((a, b) => (b.altitude_m! - a.altitude_m!))[0],
     [trips]
@@ -41,28 +43,28 @@ export function TravelHighlights({ trips }: Props) {
           icon={<Mountain className="w-12 h-12" strokeWidth={1.5} />}
           color="text-emerald-500"
           label="Altitudine più alta"
-          value={highest ? `${Math.round(highest.altitude_m!).toLocaleString("it-IT")} m` : "—"}
+          value={highest ? formatAltitudeM(highest.altitude_m, distanceUnit) : "—"}
           sub={highest?.city}
         />
         <HighlightCard
           icon={<Globe2 className="w-12 h-12" strokeWidth={1.5} />}
           color="text-pink-500"
           label="Più distante da casa"
-          value={farthest ? `${Math.round(farthest.distance_from_home_km!).toLocaleString("it-IT")} km` : "—"}
+          value={farthest ? formatDistanceKm(farthest.distance_from_home_km, distanceUnit) : "—"}
           sub={farthest?.city}
         />
         <HighlightCard
           icon={<Sun className="w-12 h-12" strokeWidth={1.5} />}
           color="text-orange-500"
           label="Il posto più caldo"
-          value={hottest ? `${hottest.temperature_c!.toFixed(1)}°C` : "—"}
+          value={hottest ? formatTemperatureC(hottest.temperature_c, temperatureUnit) : "—"}
           sub={hottest?.city}
         />
         <HighlightCard
           icon={<Snowflake className="w-12 h-12" strokeWidth={1.5} />}
           color="text-sky-500"
           label="Il posto più freddo"
-          value={coldest ? `${coldest.temperature_c!.toFixed(1)}°C` : "—"}
+          value={coldest ? formatTemperatureC(coldest.temperature_c, temperatureUnit) : "—"}
           sub={coldest?.city}
         />
       </div>
@@ -72,9 +74,9 @@ export function TravelHighlights({ trips }: Props) {
         <div className="border-t border-border pt-6 flex flex-col items-center text-center">
           <Globe2 className="w-20 h-20 text-primary mb-3" strokeWidth={1.5} />
           <div className="text-3xl font-extrabold tracking-tight">
-            {Math.round(totalKm).toLocaleString("it-IT")}
+            {formatDistanceKm(totalKm, distanceUnit)}
           </div>
-          <div className="text-sm text-muted-foreground mt-1">chilometri percorsi</div>
+          <div className="text-sm text-muted-foreground mt-1">{distanceUnit === "imperial" ? "miglia percorse" : "chilometri percorsi"}</div>
         </div>
 
         <div className="border-t border-border mt-6 pt-5 grid grid-cols-2 gap-4 text-center">

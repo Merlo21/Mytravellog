@@ -10,6 +10,7 @@ import { Plus, MapPin, Home, Search, Loader2, Thermometer, Mountain, Route } fro
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, GeoResult, countryFlag } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { toast } from "sonner";
+import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
 interface Props {
   onCreated: () => void;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function NewTripDialog({ onCreated, defaultHome }: Props) {
+  const { distanceUnit, temperatureUnit } = useSettings();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -207,9 +209,9 @@ export function NewTripDialog({ onCreated, defaultHome }: Props) {
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <Metric icon={<Thermometer className="w-4 h-4" />} label="Temp" value={preview.temp != null ? `${preview.temp.toFixed(1)}°` : "—"} />
-              <Metric icon={<Mountain className="w-4 h-4" />} label="Altitudine" value={preview.alt != null ? `${Math.round(preview.alt)}m` : "—"} />
-              <Metric icon={<Route className="w-4 h-4" />} label="Distanza" value={preview.dist != null ? `${preview.dist}km` : "—"} />
+              <Metric icon={<Thermometer className="w-4 h-4" />} label="Temp" value={formatTemperatureC(preview.temp, temperatureUnit)} />
+              <Metric icon={<Mountain className="w-4 h-4" />} label="Altitudine" value={formatAltitudeM(preview.alt, distanceUnit)} />
+              <Metric icon={<Route className="w-4 h-4" />} label="Distanza" value={formatDistanceKm(preview.dist, distanceUnit)} />
             </div>
 
             <div className="space-y-2">
