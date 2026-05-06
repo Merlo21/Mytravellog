@@ -4,7 +4,7 @@ import { LocalTrip, loadTrips } from "@/lib/storage";
 import { WorldMap } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon } from "lucide-react";
 
 const Index = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
@@ -47,6 +47,13 @@ const Index = () => {
             >
               <PieChart className="w-4 h-4 text-primary" />
               Statistiche
+            </Link>
+            <Link
+              to="/impostazioni"
+              aria-label="Impostazioni"
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
+            >
+              <SettingsIcon className="w-4 h-4 text-primary" />
             </Link>
             <NewTripDialog onCreated={refresh} defaultHome={defaultHome} />
           </div>
