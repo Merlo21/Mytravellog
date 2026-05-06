@@ -10,6 +10,7 @@ import { formatDistanceKm, useSettings } from "@/lib/settings";
 const Index = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { distanceUnit } = useSettings();
 
   const refresh = () => setTrips(loadTrips());
 
@@ -66,7 +67,7 @@ const Index = () => {
           <StatCard icon={<Plane />} label="Viaggi" value={stats.trips} />
           <StatCard icon={<Globe />} label="Stati" value={stats.countries} accent="primary" />
           <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
-          <StatCard icon={<Compass />} label="Km totali" value={stats.km.toLocaleString("it-IT")} accent="accent" />
+          <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
         </section>
 
         <section className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
