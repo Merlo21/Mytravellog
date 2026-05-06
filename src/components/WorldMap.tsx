@@ -543,7 +543,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       container.removeChild(renderer.domElement);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [globeStyle]);
 
   // ---- rebuild markers + routes when trips change ----
   useEffect(() => {
