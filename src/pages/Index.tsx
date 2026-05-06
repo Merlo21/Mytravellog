@@ -5,6 +5,7 @@ import { WorldMap } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon } from "lucide-react";
+import { formatDistanceKm, useSettings } from "@/lib/settings";
 
 const Index = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
