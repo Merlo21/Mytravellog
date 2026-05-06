@@ -4,6 +4,7 @@ import { feature } from "topojson-client";
 import { LocalTrip } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Play, Square, Video, RotateCw } from "lucide-react";
+import { useSettings } from "@/lib/settings";
 
 interface Props {
   trips: LocalTrip[];
@@ -57,6 +58,7 @@ const TEX_SPEC = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/w
 const GEO_BORDERS = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
+  const { globeStyle } = useSettings();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<{
     renderer?: THREE.WebGLRenderer;
@@ -140,51 +142,52 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       emissiveIntensity: 0.3,
     });
     // Painterly palette: deep blue ocean, olive/yellow land, warm deserts
-    earthMat.onBeforeCompile = (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        "#include <map_fragment>",
-        `
-        #include <map_fragment>
-        {
-          vec3 c = diffuseColor.rgb;
-          // Ocean: deep navy blue (like reference)
-          float oceanMask = smoothstep(0.0, 0.18, c.b - max(c.r, c.g - 0.04));
-          vec3 oceanTint = vec3(0.04, 0.10, 0.22);
-          c = mix(c, oceanTint, oceanMask * 0.92);
-          // Land green areas -> warmer olive/yellow-green
-          float greenMask = smoothstep(0.0, 0.12, c.g - max(c.r * 0.95, c.b));
-          vec3 greenTint = vec3(0.42, 0.58, 0.18);
-          c = mix(c, greenTint, greenMask * 0.65);
-          // Desert/dry land -> realistic sand with multi-tone variation
-          float sandMask = smoothstep(0.0, 0.05, min(c.r, c.g) - c.b) * smoothstep(0.26, 0.42, c.r);
-          float warmth = smoothstep(0.0, 0.18, c.r - c.g);
-          float lum = (c.r + c.g + c.b) / 3.0;
-          // Procedural micro-variation using map UVs (cheap hash)
-          vec2 nseed = vMapUv * vec2(420.0, 220.0);
-          float n1 = fract(sin(dot(floor(nseed), vec2(12.9898, 78.233))) * 43758.5453);
-          float n2 = fract(sin(dot(floor(nseed * 0.35), vec2(39.346, 11.135))) * 24634.6345);
-          float dunes = mix(n1, n2, 0.5) - 0.5;
-          // Palette stops: bright bone-white sand, golden, warm ocra, dry rust
-          vec3 sandPale  = vec3(0.96, 0.90, 0.72);
-          vec3 sandGold  = vec3(0.90, 0.78, 0.46);
-          vec3 sandOcra  = vec3(0.80, 0.58, 0.28);
-          vec3 sandDry   = vec3(0.62, 0.42, 0.20);
-          vec3 sandTint = mix(sandPale, sandGold, smoothstep(0.0, 0.5, warmth));
-          sandTint = mix(sandTint, sandOcra, smoothstep(0.4, 0.85, warmth));
-          sandTint = mix(sandTint, sandDry, smoothstep(0.75, 1.0, warmth) * 0.7);
-          // Brighten flat bright zones (dune crests), darken slightly the troughs
-          sandTint *= 1.0 + dunes * 0.18;
-          // Highlight luminous bright sand
-          sandTint = mix(sandTint, sandPale, smoothstep(0.55, 0.85, lum) * 0.45);
-          c = mix(c, sandTint, sandMask * 0.85);
-          // Slight global lift on land only
-          float landMask = 1.0 - oceanMask;
-          c = mix(c, c * 1.12, landMask * 0.5);
-          diffuseColor.rgb = clamp(c, 0.0, 1.0);
-        }
-        `
-      );
-    };
+    if (globeStyle === "artistic") {
+      earthMat.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <map_fragment>",
+          `
+          #include <map_fragment>
+          {
+            vec3 c = diffuseColor.rgb;
+            // Ocean: deep navy blue (like reference)
+            float oceanMask = smoothstep(0.0, 0.18, c.b - max(c.r, c.g - 0.04));
+            vec3 oceanTint = vec3(0.04, 0.10, 0.22);
+            c = mix(c, oceanTint, oceanMask * 0.92);
+            // Land green areas -> warmer olive/yellow-green
+            float greenMask = smoothstep(0.0, 0.12, c.g - max(c.r * 0.95, c.b));
+            vec3 greenTint = vec3(0.42, 0.58, 0.18);
+            c = mix(c, greenTint, greenMask * 0.65);
+            // Desert/dry land -> realistic sand with multi-tone variation
+            float sandMask = smoothstep(0.0, 0.05, min(c.r, c.g) - c.b) * smoothstep(0.26, 0.42, c.r);
+            float warmth = smoothstep(0.0, 0.18, c.r - c.g);
+            float lum = (c.r + c.g + c.b) / 3.0;
+            vec2 nseed = vMapUv * vec2(420.0, 220.0);
+            float n1 = fract(sin(dot(floor(nseed), vec2(12.9898, 78.233))) * 43758.5453);
+            float n2 = fract(sin(dot(floor(nseed * 0.35), vec2(39.346, 11.135))) * 24634.6345);
+            float dunes = mix(n1, n2, 0.5) - 0.5;
+            vec3 sandPale  = vec3(0.96, 0.90, 0.72);
+            vec3 sandGold  = vec3(0.90, 0.78, 0.46);
+            vec3 sandOcra  = vec3(0.80, 0.58, 0.28);
+            vec3 sandDry   = vec3(0.62, 0.42, 0.20);
+            vec3 sandTint = mix(sandPale, sandGold, smoothstep(0.0, 0.5, warmth));
+            sandTint = mix(sandTint, sandOcra, smoothstep(0.4, 0.85, warmth));
+            sandTint = mix(sandTint, sandDry, smoothstep(0.75, 1.0, warmth) * 0.7);
+            sandTint *= 1.0 + dunes * 0.18;
+            sandTint = mix(sandTint, sandPale, smoothstep(0.55, 0.85, lum) * 0.45);
+            c = mix(c, sandTint, sandMask * 0.85);
+            float landMask = 1.0 - oceanMask;
+            c = mix(c, c * 1.12, landMask * 0.5);
+            diffuseColor.rgb = clamp(c, 0.0, 1.0);
+          }
+          `
+        );
+      };
+    } else {
+      // Satellite: keep original NASA Blue Marble colors (no shader override)
+      earthMat.emissiveIntensity = 0.18;
+      earthMat.specular = new THREE.Color(0x111a26);
+    }
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
