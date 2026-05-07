@@ -47,13 +47,13 @@ function arcPoints(a: THREE.Vector3, b: THREE.Vector3, segments = 64): THREE.Vec
   return pts;
 }
 
-// ---- texture URLs (free, no key) ----
-// 8K NASA Blue Marble + topology + clouds + city lights
-const TEX_DAY = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/2_no_clouds_8k.jpg";
-const TEX_BUMP = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/elev_bump_8k.jpg";
-const TEX_CLOUDS = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/fair_clouds_8k.jpg";
-const TEX_NIGHT = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/5_night_8k.jpg";
-const TEX_SPEC = "https://cdn.jsdelivr.net/gh/turban/webgl-earth@master/images/water_8k.png";
+// ---- texture URLs (three-globe CDN, stable) ----
+const TEX_DAY = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+const TEX_DAY_PLAIN = "https://unpkg.com/three-globe/example/img/earth-day.jpg";
+const TEX_BUMP = "https://unpkg.com/three-globe/example/img/earth-topology.png";
+const TEX_NIGHT = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
+const TEX_SPEC = "https://unpkg.com/three-globe/example/img/earth-water.png";
+const TEX_CLOUDS = "https://unpkg.com/three-globe/example/img/earth-water.png";
 // Country borders (lightweight TopoJSON-style geojson, ~110m)
 const GEO_BORDERS = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
