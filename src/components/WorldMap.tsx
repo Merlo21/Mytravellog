@@ -122,7 +122,9 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
     // ---- Earth ----
     const loader = new THREE.TextureLoader();
     loader.crossOrigin = "anonymous";
-    const dayTex = loader.load(TEX_DAY);
+    // Use plain day texture for artistic (so shader recolor reads neutral land/ocean),
+    // and blue-marble for satellite (realistic NASA imagery).
+    const dayTex = loader.load(globeStyle === "satellite" ? TEX_DAY : TEX_DAY_PLAIN);
     dayTex.colorSpace = THREE.SRGBColorSpace;
     const bumpTex = loader.load(TEX_BUMP);
     const nightTex = loader.load(TEX_NIGHT);
