@@ -223,16 +223,8 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       })
       .catch(() => {});
 
-    // ---- Clouds ----
-    const cloudsTex = loader.load(TEX_CLOUDS);
-    const cloudsMat = new THREE.MeshPhongMaterial({
-      map: cloudsTex,
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
-    });
-    const clouds = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS * 1.005, 64, 64), cloudsMat);
-    scene.add(clouds);
+    // ---- Clouds (disabled: no cloud texture available on the current CDN) ----
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS * 1.005, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
 
     // ---- Atmosphere glow (custom shader) ----
     const atmMat = new THREE.ShaderMaterial({
