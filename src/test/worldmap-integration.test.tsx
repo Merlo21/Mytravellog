@@ -142,16 +142,20 @@ beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, value: 600 });
   // ResizeObserver shim
   (globalThis as any).ResizeObserver = class { observe() {} disconnect() {} unobserve() {} };
-  // requestAnimationFrame: only fire once to avoid infinite loops in tests
-  let fired = false;
+  // Queue rAF callbacks; tests flush manually so we don't loop forever
+  rafQueue.length = 0;
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
-    if (fired) return 0 as any;
-    fired = true;
-    cb(0);
-    return 1 as any;
+    rafQueue.push(cb);
+    return rafQueue.length as any;
   });
   vi.stubGlobal("cancelAnimationFrame", () => {});
 });
+
+const rafQueue: FrameRequestCallback[] = [];
+function flushRaf() {
+  const cbs = rafQueue.splice(0);
+  cbs.forEach((c) => c(performance.now()));
+}
 
 function renderApp(initialTrips: LocalTrip[]) {
   return render(
