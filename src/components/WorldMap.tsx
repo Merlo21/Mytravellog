@@ -593,7 +593,7 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const line = new THREE.Line(geo, mat);
       routesGroup.add(line);
     }
-  }, [orderedTrips, selectedId]);
+  }, [orderedTrips, selectedId, globeStyle]);
 
   // ---- focus on selected trip ----
   useEffect(() => {
