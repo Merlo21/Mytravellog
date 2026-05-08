@@ -198,6 +198,7 @@ describe("WorldMap ↔ Settings integration", () => {
 
   it("rebuilds markers (home + one per trip) after toggling globe style", () => {
     renderApp(trips);
+    act(() => { flushRaf(); });
 
     const lastRenderer = () => createdRenderers[createdRenderers.length - 1];
     // The container the renderer is appended to is also where labelsRoot lives.
@@ -211,6 +212,7 @@ describe("WorldMap ↔ Settings integration", () => {
     act(() => {
       screen.getByRole("button", { name: /Satellitare/i }).click();
     });
+    act(() => { flushRaf(); });
 
     const afterLabels = labelsRootOf(lastRenderer())?.children.length ?? 0;
     expect(afterLabels).toBe(trips.length + 1);
