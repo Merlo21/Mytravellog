@@ -14,6 +14,8 @@ interface Props {
 
 // ---- helpers ----
 const EARTH_RADIUS = 1;
+const MIN_MARKER_SCALE = 0.5;
+const MAX_MARKER_SCALE = 1.0;
 
 function latLonToVec3(lat: number, lon: number, radius = EARTH_RADIUS): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180);
