@@ -142,4 +142,69 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("temperature").textContent).toBe("celsius");
     expect(screen.getByTestId("globe").textContent).toBe("artistic");
   });
+
+  it("hydrates valid fields and replaces invalid ones with defaults", () => {
+    localStorage.setItem(
+      "atlas.settings.v1",
+      JSON.stringify({
+        distanceUnit: "imperial",
+        temperatureUnit: "kelvin",
+        globeStyle: 123,
+      })
+    );
+    render(<SettingsProvider><Probe /></SettingsProvider>);
+    expect(screen.getByTestId("distance").textContent).toBe("imperial");
+    expect(screen.getByTestId("temperature").textContent).toBe("celsius");
+    expect(screen.getByTestId("globe").textContent).toBe("artistic");
+  });
+
+  it("ignores unknown extra fields in stored settings", () => {
+    localStorage.setItem(
+      "atlas.settings.v1",
+      JSON.stringify({ distanceUnit: "metric", foo: "bar", nested: { x: 1 } })
+    );
+    render(<SettingsProvider><Probe /></SettingsProvider>);
+    expect(screen.getByTestId("distance").textContent).toBe("metric");
+    expect(screen.getByTestId("temperature").textContent).toBe("celsius");
+    expect(screen.getByTestId("globe").textContent).toBe("artistic");
+  });
+});
+
+describe("parseStoredSettings", () => {
+  const DEFAULTS = {
+    distanceUnit: "metric",
+    temperatureUnit: "celsius",
+    globeStyle: "artistic",
+  } as const;
+  it("returns defaults for null / non-objects", () => {
+    expect(parseStoredSettings(null)).toEqual(DEFAULTS);
+    expect(parseStoredSettings(undefined)).toEqual(DEFAULTS);
+    expect(parseStoredSettings("string")).toEqual(DEFAULTS);
+    expect(parseStoredSettings(42)).toEqual(DEFAULTS);
+  });
+  it("returns defaults for an empty object", () => {
+    expect(parseStoredSettings({})).toEqual(DEFAULTS);
+  });
+  it("keeps all valid values", () => {
+    expect(parseStoredSettings({
+      distanceUnit: "imperial",
+      temperatureUnit: "fahrenheit",
+      globeStyle: "satellite",
+    })).toEqual({
+      distanceUnit: "imperial",
+      temperatureUnit: "fahrenheit",
+      globeStyle: "satellite",
+    });
+  });
+  it("repairs partially invalid input field by field", () => {
+    expect(parseStoredSettings({
+      distanceUnit: "imperial",
+      temperatureUnit: "rankine",
+      globeStyle: null,
+    })).toEqual({
+      distanceUnit: "imperial",
+      temperatureUnit: "celsius",
+      globeStyle: "artistic",
+    });
+  });
 });
