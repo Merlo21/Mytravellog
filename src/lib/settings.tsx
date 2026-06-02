@@ -1,14 +1,21 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { z } from "zod";
 
-export type DistanceUnit = "metric" | "imperial"; // km/m vs mi/ft
-export type TemperatureUnit = "celsius" | "fahrenheit";
-export type GlobeStyle = "artistic" | "satellite";
+export const distanceUnitSchema = z.enum(["metric", "imperial"]);
+export const temperatureUnitSchema = z.enum(["celsius", "fahrenheit"]);
+export const globeStyleSchema = z.enum(["artistic", "satellite"]);
 
-export interface Settings {
-  distanceUnit: DistanceUnit;
-  temperatureUnit: TemperatureUnit;
-  globeStyle: GlobeStyle;
-}
+export type DistanceUnit = z.infer<typeof distanceUnitSchema>;
+export type TemperatureUnit = z.infer<typeof temperatureUnitSchema>;
+export type GlobeStyle = z.infer<typeof globeStyleSchema>;
+
+export const settingsSchema = z.object({
+  distanceUnit: distanceUnitSchema,
+  temperatureUnit: temperatureUnitSchema,
+  globeStyle: globeStyleSchema,
+});
+
+export type Settings = z.infer<typeof settingsSchema>;
 
 const DEFAULTS: Settings = {
   distanceUnit: "metric",
@@ -17,6 +24,35 @@ const DEFAULTS: Settings = {
 };
 
 const KEY = "atlas.settings.v1";
+
+/**
+ * Parse raw stored settings into a valid Settings object.
+ * - Missing or invalid individual fields fall back to their default.
+ * - Completely corrupted JSON / wrong shape falls back to all defaults.
+ */
+export function parseStoredSettings(raw: unknown): Settings {
+  if (!raw || typeof raw !== "object") return DEFAULTS;
+  const obj = raw as Record<string, unknown>;
+  const pick = <T extends z.ZodTypeAny>(schema: T, value: unknown, fallback: z.infer<T>): z.infer<T> => {
+    const r = schema.safeParse(value);
+    return r.success ? r.data : fallback;
+  };
+  return {
+    distanceUnit: pick(distanceUnitSchema, obj.distanceUnit, DEFAULTS.distanceUnit),
+    temperatureUnit: pick(temperatureUnitSchema, obj.temperatureUnit, DEFAULTS.temperatureUnit),
+    globeStyle: pick(globeStyleSchema, obj.globeStyle, DEFAULTS.globeStyle),
+  };
+}
+
+function loadSettings(): Settings {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return DEFAULTS;
+    return parseStoredSettings(JSON.parse(raw));
+  } catch {
+    return DEFAULTS;
+  }
+}
 
 interface Ctx extends Settings {
   setDistanceUnit: (v: DistanceUnit) => void;
@@ -27,15 +63,7 @@ interface Ctx extends Settings {
 const SettingsContext = createContext<Ctx | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return DEFAULTS;
-      return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
-    } catch {
-      return DEFAULTS;
-    }
-  });
+  const [settings, setSettings] = useState<Settings>(() => loadSettings());
 
   useEffect(() => {
     try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch {}
