@@ -506,8 +506,9 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const targetZ = s.zoom;
       camera.position.z += (targetZ - camera.position.z) * 0.12;
 
-      // Scale markers inversely with zoom (smaller when zoomed in)
-      const markerScale = Math.max(0.2, Math.min(1.2, camera.position.z / 3.0));
+      // Scale markers based on zoom with explicit min/max bounds
+      const rawScale = camera.position.z / 3.2;
+      const markerScale = Math.max(MIN_MARKER_SCALE, Math.min(MAX_MARKER_SCALE, rawScale));
       markersGroup.children.forEach((child) => {
         child.scale.setScalar(markerScale);
       });
