@@ -17,6 +17,7 @@ vi.mock("three", () => {
     const v: any = {
       x: 0, y: 0, z: 0,
       set() { return v; },
+      setScalar(val: number) { v.x = v.y = v.z = val; return v; },
       copy() { return v; },
       clone: () => makeVec(),
       add() { return v; },

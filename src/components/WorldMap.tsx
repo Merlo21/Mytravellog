@@ -504,6 +504,12 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const targetZ = s.zoom;
       camera.position.z += (targetZ - camera.position.z) * 0.12;
 
+      // Scale markers inversely with zoom (smaller when zoomed in)
+      const markerScale = Math.max(0.2, Math.min(1.2, camera.position.z / 3.0));
+      markersGroup.children.forEach((child) => {
+        child.scale.setScalar(markerScale);
+      });
+
       renderer.render(scene, camera);
       updateLabels();
       s.raf = requestAnimationFrame(animate);
