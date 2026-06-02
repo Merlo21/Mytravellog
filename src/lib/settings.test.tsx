@@ -6,6 +6,7 @@ import {
   formatDistanceKm,
   formatAltitudeM,
   formatTemperatureC,
+  parseStoredSettings,
 } from "./settings";
 
 describe("settings formatters", () => {
