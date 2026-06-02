@@ -128,4 +128,17 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("temperature").textContent).toBe("fahrenheit");
     expect(screen.getByTestId("globe").textContent).toBe("satellite");
   });
+
+  it("falls back to defaults when localStorage is corrupted", () => {
+    localStorage.setItem("atlas.settings.v1", "not valid json {");
+    render(
+      <SettingsProvider>
+        <Probe />
+      </SettingsProvider>
+    );
+    // App should not crash and should use defaults
+    expect(screen.getByTestId("distance").textContent).toBe("metric");
+    expect(screen.getByTestId("temperature").textContent).toBe("celsius");
+    expect(screen.getByTestId("globe").textContent).toBe("artistic");
+  });
 });
