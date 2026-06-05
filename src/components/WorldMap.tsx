@@ -14,8 +14,6 @@ interface Props {
 
 // ---- helpers ----
 const EARTH_RADIUS = 1;
-const MIN_MARKER_SCALE = 0.5;
-const MAX_MARKER_SCALE = 1.0;
 
 function latLonToVec3(lat: number, lon: number, radius = EARTH_RADIUS): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180);
@@ -60,7 +58,7 @@ const TEX_CLOUDS = "https://unpkg.com/three-globe/example/img/earth-water.png";
 const GEO_BORDERS = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
-  const { globeStyle } = useSettings();
+  const { globeStyle, minMarkerScale, maxMarkerScale } = useSettings();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<{
     renderer?: THREE.WebGLRenderer;
@@ -506,9 +504,9 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const targetZ = s.zoom;
       camera.position.z += (targetZ - camera.position.z) * 0.12;
 
-      // Scale markers based on zoom with explicit min/max bounds
+      // Scale markers based on zoom with user-defined min/max bounds
       const rawScale = camera.position.z / 3.2;
-      const markerScale = Math.max(MIN_MARKER_SCALE, Math.min(MAX_MARKER_SCALE, rawScale));
+      const markerScale = Math.max(minMarkerScale, Math.min(maxMarkerScale, rawScale));
       markersGroup.children.forEach((child) => {
         child.scale.setScalar(markerScale);
       });
