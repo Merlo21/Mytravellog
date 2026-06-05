@@ -63,6 +63,21 @@ const SettingsPage = () => {
         </SettingGroup>
 
         <SettingGroup
+          icon={<Globe className="w-5 h-5" />}
+          title="Stile del globo"
+          description="Cambia l'aspetto del globo rotante in homepage."
+        >
+          <Segmented<GlobeStyle>
+            value={s.globeStyle}
+            onChange={s.setGlobeStyle}
+            options={[
+              { value: "artistic", label: "Artistico", hint: "vista pittorica" },
+              { value: "satellite", label: "Satellitare", hint: "immagine reale" },
+            ]}
+          />
+        </SettingGroup>
+
+        <SettingGroup
           icon={<MapPin className="w-5 h-5" />}
           title="Dimensione marker"
           description="Controlla la dimensione minima e massima dei segnaposto sulla mappa."
