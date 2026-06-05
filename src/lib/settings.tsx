@@ -46,6 +46,8 @@ export function parseStoredSettings(raw: unknown): Settings {
     distanceUnit: pick(distanceUnitSchema, obj.distanceUnit, DEFAULTS.distanceUnit),
     temperatureUnit: pick(temperatureUnitSchema, obj.temperatureUnit, DEFAULTS.temperatureUnit),
     globeStyle: pick(globeStyleSchema, obj.globeStyle, DEFAULTS.globeStyle),
+    minMarkerScale: pick(markerScaleSchema, obj.minMarkerScale, DEFAULTS.minMarkerScale),
+    maxMarkerScale: pick(markerScaleSchema, obj.maxMarkerScale, DEFAULTS.maxMarkerScale),
   };
 }
 
