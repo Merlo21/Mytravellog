@@ -196,6 +196,8 @@ describe("parseStoredSettings", () => {
     distanceUnit: "metric",
     temperatureUnit: "celsius",
     globeStyle: "artistic",
+    minMarkerScale: 0.5,
+    maxMarkerScale: 1.0,
   } as const;
   it("returns defaults for null / non-objects", () => {
     expect(parseStoredSettings(null)).toEqual(DEFAULTS);
@@ -211,10 +213,14 @@ describe("parseStoredSettings", () => {
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
       globeStyle: "satellite",
+      minMarkerScale: 0.3,
+      maxMarkerScale: 1.5,
     })).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
       globeStyle: "satellite",
+      minMarkerScale: 0.3,
+      maxMarkerScale: 1.5,
     });
   });
   it("repairs partially invalid input field by field", () => {
@@ -222,10 +228,14 @@ describe("parseStoredSettings", () => {
       distanceUnit: "imperial",
       temperatureUnit: "rankine",
       globeStyle: null,
+      minMarkerScale: 5,
+      maxMarkerScale: "abc",
     })).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "celsius",
       globeStyle: "artistic",
+      minMarkerScale: 0.5,
+      maxMarkerScale: 1.0,
     });
   });
 });
