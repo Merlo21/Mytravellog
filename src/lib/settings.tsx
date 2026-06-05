@@ -65,6 +65,8 @@ interface Ctx extends Settings {
   setDistanceUnit: (v: DistanceUnit) => void;
   setTemperatureUnit: (v: TemperatureUnit) => void;
   setGlobeStyle: (v: GlobeStyle) => void;
+  setMinMarkerScale: (v: number) => void;
+  setMaxMarkerScale: (v: number) => void;
 }
 
 const SettingsContext = createContext<Ctx | null>(null);
@@ -81,6 +83,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setDistanceUnit: (v) => setSettings((s) => ({ ...s, distanceUnit: v })),
     setTemperatureUnit: (v) => setSettings((s) => ({ ...s, temperatureUnit: v })),
     setGlobeStyle: (v) => setSettings((s) => ({ ...s, globeStyle: v })),
+    setMinMarkerScale: (v) => setSettings((s) => ({ ...s, minMarkerScale: v })),
+    setMaxMarkerScale: (v) => setSettings((s) => ({ ...s, maxMarkerScale: v })),
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
