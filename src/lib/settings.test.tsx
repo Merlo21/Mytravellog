@@ -70,9 +70,13 @@ describe("SettingsProvider", () => {
         <span data-testid="distance">{s.distanceUnit}</span>
         <span data-testid="temperature">{s.temperatureUnit}</span>
         <span data-testid="globe">{s.globeStyle}</span>
+        <span data-testid="minMarker">{s.minMarkerScale}</span>
+        <span data-testid="maxMarker">{s.maxMarkerScale}</span>
         <button onClick={() => s.setDistanceUnit("imperial")}>d</button>
         <button onClick={() => s.setTemperatureUnit("fahrenheit")}>t</button>
         <button onClick={() => s.setGlobeStyle("satellite")}>g</button>
+        <button onClick={() => s.setMinMarkerScale(0.3)}>min</button>
+        <button onClick={() => s.setMaxMarkerScale(1.5)}>max</button>
       </div>
     );
   }
@@ -86,6 +90,8 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("distance").textContent).toBe("metric");
     expect(screen.getByTestId("temperature").textContent).toBe("celsius");
     expect(screen.getByTestId("globe").textContent).toBe("artistic");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.5");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1");
   });
 
   it("updates settings and persists to localStorage", () => {
@@ -98,16 +104,22 @@ describe("SettingsProvider", () => {
       screen.getByText("d").click();
       screen.getByText("t").click();
       screen.getByText("g").click();
+      screen.getByText("min").click();
+      screen.getByText("max").click();
     });
     expect(screen.getByTestId("distance").textContent).toBe("imperial");
     expect(screen.getByTestId("temperature").textContent).toBe("fahrenheit");
     expect(screen.getByTestId("globe").textContent).toBe("satellite");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.3");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1.5");
 
     const stored = JSON.parse(localStorage.getItem("atlas.settings.v1")!);
     expect(stored).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
       globeStyle: "satellite",
+      minMarkerScale: 0.3,
+      maxMarkerScale: 1.5,
     });
   });
 
@@ -118,6 +130,8 @@ describe("SettingsProvider", () => {
         distanceUnit: "imperial",
         temperatureUnit: "fahrenheit",
         globeStyle: "satellite",
+        minMarkerScale: 0.8,
+        maxMarkerScale: 1.2,
       })
     );
     render(
@@ -128,6 +142,8 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("distance").textContent).toBe("imperial");
     expect(screen.getByTestId("temperature").textContent).toBe("fahrenheit");
     expect(screen.getByTestId("globe").textContent).toBe("satellite");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.8");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1.2");
   });
 
   it("falls back to defaults when localStorage is corrupted", () => {
@@ -141,6 +157,8 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("distance").textContent).toBe("metric");
     expect(screen.getByTestId("temperature").textContent).toBe("celsius");
     expect(screen.getByTestId("globe").textContent).toBe("artistic");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.5");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1");
   });
 
   it("hydrates valid fields and replaces invalid ones with defaults", () => {
@@ -150,12 +168,15 @@ describe("SettingsProvider", () => {
         distanceUnit: "imperial",
         temperatureUnit: "kelvin",
         globeStyle: 123,
+        minMarkerScale: 5,
       })
     );
     render(<SettingsProvider><Probe /></SettingsProvider>);
     expect(screen.getByTestId("distance").textContent).toBe("imperial");
     expect(screen.getByTestId("temperature").textContent).toBe("celsius");
     expect(screen.getByTestId("globe").textContent).toBe("artistic");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.5");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1");
   });
 
   it("ignores unknown extra fields in stored settings", () => {
@@ -167,6 +188,8 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("distance").textContent).toBe("metric");
     expect(screen.getByTestId("temperature").textContent).toBe("celsius");
     expect(screen.getByTestId("globe").textContent).toBe("artistic");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.5");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1");
   });
 });
 
@@ -175,6 +198,8 @@ describe("parseStoredSettings", () => {
     distanceUnit: "metric",
     temperatureUnit: "celsius",
     globeStyle: "artistic",
+    minMarkerScale: 0.5,
+    maxMarkerScale: 1.0,
   } as const;
   it("returns defaults for null / non-objects", () => {
     expect(parseStoredSettings(null)).toEqual(DEFAULTS);
@@ -190,10 +215,14 @@ describe("parseStoredSettings", () => {
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
       globeStyle: "satellite",
+      minMarkerScale: 0.3,
+      maxMarkerScale: 1.5,
     })).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
       globeStyle: "satellite",
+      minMarkerScale: 0.3,
+      maxMarkerScale: 1.5,
     });
   });
   it("repairs partially invalid input field by field", () => {
@@ -201,10 +230,14 @@ describe("parseStoredSettings", () => {
       distanceUnit: "imperial",
       temperatureUnit: "rankine",
       globeStyle: null,
+      minMarkerScale: 5,
+      maxMarkerScale: "abc",
     })).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "celsius",
       globeStyle: "artistic",
+      minMarkerScale: 0.5,
+      maxMarkerScale: 1.0,
     });
   });
 });

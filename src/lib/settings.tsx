@@ -4,6 +4,7 @@ import { z } from "zod";
 export const distanceUnitSchema = z.enum(["metric", "imperial"]);
 export const temperatureUnitSchema = z.enum(["celsius", "fahrenheit"]);
 export const globeStyleSchema = z.enum(["artistic", "satellite"]);
+export const markerScaleSchema = z.number().min(0.1).max(2.0);
 
 export type DistanceUnit = z.infer<typeof distanceUnitSchema>;
 export type TemperatureUnit = z.infer<typeof temperatureUnitSchema>;
@@ -13,6 +14,8 @@ export const settingsSchema = z.object({
   distanceUnit: distanceUnitSchema,
   temperatureUnit: temperatureUnitSchema,
   globeStyle: globeStyleSchema,
+  minMarkerScale: markerScaleSchema,
+  maxMarkerScale: markerScaleSchema,
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -21,6 +24,8 @@ const DEFAULTS: Settings = {
   distanceUnit: "metric",
   temperatureUnit: "celsius",
   globeStyle: "artistic",
+  minMarkerScale: 0.5,
+  maxMarkerScale: 1.0,
 };
 
 const KEY = "atlas.settings.v1";
@@ -41,6 +46,8 @@ export function parseStoredSettings(raw: unknown): Settings {
     distanceUnit: pick(distanceUnitSchema, obj.distanceUnit, DEFAULTS.distanceUnit),
     temperatureUnit: pick(temperatureUnitSchema, obj.temperatureUnit, DEFAULTS.temperatureUnit),
     globeStyle: pick(globeStyleSchema, obj.globeStyle, DEFAULTS.globeStyle),
+    minMarkerScale: pick(markerScaleSchema, obj.minMarkerScale, DEFAULTS.minMarkerScale),
+    maxMarkerScale: pick(markerScaleSchema, obj.maxMarkerScale, DEFAULTS.maxMarkerScale),
   };
 }
 
@@ -58,6 +65,8 @@ interface Ctx extends Settings {
   setDistanceUnit: (v: DistanceUnit) => void;
   setTemperatureUnit: (v: TemperatureUnit) => void;
   setGlobeStyle: (v: GlobeStyle) => void;
+  setMinMarkerScale: (v: number) => void;
+  setMaxMarkerScale: (v: number) => void;
 }
 
 const SettingsContext = createContext<Ctx | null>(null);
@@ -74,6 +83,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setDistanceUnit: (v) => setSettings((s) => ({ ...s, distanceUnit: v })),
     setTemperatureUnit: (v) => setSettings((s) => ({ ...s, temperatureUnit: v })),
     setGlobeStyle: (v) => setSettings((s) => ({ ...s, globeStyle: v })),
+    setMinMarkerScale: (v) => setSettings((s) => ({ ...s, minMarkerScale: v })),
+    setMaxMarkerScale: (v) => setSettings((s) => ({ ...s, maxMarkerScale: v })),
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

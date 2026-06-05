@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, act, within } from "@testing-library/react";
 import { SettingsProvider } from "@/lib/settings";
 import { TripCard } from "@/components/TripCard";
@@ -36,7 +36,10 @@ function renderAll() {
 }
 
 describe("Settings → UI integration", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    (globalThis as any).ResizeObserver = class { observe() {} disconnect() {} unobserve() {} };
+  });
 
   it("changing distance unit immediately updates TripCard formats", () => {
     renderAll();

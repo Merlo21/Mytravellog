@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, Settings as SettingsIcon, Ruler, Thermometer, Globe } from "lucide-react";
+import { ArrowLeft, Settings as SettingsIcon, Ruler, Thermometer, Globe, MapPin } from "lucide-react";
 import { useSettings, DistanceUnit, TemperatureUnit, GlobeStyle } from "@/lib/settings";
+import { Slider } from "@/components/ui/slider";
 
 const SettingsPage = () => {
   const s = useSettings();
@@ -74,6 +75,41 @@ const SettingsPage = () => {
               { value: "satellite", label: "Satellitare", hint: "immagine reale" },
             ]}
           />
+        </SettingGroup>
+
+        <SettingGroup
+          icon={<MapPin className="w-5 h-5" />}
+          title="Dimensione marker"
+          description="Controlla la dimensione minima e massima dei segnaposto sulla mappa."
+        >
+          <div className="space-y-5">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Minimo</span>
+                <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">{s.minMarkerScale.toFixed(1)}x</span>
+              </div>
+              <Slider
+                value={[s.minMarkerScale]}
+                min={0.1}
+                max={2.0}
+                step={0.1}
+                onValueChange={([v]) => s.setMinMarkerScale(Math.min(v, s.maxMarkerScale))}
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Massimo</span>
+                <span className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">{s.maxMarkerScale.toFixed(1)}x</span>
+              </div>
+              <Slider
+                value={[s.maxMarkerScale]}
+                min={0.1}
+                max={2.0}
+                step={0.1}
+                onValueChange={([v]) => s.setMaxMarkerScale(Math.max(v, s.minMarkerScale))}
+              />
+            </div>
+          </div>
         </SettingGroup>
       </div>
     </main>
