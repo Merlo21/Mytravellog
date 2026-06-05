@@ -70,9 +70,13 @@ describe("SettingsProvider", () => {
         <span data-testid="distance">{s.distanceUnit}</span>
         <span data-testid="temperature">{s.temperatureUnit}</span>
         <span data-testid="globe">{s.globeStyle}</span>
+        <span data-testid="minMarker">{s.minMarkerScale}</span>
+        <span data-testid="maxMarker">{s.maxMarkerScale}</span>
         <button onClick={() => s.setDistanceUnit("imperial")}>d</button>
         <button onClick={() => s.setTemperatureUnit("fahrenheit")}>t</button>
         <button onClick={() => s.setGlobeStyle("satellite")}>g</button>
+        <button onClick={() => s.setMinMarkerScale(0.3)}>min</button>
+        <button onClick={() => s.setMaxMarkerScale(1.5)}>max</button>
       </div>
     );
   }
