@@ -36,7 +36,10 @@ function renderAll() {
 }
 
 describe("Settings → UI integration", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    (globalThis as any).ResizeObserver = class { observe() {} disconnect() {} unobserve() {} };
+  });
 
   it("changing distance unit immediately updates TripCard formats", () => {
     renderAll();
