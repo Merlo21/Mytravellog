@@ -90,6 +90,8 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("distance").textContent).toBe("metric");
     expect(screen.getByTestId("temperature").textContent).toBe("celsius");
     expect(screen.getByTestId("globe").textContent).toBe("artistic");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.5");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1");
   });
 
   it("updates settings and persists to localStorage", () => {
