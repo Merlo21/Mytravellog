@@ -4,6 +4,7 @@ import { z } from "zod";
 export const distanceUnitSchema = z.enum(["metric", "imperial"]);
 export const temperatureUnitSchema = z.enum(["celsius", "fahrenheit"]);
 export const globeStyleSchema = z.enum(["artistic", "satellite"]);
+export const markerScaleSchema = z.number().min(0.1).max(2.0);
 
 export type DistanceUnit = z.infer<typeof distanceUnitSchema>;
 export type TemperatureUnit = z.infer<typeof temperatureUnitSchema>;
@@ -13,6 +14,8 @@ export const settingsSchema = z.object({
   distanceUnit: distanceUnitSchema,
   temperatureUnit: temperatureUnitSchema,
   globeStyle: globeStyleSchema,
+  minMarkerScale: markerScaleSchema,
+  maxMarkerScale: markerScaleSchema,
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -21,6 +24,8 @@ const DEFAULTS: Settings = {
   distanceUnit: "metric",
   temperatureUnit: "celsius",
   globeStyle: "artistic",
+  minMarkerScale: 0.5,
+  maxMarkerScale: 1.0,
 };
 
 const KEY = "atlas.settings.v1";
