@@ -130,6 +130,8 @@ describe("SettingsProvider", () => {
         distanceUnit: "imperial",
         temperatureUnit: "fahrenheit",
         globeStyle: "satellite",
+        minMarkerScale: 0.8,
+        maxMarkerScale: 1.2,
       })
     );
     render(
@@ -140,6 +142,8 @@ describe("SettingsProvider", () => {
     expect(screen.getByTestId("distance").textContent).toBe("imperial");
     expect(screen.getByTestId("temperature").textContent).toBe("fahrenheit");
     expect(screen.getByTestId("globe").textContent).toBe("satellite");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.8");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1.2");
   });
 
   it("falls back to defaults when localStorage is corrupted", () => {
