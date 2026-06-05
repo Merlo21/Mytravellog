@@ -104,16 +104,22 @@ describe("SettingsProvider", () => {
       screen.getByText("d").click();
       screen.getByText("t").click();
       screen.getByText("g").click();
+      screen.getByText("min").click();
+      screen.getByText("max").click();
     });
     expect(screen.getByTestId("distance").textContent).toBe("imperial");
     expect(screen.getByTestId("temperature").textContent).toBe("fahrenheit");
     expect(screen.getByTestId("globe").textContent).toBe("satellite");
+    expect(screen.getByTestId("minMarker").textContent).toBe("0.3");
+    expect(screen.getByTestId("maxMarker").textContent).toBe("1.5");
 
     const stored = JSON.parse(localStorage.getItem("atlas.settings.v1")!);
     expect(stored).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
       globeStyle: "satellite",
+      minMarkerScale: 0.3,
+      maxMarkerScale: 1.5,
     });
   });
 
