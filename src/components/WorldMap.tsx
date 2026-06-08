@@ -98,6 +98,10 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
   useEffect(() => { onSelectRef.current = onSelectTrip; }, [onSelectTrip]);
   const tripsRef = useRef(trips);
   useEffect(() => { tripsRef.current = trips; }, [trips]);
+  const minMarkerScaleRef = useRef(minMarkerScale);
+  const maxMarkerScaleRef = useRef(maxMarkerScale);
+  useEffect(() => { minMarkerScaleRef.current = minMarkerScale; }, [minMarkerScale]);
+  useEffect(() => { maxMarkerScaleRef.current = maxMarkerScale; }, [maxMarkerScale]);
 
   // ---- init scene once ----
   useEffect(() => {
