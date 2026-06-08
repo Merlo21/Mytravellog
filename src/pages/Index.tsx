@@ -63,25 +63,17 @@ const Index = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        <section className="grid lg:grid-cols-[1.5fr_1fr] gap-6 mb-8">
-          <div className="h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
-            <WorldMap
-              trips={trips}
-              selectedId={selectedId}
-              onSelectTrip={(t) => setSelectedId(t.id)}
-            />
+        <section className="mb-8">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-lg font-semibold">I tuoi viaggi</h2>
+            <span className="text-xs text-muted-foreground font-mono">{trips.length} totali</span>
           </div>
 
-          <div className="space-y-3 lg:max-h-[640px] lg:overflow-y-auto pr-1 scrollbar-thin">
-            <div className="flex items-baseline justify-between mb-1">
-              <h2 className="text-lg font-semibold">I tuoi viaggi</h2>
-              <span className="text-xs text-muted-foreground font-mono">{trips.length} totali</span>
-            </div>
-
-            {trips.length === 0 ? (
-              <EmptyState />
-            ) : (
-              trips.map((t) => (
+          {trips.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {trips.map((t) => (
                 <TripCard
                   key={t.id}
                   trip={t}
@@ -89,9 +81,17 @@ const Index = () => {
                   onClick={() => setSelectedId(t.id)}
                   onDeleted={refresh}
                 />
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mb-8 h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
+          <WorldMap
+            trips={trips}
+            selectedId={selectedId}
+            onSelectTrip={(t) => setSelectedId(t.id)}
+          />
         </section>
 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -101,6 +101,7 @@ const Index = () => {
           <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
         </section>
       </div>
+
 
     </main>
   );
