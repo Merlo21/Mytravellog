@@ -98,6 +98,10 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
   useEffect(() => { onSelectRef.current = onSelectTrip; }, [onSelectTrip]);
   const tripsRef = useRef(trips);
   useEffect(() => { tripsRef.current = trips; }, [trips]);
+  const minMarkerScaleRef = useRef(minMarkerScale);
+  const maxMarkerScaleRef = useRef(maxMarkerScale);
+  useEffect(() => { minMarkerScaleRef.current = minMarkerScale; }, [minMarkerScale]);
+  useEffect(() => { maxMarkerScaleRef.current = maxMarkerScale; }, [maxMarkerScale]);
 
   // ---- init scene once ----
   useEffect(() => {
@@ -504,9 +508,9 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const targetZ = s.zoom;
       camera.position.z += (targetZ - camera.position.z) * 0.12;
 
-      // Scale markers based on zoom with user-defined min/max bounds
+      // Scale markers based on zoom with user-defined min/max bounds (live via refs)
       const rawScale = camera.position.z / 3.2;
-      const markerScale = Math.max(minMarkerScale, Math.min(maxMarkerScale, rawScale));
+      const markerScale = Math.max(minMarkerScaleRef.current, Math.min(maxMarkerScaleRef.current, rawScale));
       markersGroup.children.forEach((child) => {
         child.scale.setScalar(markerScale);
       });
