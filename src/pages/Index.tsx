@@ -63,14 +63,7 @@ const Index = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard icon={<Plane />} label="Viaggi" value={stats.trips} />
-          <StatCard icon={<Globe />} label="Stati" value={stats.countries} accent="primary" />
-          <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
-          <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
-        </section>
-
-        <section className="grid lg:grid-cols-[1.5fr_1fr] gap-6">
+        <section className="grid lg:grid-cols-[1.5fr_1fr] gap-6 mb-8">
           <div className="h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
             <WorldMap
               trips={trips}
@@ -100,7 +93,15 @@ const Index = () => {
             )}
           </div>
         </section>
+
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard icon={<Plane />} label="Viaggi" value={stats.trips} />
+          <StatCard icon={<Globe />} label="Stati" value={stats.countries} accent="primary" />
+          <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
+          <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
+        </section>
       </div>
+
     </main>
   );
 };
