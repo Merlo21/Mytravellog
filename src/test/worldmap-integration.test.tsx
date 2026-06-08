@@ -158,6 +158,19 @@ function flushRaf() {
   cbs.forEach((c) => c(performance.now()));
 }
 
+import { useSettings } from "@/lib/settings";
+
+function MarkerScaleControls() {
+  const { setMinMarkerScale, setMaxMarkerScale } = useSettings();
+  return (
+    <div>
+      <button onClick={() => { setMinMarkerScale(0.2); setMaxMarkerScale(0.3); }}>
+        shrink-markers
+      </button>
+    </div>
+  );
+}
+
 function renderApp(initialTrips: LocalTrip[]) {
   return render(
     <SettingsProvider>
@@ -165,6 +178,7 @@ function renderApp(initialTrips: LocalTrip[]) {
         <div style={{ width: 800, height: 600 }}>
           <WorldMap trips={initialTrips} />
         </div>
+        <MarkerScaleControls />
         <SettingsPage />
       </MemoryRouter>
     </SettingsProvider>
