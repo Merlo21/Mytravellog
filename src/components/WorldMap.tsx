@@ -508,11 +508,15 @@ export function WorldMap({ trips, onSelectTrip, selectedId }: Props) {
       const targetZ = s.zoom;
       camera.position.z += (targetZ - camera.position.z) * 0.12;
 
-      // Scale markers based on zoom with user-defined min/max bounds (live via refs)
+      // Scale markers based on zoom with user-defined min/max bounds (live via refs).
+      // Smoothly interpolate current → target so slider/zoom changes ease in.
       const rawScale = camera.position.z / 3.2;
-      const markerScale = Math.max(minMarkerScaleRef.current, Math.min(maxMarkerScaleRef.current, rawScale));
-      markersGroup.children.forEach((child) => {
-        child.scale.setScalar(markerScale);
+      const targetMarkerScale = Math.max(minMarkerScaleRef.current, Math.min(maxMarkerScaleRef.current, rawScale));
+      const SCALE_LERP = 0.12;
+      markersGroup.children.forEach((child: any) => {
+        const current = child.scale.x ?? targetMarkerScale;
+        const next = current + (targetMarkerScale - current) * SCALE_LERP;
+        child.scale.setScalar(next);
       });
 
       renderer.render(scene, camera);
