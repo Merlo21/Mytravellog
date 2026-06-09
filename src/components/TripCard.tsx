@@ -1,26 +1,36 @@
+import { useState } from "react";
 import { LocalTrip } from "@/lib/storage";
-import { Thermometer, Mountain, Route, Calendar, Trash2 } from "lucide-react";
+import { Thermometer, Mountain, Route, Calendar, Trash2, Pencil } from "lucide-react";
 import { countryFlag } from "@/lib/geo";
 import { deleteTrip } from "@/lib/storage";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
+import { EditTripDialog } from "@/components/EditTripDialog";
 
 interface Props {
   trip: LocalTrip;
   selected?: boolean;
   onClick?: () => void;
   onDeleted?: () => void;
+  onUpdated?: () => void;
 }
 
-export function TripCard({ trip, selected, onClick, onDeleted }: Props) {
+export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
+  const [editOpen, setEditOpen] = useState(false);
+
   const remove = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Eliminare questo viaggio?")) return;
     deleteTrip(trip.id);
     toast.success("Viaggio eliminato");
     onDeleted?.();
+  };
+
+  const openEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditOpen(true);
   };
 
   const tempGradient =
@@ -43,14 +53,26 @@ export function TripCard({ trip, selected, onClick, onDeleted }: Props) {
                 {trip.city}, {trip.country}
               </p>
             </div>
-            <Button
-              size="icon" variant="ghost"
-              onClick={remove}
-              className="transition h-8 w-8 shrink-0"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Button
+                size="icon" variant="ghost"
+                onClick={openEdit}
+                aria-label="Modifica viaggio"
+                className="transition h-8 w-8"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                size="icon" variant="ghost"
+                onClick={remove}
+                aria-label="Elimina viaggio"
+                className="transition h-8 w-8"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
           </div>
+
 
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 font-mono">
             <Calendar className="w-3 h-3" />
