@@ -109,16 +109,5 @@ function StatCard({
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="glass-card p-8 text-center">
-      <Globe className="w-12 h-12 mx-auto mb-3 text-primary opacity-60 animate-pulse-glow" />
-      <h3 className="font-semibold mb-1">Il tuo atlante è vuoto</h3>
-      <p className="text-sm text-muted-foreground">
-        Aggiungi il tuo primo viaggio per iniziare a tracciare temperature, altitudini e km percorsi.
-      </p>
-    </div>
-  );
-}
 
 export default Index;
