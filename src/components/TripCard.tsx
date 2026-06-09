@@ -105,6 +105,14 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
           )}
         </div>
       </div>
+
+      <EditTripDialog
+        trip={trip}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={onUpdated}
+      />
     </div>
   );
 }
+
