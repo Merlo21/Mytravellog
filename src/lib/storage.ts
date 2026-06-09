@@ -49,3 +49,13 @@ export function addTrip(trip: Omit<LocalTrip, "id" | "created_at">): LocalTrip {
 export function deleteTrip(id: string) {
   saveTrips(loadTrips().filter((t) => t.id !== id));
 }
+
+export function updateTrip(id: string, patch: Partial<Omit<LocalTrip, "id" | "created_at">>): LocalTrip | null {
+  const all = loadTrips();
+  const idx = all.findIndex((t) => t.id === id);
+  if (idx === -1) return null;
+  const updated = { ...all[idx], ...patch };
+  all[idx] = updated;
+  saveTrips(all);
+  return updated;
+}
