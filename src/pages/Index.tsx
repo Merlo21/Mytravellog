@@ -45,13 +45,41 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href="#i-tuoi-viaggi"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
-            >
-              <Plane className="w-4 h-4 text-primary" />
-              I tuoi viaggi
-            </a>
+            <Sheet>
+              <SheetTrigger asChild>
+                <button
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
+                >
+                  <Plane className="w-4 h-4 text-primary" />
+                  I tuoi viaggi
+                </button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>I tuoi viaggi</SheetTitle>
+                  <SheetDescription>{trips.length} viaggi totali. Tocca la matita per modificare.</SheetDescription>
+                </SheetHeader>
+                <div className="mt-4 space-y-3">
+                  {trips.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Nessun viaggio. Aggiungi il primo dal pulsante "Nuovo viaggio".
+                    </p>
+                  ) : (
+                    trips.map((t) => (
+                      <TripCard
+                        key={t.id}
+                        trip={t}
+                        selected={selectedId === t.id}
+                        onClick={() => setSelectedId(t.id)}
+                        onDeleted={refresh}
+                        onUpdated={refresh}
+                      />
+                    ))
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+
             <Link
               to="/statistiche"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
