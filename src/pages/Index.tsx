@@ -43,6 +43,13 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href="#i-tuoi-viaggi"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
+            >
+              <Plane className="w-4 h-4 text-primary" />
+              I tuoi viaggi
+            </a>
             <Link
               to="/statistiche"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-sm font-semibold transition-colors border border-border"
@@ -63,7 +70,15 @@ const Index = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        <section className="mb-8">
+        <section className="mb-8 h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
+          <WorldMap
+            trips={trips}
+            selectedId={selectedId}
+            onSelectTrip={(t) => setSelectedId(t.id)}
+          />
+        </section>
+
+        <section id="i-tuoi-viaggi" className="mb-8 scroll-mt-24">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">I tuoi viaggi</h2>
             <span className="text-xs text-muted-foreground font-mono">{trips.length} totali</span>
@@ -86,13 +101,6 @@ const Index = () => {
           )}
         </section>
 
-        <section className="mb-8 h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
-          <WorldMap
-            trips={trips}
-            selectedId={selectedId}
-            onSelectTrip={(t) => setSelectedId(t.id)}
-          />
-        </section>
 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard icon={<Plane />} label="Viaggi" value={stats.trips} />
