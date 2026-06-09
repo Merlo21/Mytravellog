@@ -46,7 +46,7 @@ export function TripCard({ trip, selected, onClick, onDeleted }: Props) {
             <Button
               size="icon" variant="ghost"
               onClick={remove}
-              className="opacity-0 group-hover:opacity-100 transition h-8 w-8 shrink-0"
+              className="transition h-8 w-8 shrink-0"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
