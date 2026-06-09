@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { LocalTrip, loadTrips } from "@/lib/storage";
 import { WorldMap } from "@/components/WorldMap";
-import { TripCard } from "@/components/TripCard";
+
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon } from "lucide-react";
 import { formatDistanceKm, useSettings } from "@/lib/settings";
@@ -70,43 +70,19 @@ const Index = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
+        <section className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard icon={<Plane />} label="Viaggi" value={stats.trips} />
+          <StatCard icon={<Globe />} label="Stati" value={stats.countries} accent="primary" />
+          <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
+          <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
+        </section>
+
         <section className="mb-8 h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
           <WorldMap
             trips={trips}
             selectedId={selectedId}
             onSelectTrip={(t) => setSelectedId(t.id)}
           />
-        </section>
-
-        <section id="i-tuoi-viaggi" className="mb-8 scroll-mt-24">
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-lg font-semibold">I tuoi viaggi</h2>
-            <span className="text-xs text-muted-foreground font-mono">{trips.length} totali</span>
-          </div>
-
-          {trips.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {trips.map((t) => (
-                <TripCard
-                  key={t.id}
-                  trip={t}
-                  selected={selectedId === t.id}
-                  onClick={() => setSelectedId(t.id)}
-                  onDeleted={refresh}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard icon={<Plane />} label="Viaggi" value={stats.trips} />
-          <StatCard icon={<Globe />} label="Stati" value={stats.countries} accent="primary" />
-          <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
-          <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
         </section>
       </div>
 
@@ -133,16 +109,5 @@ function StatCard({
   );
 }
 
-function EmptyState() {
-  return (
-    <div className="glass-card p-8 text-center">
-      <Globe className="w-12 h-12 mx-auto mb-3 text-primary opacity-60 animate-pulse-glow" />
-      <h3 className="font-semibold mb-1">Il tuo atlante è vuoto</h3>
-      <p className="text-sm text-muted-foreground">
-        Aggiungi il tuo primo viaggio per iniziare a tracciare temperature, altitudini e km percorsi.
-      </p>
-    </div>
-  );
-}
 
 export default Index;
