@@ -30,8 +30,13 @@ export function loadTrips(): LocalTrip[] {
   }
 }
 
-export function saveTrips(trips: LocalTrip[]) {
-  localStorage.setItem(KEY, JSON.stringify(trips));
+export function saveTrips(trips: LocalTrip[]): boolean {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(trips));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function addTrip(trip: Omit<LocalTrip, "id" | "created_at">): LocalTrip {
@@ -51,11 +56,15 @@ export function deleteTrip(id: string) {
 }
 
 export function updateTrip(id: string, patch: Partial<Omit<LocalTrip, "id" | "created_at">>): LocalTrip | null {
-  const all = loadTrips();
-  const idx = all.findIndex((t) => t.id === id);
-  if (idx === -1) return null;
-  const updated = { ...all[idx], ...patch };
-  all[idx] = updated;
-  saveTrips(all);
-  return updated;
+  try {
+    const all = loadTrips();
+    const idx = all.findIndex((t) => t.id === id);
+    if (idx === -1) return null;
+    const updated = { ...all[idx], ...patch };
+    all[idx] = updated;
+    if (!saveTrips(all)) return null;
+    return updated;
+  } catch {
+    return null;
+  }
 }
