@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LocalTrip, updateTrip } from "@/lib/storage";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface Props {
   trip: LocalTrip;
@@ -31,6 +32,7 @@ export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
   const [alt, setAlt] = useState<string>(trip.altitude_m?.toString() ?? "");
   const [dist, setDist] = useState<string>(trip.distance_from_home_km?.toString() ?? "");
   const [dirty, setDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const persist = () => {
     const parsed = schema.safeParse({
@@ -56,27 +58,46 @@ export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
 
   const handleOpenChange = (v: boolean) => {
     if (!v && dirty) {
-      if (persist()) {
-        toast.success("Viaggio aggiornato");
-        onSaved?.();
-      }
-      setDirty(false);
+      setIsSaving(true);
+      requestAnimationFrame(() => {
+        const ok = persist();
+        if (ok) {
+          toast.success("Viaggio aggiornato", { icon: "✅" });
+          onSaved?.();
+        }
+        setDirty(false);
+        setIsSaving(false);
+        onOpenChange(v);
+      });
+      return;
     }
+    if (!v) setDirty(false);
     onOpenChange(v);
   };
 
   const handleSave = () => {
-    if (persist()) {
-      toast.success("Viaggio aggiornato");
-      onOpenChange(false);
-      onSaved?.();
+    setIsSaving(true);
+    requestAnimationFrame(() => {
+      const ok = persist();
+      if (ok) {
+        toast.success("Viaggio aggiornato", { icon: "✅" });
+        onOpenChange(false);
+        onSaved?.();
+      }
       setDirty(false);
-    }
+      setIsSaving(false);
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md relative overflow-hidden">
+        {isSaving && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="mt-2 text-sm font-medium text-muted-foreground">Salvataggio in corso…</p>
+          </div>
+        )}
         <DialogHeader>
           <DialogTitle>Modifica viaggio</DialogTitle>
           <DialogDescription>Aggiorna i dettagli di "{trip.title}".</DialogDescription>
@@ -86,33 +107,42 @@ export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="edit-country">Stato</Label>
-              <Input id="edit-country" value={country} onChange={(e) => { setCountry(e.target.value); setDirty(true); }} maxLength={100} />
+              <Input id="edit-country" value={country} disabled={isSaving} onChange={(e) => { setCountry(e.target.value); setDirty(true); }} maxLength={100} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-city">Città</Label>
-              <Input id="edit-city" value={city} onChange={(e) => { setCity(e.target.value); setDirty(true); }} maxLength={100} />
+              <Input id="edit-city" value={city} disabled={isSaving} onChange={(e) => { setCity(e.target.value); setDirty(true); }} maxLength={100} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="edit-temp">Temp (°C)</Label>
-              <Input id="edit-temp" type="number" step="0.1" value={temp} onChange={(e) => { setTemp(e.target.value); setDirty(true); }} />
+              <Input id="edit-temp" type="number" step="0.1" value={temp} disabled={isSaving} onChange={(e) => { setTemp(e.target.value); setDirty(true); }} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-alt">Altitudine (m)</Label>
-              <Input id="edit-alt" type="number" step="1" value={alt} onChange={(e) => { setAlt(e.target.value); setDirty(true); }} />
+              <Input id="edit-alt" type="number" step="1" value={alt} disabled={isSaving} onChange={(e) => { setAlt(e.target.value); setDirty(true); }} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-dist">Km da casa</Label>
-              <Input id="edit-dist" type="number" step="1" value={dist} onChange={(e) => { setDist(e.target.value); setDirty(true); }} />
+              <Input id="edit-dist" type="number" step="1" value={dist} disabled={isSaving} onChange={(e) => { setDist(e.target.value); setDirty(true); }} />
             </div>
           </div>
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Chiudi</Button>
-          <Button variant="hero" onClick={handleSave}>Salva modifiche</Button>
+          <Button variant="ghost" disabled={isSaving} onClick={() => handleOpenChange(false)}>Chiudi</Button>
+          <Button variant="hero" disabled={isSaving} onClick={handleSave}>
+            {isSaving ? (
+              <span className="flex items-center gap-1.5">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Salvataggio…
+              </span>
+            ) : (
+              "Salva modifiche"
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
