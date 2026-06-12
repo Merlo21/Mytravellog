@@ -84,15 +84,16 @@ export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
       setSaveError(false);
       requestAnimationFrame(() => {
         const ok = persist();
+        setIsSaving(false);
         if (ok) {
           toast.success("Viaggio aggiornato", { icon: "✅" });
           onSaved?.();
           setDirty(false);
-          setIsSaving(false);
           onOpenChange(v);
         } else {
-          setIsSaving(false);
-          setSaveError(true);
+          toast.error("Salvataggio fallito. Modifiche annullate.");
+          rollback();
+          onOpenChange(v);
         }
       });
       return;
