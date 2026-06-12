@@ -4,15 +4,15 @@ import { LocalTrip, loadTrips } from "@/lib/storage";
 import { WorldMap } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon } from "lucide-react";
-import { formatDistanceKm, useSettings } from "@/lib/settings";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon, Thermometer, ThermometerSun, Mountain } from "lucide-react";
+import { formatDistanceKm, formatAltitudeM, formatTemperatureC, useSettings } from "@/lib/settings";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 
 const Index = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { distanceUnit } = useSettings();
+  const { distanceUnit, temperatureUnit } = useSettings();
 
   const refresh = () => setTrips(loadTrips());
 
@@ -22,7 +22,17 @@ const Index = () => {
     const countries = new Set(trips.map((t) => t.country));
     const cities = new Set(trips.map((t) => `${t.city}|${t.country}`));
     const totalKm = trips.reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0);
-    return { countries: countries.size, cities: cities.size, trips: trips.length, km: totalKm };
+    const temps = trips.map((t) => t.temperature_c).filter((v): v is number => v != null);
+    const alts = trips.map((t) => t.altitude_m).filter((v): v is number => v != null);
+    return {
+      countries: countries.size,
+      cities: cities.size,
+      trips: trips.length,
+      km: totalKm,
+      minTemp: temps.length ? Math.min(...temps) : null,
+      maxTemp: temps.length ? Math.max(...temps) : null,
+      maxAlt: alts.length ? Math.max(...alts) : null,
+    };
   }, [trips]);
 
   const defaultHome = trips[0]
@@ -105,6 +115,26 @@ const Index = () => {
           <StatCard icon={<Globe />} label="Stati" value={stats.countries} accent="primary" />
           <StatCard icon={<MapPin />} label="Città" value={stats.cities} />
           <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
+        </section>
+
+        <section className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            icon={<Thermometer />}
+            label="Temp. min"
+            value={stats.minTemp != null ? formatTemperatureC(stats.minTemp, temperatureUnit, 0) : "—"}
+          />
+          <StatCard
+            icon={<ThermometerSun />}
+            label="Temp. max"
+            value={stats.maxTemp != null ? formatTemperatureC(stats.maxTemp, temperatureUnit, 0) : "—"}
+            accent="accent"
+          />
+          <StatCard
+            icon={<Mountain />}
+            label="Altitudine max"
+            value={stats.maxAlt != null ? formatAltitudeM(stats.maxAlt, distanceUnit) : "—"}
+            accent="primary"
+          />
         </section>
 
         <section className="mb-8 h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
