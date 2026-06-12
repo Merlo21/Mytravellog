@@ -50,6 +50,7 @@ const Stats = () => {
 
       <div className="container mx-auto px-6 py-8 space-y-8">
         <StatsSection trips={trips} />
+        <TripTimelineChart trips={trips} />
         <ContinentsMap trips={trips} />
         <TravelHighlights trips={trips} />
       </div>
