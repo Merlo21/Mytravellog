@@ -4,8 +4,8 @@ import { LocalTrip, loadTrips } from "@/lib/storage";
 import { WorldMap } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon } from "lucide-react";
-import { formatDistanceKm, useSettings } from "@/lib/settings";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings as SettingsIcon, Thermometer, ThermometerSun, Mountain } from "lucide-react";
+import { formatDistanceKm, formatAltitudeM, formatTemperatureC, useSettings } from "@/lib/settings";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 
