@@ -5,6 +5,7 @@ import { LocalTrip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
 import { ContinentsMap } from "@/components/ContinentsMap";
 import { TravelHighlights } from "@/components/TravelHighlights";
+import { TripTimelineChart } from "@/components/TripTimelineChart";
 
 const Stats = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
