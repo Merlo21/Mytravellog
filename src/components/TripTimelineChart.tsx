@@ -30,7 +30,7 @@ export function TripTimelineChart({ trips }: Props) {
         const temp =
           tempC == null
             ? null
-            : temperatureUnit === "imperial"
+            : temperatureUnit === "fahrenheit"
               ? Math.round((tempC * 9) / 5 + 32)
               : Math.round(tempC);
         const alt =
