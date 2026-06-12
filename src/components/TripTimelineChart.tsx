@@ -48,7 +48,7 @@ export function TripTimelineChart({ trips }: Props) {
       });
   }, [trips, temperatureUnit, distanceUnit]);
 
-  const tempUnit = temperatureUnit === "imperial" ? "°F" : "°C";
+  const tempUnit = temperatureUnit === "fahrenheit" ? "°F" : "°C";
   const altUnit = distanceUnit === "imperial" ? "ft" : "m";
 
   if (data.length === 0) {
