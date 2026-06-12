@@ -117,6 +117,26 @@ const Index = () => {
           <StatCard icon={<Compass />} label={distanceUnit === "imperial" ? "Mi totali" : "Km totali"} value={formatDistanceKm(stats.km, distanceUnit)} accent="accent" />
         </section>
 
+        <section className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            icon={<Thermometer />}
+            label="Temp. min"
+            value={stats.minTemp != null ? formatTemperatureC(stats.minTemp, temperatureUnit, 0) : "—"}
+          />
+          <StatCard
+            icon={<ThermometerSun />}
+            label="Temp. max"
+            value={stats.maxTemp != null ? formatTemperatureC(stats.maxTemp, temperatureUnit, 0) : "—"}
+            accent="accent"
+          />
+          <StatCard
+            icon={<Mountain />}
+            label="Altitudine max"
+            value={stats.maxAlt != null ? formatAltitudeM(stats.maxAlt, distanceUnit) : "—"}
+            accent="primary"
+          />
+        </section>
+
         <section className="mb-8 h-[500px] lg:h-[640px] glass-card p-3 animate-fade-up">
           <WorldMap
             trips={trips}
