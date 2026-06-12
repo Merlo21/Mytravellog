@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 const Index = () => {
   const [trips, setTrips] = useState<LocalTrip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { distanceUnit } = useSettings();
+  const { distanceUnit, temperatureUnit } = useSettings();
 
   const refresh = () => setTrips(loadTrips());
 
@@ -22,7 +22,17 @@ const Index = () => {
     const countries = new Set(trips.map((t) => t.country));
     const cities = new Set(trips.map((t) => `${t.city}|${t.country}`));
     const totalKm = trips.reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0);
-    return { countries: countries.size, cities: cities.size, trips: trips.length, km: totalKm };
+    const temps = trips.map((t) => t.temperature_c).filter((v): v is number => v != null);
+    const alts = trips.map((t) => t.altitude_m).filter((v): v is number => v != null);
+    return {
+      countries: countries.size,
+      cities: cities.size,
+      trips: trips.length,
+      km: totalKm,
+      minTemp: temps.length ? Math.min(...temps) : null,
+      maxTemp: temps.length ? Math.max(...temps) : null,
+      maxAlt: alts.length ? Math.max(...alts) : null,
+    };
   }, [trips]);
 
   const defaultHome = trips[0]
