@@ -68,3 +68,5 @@ export function formatTripDate(iso: string): string {
     year: "numeric",
   });
 }
+// Backwards-compatible alias
+export type LocalTrip = Trip;
