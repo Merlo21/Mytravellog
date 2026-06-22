@@ -76,3 +76,14 @@ export function fmtTemp(c: number | null | undefined, unit: TemperatureUnit): st
   if (unit === "fahrenheit") return `${(c * 9 / 5 + 32).toFixed(1)}°F`;
   return `${c.toFixed(1)}°C`;
 }
+
+// ── Backwards-compatible aliases (used by older components) ──────────────────
+export function formatDistanceKm(km: number | null | undefined, unit: DistanceUnit): string {
+  return fmtDistance(km, unit);
+}
+export function formatAltitudeM(m: number | null | undefined, unit: DistanceUnit): string {
+  return fmtAltitude(m, unit);
+}
+export function formatTemperatureC(c: number | null | undefined, unit: TemperatureUnit): string {
+  return fmtTemp(c, unit);
+}
