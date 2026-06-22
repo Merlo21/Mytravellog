@@ -2,18 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadTrips, Trip } from "@/lib/storage";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { WorldMap } from "@/components/WorldMap";
+import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-react";
-
-interface CityInfo {
-  name: string;
-  country: string;
-  country_code: string;
-  latitude: number;
-  longitude: number;
-}
 
 export default function Home() {
   const { distanceUnit, globeLabels } = useSettings();
