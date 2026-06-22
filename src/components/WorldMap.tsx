@@ -317,7 +317,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
     container.appendChild(overlay);
 
     // Country labels — mixed case, no pointer events
-    COUNTRIES.forEach(({ name, lat, lon }) => {
+    COUNTRIES.forEach(({ name, lat, lon, tier }) => {
       const el = document.createElement("div");
       el.textContent = name;
       el.style.cssText = `position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:500;letter-spacing:0.5px;color:rgba(255,255,255,0.8);text-shadow:${SHADOW};opacity:0;transition:opacity 0.25s`;
