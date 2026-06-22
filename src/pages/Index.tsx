@@ -6,6 +6,7 @@ import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-react";
+import { CityMapPopup } from "@/components/CityMapPopup";
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
   state = { error: null };
@@ -28,6 +29,7 @@ import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-react";
+import { CityMapPopup } from "@/components/CityMapPopup";
 
 function HomeInner() {
   const { distanceUnit, globeLabels } = useSettings();
@@ -35,6 +37,7 @@ function HomeInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
+  const [pendingCity, setPendingCity] = useState<CityInfo | null>(null);
 
   const refresh = () => setTrips(loadTrips());
   useEffect(() => { refresh(); }, []);
@@ -110,42 +113,25 @@ function HomeInner() {
 
       {/* City selected popup — opens NewTripDialog pre-filled */}
       {selectedCity && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setSelectedCity(null)}>
-          <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="text-3xl">
-                {selectedCity.country_code.length === 2
-                  ? String.fromCodePoint(...selectedCity.country_code.toUpperCase().split("").map(c => 0x1f1e6 + c.charCodeAt(0) - 65))
-                  : "🌍"}
-              </div>
-              <div>
-                <h2 className="text-lg font-bold">{selectedCity.name}</h2>
-                <p className="text-sm text-muted-foreground">{selectedCity.country}</p>
-              </div>
-              <button onClick={() => setSelectedCity(null)} className="ml-auto p-1 rounded-lg hover:bg-muted transition-colors">
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Vuoi aggiungere <strong>{selectedCity.name}</strong> ai tuoi viaggi?
-            </p>
-            <div className="flex gap-2">
-              <button onClick={() => setSelectedCity(null)}
-                className="flex-1 btn-ghost text-sm py-2">
-                Annulla
-              </button>
-              <div className="flex-1" onClick={() => setSelectedCity(null)}>
-                <NewTripDialog
-                  onCreated={refresh}
-                  defaultHome={defaultHome}
-                  prefilledCity={{ name: selectedCity.name, country: selectedCity.country, country_code: selectedCity.country_code, latitude: selectedCity.latitude, longitude: selectedCity.longitude }}
-                  triggerLabel={`Aggiungi ${selectedCity.name}`}
-                />
-              </div>
-            </div>
-          </div>
+        <CityMapPopup
+          city={selectedCity}
+          onClose={() => setSelectedCity(null)}
+          onAddTrip={(city) => {
+            setSelectedCity(null);
+            // Open NewTripDialog with prefilled city by setting a trigger
+            setPendingCity(city);
+          }}
+        />
+      )}
+
+      {pendingCity && (
+        <div style={{display:'none'}}>
+          <NewTripDialog
+            onCreated={() => { refresh(); setPendingCity(null); }}
+            defaultHome={defaultHome}
+            prefilledCity={pendingCity}
+            triggerLabel="open"
+          />
         </div>
       )}
 
