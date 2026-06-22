@@ -4,7 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { SettingsProvider } from "./lib/settings";
 import "./index.css";
-import Home from "./pages/Home";
+import Home from "./pages/Index";
 import Stats from "./pages/Stats";
 import SettingsPage from "./pages/Settings";
 
