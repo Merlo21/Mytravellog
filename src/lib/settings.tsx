@@ -3,23 +3,27 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 export type DistanceUnit = "metric" | "imperial";
 export type TemperatureUnit = "celsius" | "fahrenheit";
 export type GlobeStyle = "artistic" | "satellite";
+export type GlobeLabels = "none" | "capitals" | "major" | "all";
 
 type Settings = {
   distanceUnit: DistanceUnit;
   temperatureUnit: TemperatureUnit;
   globeStyle: GlobeStyle;
+  globeLabels: GlobeLabels;
 };
 
 type Ctx = Settings & {
   setDistanceUnit: (v: DistanceUnit) => void;
   setTemperatureUnit: (v: TemperatureUnit) => void;
   setGlobeStyle: (v: GlobeStyle) => void;
+  setGlobeLabels: (v: GlobeLabels) => void;
 };
 
 const DEFAULTS: Settings = {
   distanceUnit: "metric",
   temperatureUnit: "celsius",
   globeStyle: "artistic",
+  globeLabels: "major",
 };
 
 const KEY = "atlas.settings.v1";
@@ -44,6 +48,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setDistanceUnit: (v) => setS((p) => ({ ...p, distanceUnit: v })),
     setTemperatureUnit: (v) => setS((p) => ({ ...p, temperatureUnit: v })),
     setGlobeStyle: (v) => setS((p) => ({ ...p, globeStyle: v })),
+    setGlobeLabels: (v) => setS((p) => ({ ...p, globeLabels: v })),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
