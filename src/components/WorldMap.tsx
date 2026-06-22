@@ -173,6 +173,65 @@ export function WorldMap({ trips, selectedId, onSelectTrip }: Props) {
     labelsRoot.style.cssText = "position:absolute;inset:0;pointer-events:none;overflow:hidden;";
     container.appendChild(labelsRoot);
 
+    // ── City labels data ────────────────────────────────────────────
+    const CITY_DATA: { n: string; la: number; lo: number; tier: 1 | 2 | 3 }[] = [
+      // T1 — world capitals, show at zoom < 3.0
+      {n:'Roma',la:41.9,lo:12.5,tier:1},{n:'Tokyo',la:35.68,lo:139.69,tier:1},
+      {n:'New York',la:40.71,lo:-74.01,tier:1},{n:'Londra',la:51.51,lo:-0.13,tier:1},
+      {n:'Pechino',la:39.91,lo:116.39,tier:1},{n:'Mosca',la:55.75,lo:37.62,tier:1},
+      {n:'Cairo',la:30.05,lo:31.25,tier:1},{n:'São Paulo',la:-23.55,lo:-46.63,tier:1},
+      {n:'Mumbai',la:19.08,lo:72.88,tier:1},{n:'Sydney',la:-33.87,lo:151.21,tier:1},
+      // T2 — major cities, show at zoom < 2.1
+      {n:'Parigi',la:48.85,lo:2.35,tier:2},{n:'Berlino',la:52.52,lo:13.4,tier:2},
+      {n:'Madrid',la:40.42,lo:-3.7,tier:2},{n:'Istanbul',la:41.01,lo:28.95,tier:2},
+      {n:'Seoul',la:37.57,lo:126.98,tier:2},{n:'Delhi',la:28.61,lo:77.21,tier:2},
+      {n:'Shanghai',la:31.23,lo:121.47,tier:2},{n:'Lagos',la:6.45,lo:3.4,tier:2},
+      {n:'Buenos Aires',la:-34.6,lo:-58.38,tier:2},{n:'Los Angeles',la:34.05,lo:-118.24,tier:2},
+      {n:'Chicago',la:41.85,lo:-87.65,tier:2},{n:'Toronto',la:43.65,lo:-79.38,tier:2},
+      {n:'Dubai',la:25.2,lo:55.27,tier:2},{n:'Bangkok',la:13.75,lo:100.52,tier:2},
+      {n:'Singapore',la:1.35,lo:103.82,tier:2},{n:'Amsterdam',la:52.37,lo:4.9,tier:2},
+      {n:'Vienna',la:48.21,lo:16.37,tier:2},{n:'Kyiv',la:50.45,lo:30.52,tier:2},
+      // T3 — regional cities, show at zoom < 1.6
+      {n:'Milano',la:45.47,lo:9.19,tier:3},{n:'Napoli',la:40.85,lo:14.27,tier:3},
+      {n:'Firenze',la:43.77,lo:11.26,tier:3},{n:'Venezia',la:45.44,lo:12.33,tier:3},
+      {n:'Barcellona',la:41.39,lo:2.15,tier:3},{n:'Lione',la:45.75,lo:4.85,tier:3},
+      {n:'Monaco',la:48.14,lo:11.58,tier:3},{n:'Francoforte',la:50.11,lo:8.68,tier:3},
+      {n:'Zurigo',la:47.38,lo:8.54,tier:3},{n:'Bruxelles',la:50.85,lo:4.35,tier:3},
+      {n:'Budapest',la:47.5,lo:19.04,tier:3},{n:'Praga',la:50.08,lo:14.44,tier:3},
+      {n:'Oslo',la:59.91,lo:10.75,tier:3},{n:'Copenhagen',la:55.68,lo:12.57,tier:3},
+      {n:'Helsinki',la:60.17,lo:24.94,tier:3},{n:'Ankara',la:39.92,lo:32.85,tier:3},
+      {n:'San Francisco',la:37.77,lo:-122.42,tier:3},{n:'Miami',la:25.77,lo:-80.19,tier:3},
+      {n:'Montréal',la:45.5,lo:-73.57,tier:3},{n:'Ho Chi Minh',la:10.82,lo:106.63,tier:3},
+      {n:'Tel Aviv',la:32.08,lo:34.78,tier:3},{n:'Casablanca',la:33.59,lo:-7.62,tier:3},
+    ];
+
+    function cityToVec(la: number, lo: number, r = 1.006): THREE.Vector3 {
+      const phi = (90 - la) * (Math.PI / 180);
+      const theta = (lo + 180) * (Math.PI / 180);
+      return new THREE.Vector3(
+        -r * Math.sin(phi) * Math.cos(theta),
+        r * Math.cos(phi),
+        r * Math.sin(phi) * Math.sin(theta)
+      );
+    }
+
+    const cityLabelEls: { el: HTMLDivElement; vec: THREE.Vector3; tier: 1 | 2 | 3 }[] = [];
+    CITY_DATA.forEach(({ n, la, lo, tier }) => {
+      const el = document.createElement("div");
+      const dotSize = tier === 1 ? 5 : tier === 2 ? 3.5 : 2.5;
+      el.style.cssText = "position:absolute;transform:translate(-50%,-50%);pointer-events:none;opacity:0;display:flex;align-items:center;gap:3px;white-space:nowrap;";
+      const dot = document.createElement("div");
+      dot.style.cssText = `width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:rgba(255,255,255,${tier===1?0.95:0.7});flex-shrink:0;box-shadow:0 0 3px rgba(0,0,0,0.8)`;
+      const lbl = document.createElement("span");
+      lbl.textContent = n;
+      lbl.style.cssText = `font-size:${tier===1?11:tier===2?10:9}px;font-family:ui-sans-serif,system-ui,sans-serif;color:rgba(255,255,255,${tier===1?0.95:tier===2?0.82:0.65});font-weight:${tier===1?700:600};text-shadow:0 0 4px #000,1px 0 2px #000,-1px 0 2px #000,0 1px 2px #000,0 -1px 2px #000`;
+      el.appendChild(dot);
+      el.appendChild(lbl);
+      labelsRoot.appendChild(el);
+      cityLabelEls.push({ el, vec: cityToVec(la, lo), tier });
+    });
+
+
     // Tooltip
     const tooltip = document.createElement("div");
     tooltip.style.cssText = "position:absolute;pointer-events:none;padding:8px 10px;border-radius:10px;font-size:11px;font-family:ui-monospace,monospace;color:#e6f8ff;background:rgba(4,17,31,0.92);border:1px solid rgba(34,211,238,0.45);transform:translate(12px,-50%);opacity:0;transition:opacity 0.15s;white-space:nowrap;z-index:500;";
@@ -306,6 +365,24 @@ export function WorldMap({ trips, selectedId, onSelectTrip }: Props) {
       camera.position.z += (s.zoom - camera.position.z) * 0.12;
       renderer.render(scene, camera);
       updateLabels();
+
+      // ── City labels LOD ─────────────────────────────────────────────
+      const z = s.zoom;
+      const euler = new THREE.Euler(earth.rotation.x, earth.rotation.y, 0, 'XYZ');
+      const cw = container.clientWidth, ch = container.clientHeight;
+      cityLabelEls.forEach(({ el, vec, tier }) => {
+        const wv = vec.clone().applyEuler(euler);
+        const show = wv.z > 0.1 && (tier === 1 ? z < 3.0 : tier === 2 ? z < 2.1 : z < 1.6);
+        const cur = parseFloat(el.style.opacity) || 0;
+        const next = cur + ((show ? 1 : 0) - cur) * 0.12;
+        el.style.opacity = next < 0.02 ? '0' : next > 0.98 ? '1' : String(next);
+        if (show) {
+          const proj = wv.clone().project(camera);
+          el.style.left = `${(proj.x * 0.5 + 0.5) * cw}px`;
+          el.style.top = `${(-proj.y * 0.5 + 0.5) * ch}px`;
+        }
+      });
+
       s.raf = requestAnimationFrame(animate);
     };
     animate();
