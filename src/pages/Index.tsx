@@ -1,3 +1,25 @@
+import { useEffect, useMemo, useState, Component, ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { loadTrips, Trip } from "@/lib/storage";
+import { fmtDistance, useSettings } from "@/lib/settings";
+import { WorldMap, CityInfo } from "@/components/WorldMap";
+import { TripCard } from "@/components/TripCard";
+import { NewTripDialog } from "@/components/NewTripDialog";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-react";
+
+class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
+  state = { error: null };
+  static getDerivedStateFromError(e: Error) { return { error: e.message + "\n" + e.stack }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{padding:20,color:'#f87171',background:'#1a0a0a',minHeight:'100vh',fontFamily:'monospace',whiteSpace:'pre-wrap',fontSize:12}}>
+        <h2>Runtime Error:</h2>{this.state.error}
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadTrips, Trip } from "@/lib/storage";
@@ -7,7 +29,7 @@ import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-react";
 
-export default function Home() {
+function HomeInner() {
   const { distanceUnit, globeLabels } = useSettings();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -157,4 +179,9 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+
+export default function Home() {
+  return <ErrorBoundary><HomeInner /></ErrorBoundary>;
 }
