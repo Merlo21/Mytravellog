@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -26,28 +26,34 @@ const schema = z.object({
 });
 
 export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
-  const initial = {
-    country: trip.country,
-    city: trip.city,
-    temp: trip.temperature_c?.toString() ?? "",
-    alt: trip.altitude_m?.toString() ?? "",
-    dist: trip.distance_from_home_km?.toString() ?? "",
-  };
-  const [country, setCountry] = useState(initial.country);
-  const [city, setCity] = useState(initial.city);
-  const [temp, setTemp] = useState<string>(initial.temp);
-  const [alt, setAlt] = useState<string>(initial.alt);
-  const [dist, setDist] = useState<string>(initial.dist);
+  const [country, setCountry] = useState(trip.country);
+  const [city, setCity] = useState(trip.city);
+  const [temp, setTemp] = useState<string>(trip.temperature_c?.toString() ?? "");
+  const [alt, setAlt] = useState<string>(trip.altitude_m?.toString() ?? "");
+  const [dist, setDist] = useState<string>(trip.distance_from_home_km?.toString() ?? "");
   const [dirty, setDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
+  // Reset state when dialog opens or trip changes
+  useEffect(() => {
+    if (open) {
+      setCountry(trip.country);
+      setCity(trip.city);
+      setTemp(trip.temperature_c?.toString() ?? "");
+      setAlt(trip.altitude_m?.toString() ?? "");
+      setDist(trip.distance_from_home_km?.toString() ?? "");
+      setDirty(false);
+      setSaveError(false);
+    }
+  }, [open, trip]);
+
   const rollback = () => {
-    setCountry(initial.country);
-    setCity(initial.city);
-    setTemp(initial.temp);
-    setAlt(initial.alt);
-    setDist(initial.dist);
+    setCountry(trip.country);
+    setCity(trip.city);
+    setTemp(trip.temperature_c?.toString() ?? "");
+    setAlt(trip.altitude_m?.toString() ?? "");
+    setDist(trip.distance_from_home_km?.toString() ?? "");
     setDirty(false);
     setSaveError(false);
   };
