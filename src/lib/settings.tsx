@@ -87,3 +87,10 @@ export function formatAltitudeM(m: number | null | undefined, unit: DistanceUnit
 export function formatTemperatureC(c: number | null | undefined, unit: TemperatureUnit): string {
   return fmtTemp(c, unit);
 }
+
+// parseStoredSettings — used by settings.test.tsx
+export function parseStoredSettings(raw: string | null): Settings {
+  if (!raw) return DEFAULTS;
+  try { return { ...DEFAULTS, ...JSON.parse(raw) }; }
+  catch { return DEFAULTS; }
+}
