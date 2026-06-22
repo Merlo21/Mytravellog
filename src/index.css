@@ -2,134 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @layer base {
   :root {
-    /* Deep night-sky base */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 96%;
-
-    --card: 222 40% 9%;
-    --card-foreground: 210 40% 96%;
-
-    --popover: 222 45% 8%;
-    --popover-foreground: 210 40% 96%;
-
-    /* Aurora cyan as primary accent */
-    --primary: 175 84% 55%;
-    --primary-foreground: 222 47% 6%;
-    --primary-glow: 175 95% 65%;
-
-    /* Magenta sunset secondary */
-    --secondary: 320 70% 60%;
-    --secondary-foreground: 222 47% 6%;
-
-    --muted: 222 30% 14%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 38 95% 60%;
-    --accent-foreground: 222 47% 6%;
-
-    --destructive: 0 75% 55%;
-    --destructive-foreground: 210 40% 96%;
-
-    --border: 222 30% 18%;
-    --input: 222 30% 14%;
-    --ring: 175 84% 55%;
-
-    --radius: 0.875rem;
-
-    /* Custom design tokens */
-    --land: 222 30% 16%;
-    --land-visited: 175 84% 55%;
-    --ocean: 222 47% 6%;
-    --grid: 222 30% 13%;
-
-    --gradient-aurora: linear-gradient(135deg, hsl(175 84% 55% / 0.9), hsl(280 80% 60% / 0.85), hsl(320 70% 60% / 0.9));
-    --gradient-glow: radial-gradient(ellipse at top, hsl(175 84% 55% / 0.18), transparent 60%);
-    --gradient-card: linear-gradient(180deg, hsl(222 40% 11%), hsl(222 45% 8%));
-    --gradient-temp-cold: linear-gradient(135deg, hsl(210 90% 60%), hsl(190 80% 55%));
-    --gradient-temp-warm: linear-gradient(135deg, hsl(38 95% 60%), hsl(15 85% 55%));
-
-    --shadow-glow: 0 0 40px hsl(175 84% 55% / 0.25);
-    --shadow-elegant: 0 20px 60px -20px hsl(222 80% 2% / 0.7);
-    --shadow-card: 0 8px 32px -8px hsl(222 80% 2% / 0.6);
-
-    --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
-
-    --sidebar-background: 222 45% 7%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 175 84% 55%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 30% 14%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 30% 18%;
-    --sidebar-ring: 175 84% 55%;
+    --background: 222 28% 7%;
+    --foreground: 210 20% 92%;
+    --card: 222 25% 10%;
+    --card-foreground: 210 20% 92%;
+    --border: 220 20% 18%;
+    --primary: 186 85% 55%;
+    --primary-foreground: 222 28% 7%;
+    --secondary: 222 20% 14%;
+    --secondary-foreground: 210 20% 85%;
+    --muted: 222 20% 14%;
+    --muted-foreground: 215 15% 55%;
+    --accent: 45 95% 60%;
+    --accent-foreground: 222 28% 7%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --radius: 0.75rem;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-  html, body, #root {
-    @apply min-h-screen;
-  }
+  * { @apply border-border; }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(175 84% 55% / 0.12), transparent),
-      radial-gradient(ellipse 60% 50% at 90% 100%, hsl(320 70% 60% / 0.08), transparent);
-    background-attachment: fixed;
-  }
-  .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    @apply bg-background text-foreground;
+    font-family: ui-sans-serif, system-ui, sans-serif;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-card/70 backdrop-blur-xl border border-border rounded-2xl;
-    box-shadow: var(--shadow-card);
+    @apply bg-card/70 backdrop-blur-sm border border-border rounded-xl;
   }
-  .glow-text {
-    text-shadow: 0 0 30px hsl(var(--primary) / 0.5);
+  .btn-primary {
+    @apply bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg
+           hover:brightness-110 active:scale-95 transition-all duration-150;
   }
-  .aurora-text {
-    background: var(--gradient-aurora);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .btn-ghost {
+    @apply bg-transparent text-foreground border border-border px-4 py-2 rounded-lg
+           hover:bg-secondary active:scale-95 transition-all duration-150;
   }
-}
-
-@layer utilities {
-  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
-  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
-    border-radius: 3px;
+  .input-base {
+    @apply w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm
+           text-foreground placeholder:text-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-primary/40;
   }
 }
-
-/* MapLibre dark-theme integration */
-.maplibregl-map { font-family: 'Space Grotesk', system-ui, sans-serif; }
-.maplibregl-canvas { outline: none; }
-.maplibregl-ctrl-attrib {
-  background: hsl(var(--card) / 0.75) !important;
-  color: hsl(var(--muted-foreground)) !important;
-  font-size: 9px !important;
-  backdrop-filter: blur(6px);
-}
-.maplibregl-ctrl-attrib a { color: hsl(var(--primary)) !important; }
-.maplibregl-ctrl-group {
-  background: hsl(var(--card) / 0.85) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-card) !important;
-}
-.maplibregl-ctrl-group button { background-color: transparent !important; }
-.maplibregl-ctrl-group button:hover { background-color: hsl(var(--muted) / 0.6) !important; }
-
