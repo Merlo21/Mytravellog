@@ -16,35 +16,49 @@ export interface CityInfo {
 
 // ── Label data ────────────────────────────────────────────────────────────────
 // Countries — always visible, large text
-const COUNTRIES: { name: string; lat: number; lon: number }[] = [
-  {name:"Russia",lat:61,lon:105},{name:"Canada",lat:60,lon:-96},{name:"USA",lat:38,lon:-97},
-  {name:"Cina",lat:35,lon:103},{name:"Brasile",lat:-10,lon:-53},{name:"Australia",lat:-25,lon:134},
-  {name:"India",lat:21,lon:78},{name:"Argentina",lat:-35,lon:-65},{name:"Kazakistan",lat:48,lon:68},
-  {name:"Algeria",lat:28,lon:2},{name:"Sudan",lat:15,lon:30},{name:"Congo",lat:-2,lon:23},
-  {name:"Arabia Saudita",lat:24,lon:45},{name:"Messico",lat:23,lon:-102},{name:"Indonesia",lat:-2,lon:116},
-  {name:"Libia",lat:26,lon:17},{name:"Iran",lat:32,lon:54},{name:"Mongolia",lat:46,lon:105},
-  {name:"Mali",lat:17,lon:-2},{name:"Angola",lat:-12,lon:18},{name:"Sud Africa",lat:-29,lon:25},
-  {name:"Colombia",lat:4,lon:-73},{name:"Etiopia",lat:9,lon:40},{name:"Bolivia",lat:-17,lon:-65},
-  {name:"Mauritania",lat:20,lon:-11},{name:"Egitto",lat:26,lon:30},{name:"Tanzania",lat:-6,lon:35},
-  {name:"Nigeria",lat:9,lon:8},{name:"Venezuela",lat:8,lon:-66},{name:"Namibia",lat:-22,lon:18},
-  {name:"Mozambico",lat:-18,lon:35},{name:"Pakistan",lat:30,lon:70},{name:"Turchia",lat:39,lon:35},
-  {name:"Ciad",lat:15,lon:18},{name:"Niger",lat:17,lon:8},{name:"Angola",lat:-12,lon:18},
-  {name:"Perù",lat:-10,lon:-75},{name:"Ucraina",lat:49,lon:32},{name:"Iraq",lat:33,lon:44},
-  {name:"Afghanistan",lat:34,lon:66},{name:"Zambia",lat:-14,lon:28},{name:"Somalia",lat:6,lon:46},
-  {name:"Repubblica Ceca",lat:50,lon:15},{name:"Polonia",lat:52,lon:19},{name:"Francia",lat:46,lon:2},
-  {name:"Spagna",lat:40,lon:-3},{name:"Svezia",lat:63,lon:16},{name:"Norvegia",lat:65,lon:13},
-  {name:"Germania",lat:51,lon:10},{name:"Finlandia",lat:64,lon:26},{name:"Romania",lat:46,lon:25},
-  {name:"Marocco",lat:32,lon:-6},{name:"Siria",lat:35,lon:38},{name:"Giappone",lat:37,lon:138},
-  {name:"Corea",lat:37,lon:127},{name:"Vietnam",lat:16,lon:108},{name:"Myanmar",lat:19,lon:96},
-  {name:"Tailandia",lat:15,lon:101},{name:"Camerun",lat:6,lon:12},{name:"Madagascar",lat:-20,lon:47},
-  {name:"Mozambico",lat:-18,lon:35},{name:"Ghana",lat:8,lon:-1},{name:"Malesia",lat:3,lon:113},
-  {name:"Yemen",lat:16,lon:48},{name:"Uzbekistan",lat:41,lon:63},{name:"Svezia",lat:63,lon:16},
-  {name:"Regno Unito",lat:54,lon:-2},{name:"Italia",lat:43,lon:12},{name:"Grecia",lat:39,lon:22},
-  {name:"Bulgaria",lat:43,lon:25},{name:"Ungheria",lat:47,lon:19},{name:"Belarus",lat:53,lon:28},
-  {name:"Ucraina",lat:49,lon:32},{name:"Kirghizistan",lat:41,lon:75},{name:"Tagikistan",lat:39,lon:71},
-  {name:"Turkmenistan",lat:40,lon:59},{name:"Pakistan",lat:30,lon:70},{name:"Bangladesh",lat:23,lon:90},
-  {name:"Oman",lat:22,lon:57},{name:"Sri Lanka",lat:8,lon:81},{name:"Maldive",lat:4,lon:73},
-  {name:"Tunisia",lat:34,lon:9},{name:"Sierra Leone",lat:8,lon:-12},{name:"Senegal",lat:14,lon:-14},
+// tier 1 = very large countries (show from z<2.8), tier 2 = medium (z<2.2), tier 3 = small (z<1.8)
+const COUNTRIES: { name: string; lat: number; lon: number; tier: 1|2|3 }[] = [
+  // Tier 1 — largest countries, always visible when zoomed in a bit
+  {name:"Russia",lat:61,lon:105,tier:1},{name:"Canada",lat:60,lon:-96,tier:1},
+  {name:"USA",lat:38,lon:-97,tier:1},{name:"Cina",lat:35,lon:103,tier:1},
+  {name:"Brasile",lat:-10,lon:-53,tier:1},{name:"Australia",lat:-25,lon:134,tier:1},
+  {name:"India",lat:21,lon:78,tier:1},{name:"Argentina",lat:-35,lon:-65,tier:1},
+  {name:"Kazakistan",lat:48,lon:68,tier:1},{name:"Algeria",lat:28,lon:2,tier:1},
+  {name:"Sudan",lat:15,lon:30,tier:1},{name:"Congo",lat:-2,lon:23,tier:1},
+  {name:"Arabia Saudita",lat:24,lon:45,tier:1},{name:"Messico",lat:23,lon:-102,tier:1},
+  {name:"Indonesia",lat:-2,lon:116,tier:1},{name:"Libia",lat:26,lon:17,tier:1},
+  {name:"Iran",lat:32,lon:54,tier:1},{name:"Mongolia",lat:46,lon:105,tier:1},
+  {name:"Mali",lat:17,lon:-2,tier:1},{name:"Angola",lat:-12,lon:18,tier:1},
+  {name:"Sud Africa",lat:-29,lon:25,tier:1},{name:"Colombia",lat:4,lon:-73,tier:1},
+  {name:"Etiopia",lat:9,lon:40,tier:1},{name:"Bolivia",lat:-17,lon:-65,tier:1},
+  {name:"Mauritania",lat:20,lon:-11,tier:1},{name:"Egitto",lat:26,lon:30,tier:1},
+  {name:"Nigeria",lat:9,lon:8,tier:1},{name:"Tanzania",lat:-6,lon:35,tier:1},
+  {name:"Perù",lat:-10,lon:-75,tier:1},{name:"Venezuela",lat:8,lon:-66,tier:1},
+  // Tier 2 — medium countries, show z<2.2
+  {name:"Namibia",lat:-22,lon:18,tier:2},{name:"Mozambico",lat:-18,lon:35,tier:2},
+  {name:"Pakistan",lat:30,lon:70,tier:2},{name:"Turchia",lat:39,lon:35,tier:2},
+  {name:"Ciad",lat:15,lon:18,tier:2},{name:"Niger",lat:17,lon:8,tier:2},
+  {name:"Zambia",lat:-14,lon:28,tier:2},{name:"Somalia",lat:6,lon:46,tier:2},
+  {name:"Francia",lat:46,lon:2,tier:2},{name:"Spagna",lat:40,lon:-3,tier:2},
+  {name:"Svezia",lat:63,lon:16,tier:2},{name:"Norvegia",lat:65,lon:13,tier:2},
+  {name:"Germania",lat:51,lon:10,tier:2},{name:"Finlandia",lat:64,lon:26,tier:2},
+  {name:"Marocco",lat:32,lon:-6,tier:2},{name:"Giappone",lat:37,lon:138,tier:2},
+  {name:"Corea",lat:37,lon:127,tier:2},{name:"Vietnam",lat:16,lon:108,tier:2},
+  {name:"Ucraina",lat:49,lon:32,tier:2},{name:"Iraq",lat:33,lon:44,tier:2},
+  {name:"Afghanistan",lat:34,lon:66,tier:2},{name:"Malesia",lat:3,lon:113,tier:2},
+  {name:"Yemen",lat:16,lon:48,tier:2},{name:"Uzbekistan",lat:41,lon:63,tier:2},
+  {name:"Regno Unito",lat:54,lon:-2,tier:2},{name:"Italia",lat:43,lon:12,tier:2},
+  {name:"Camerun",lat:6,lon:12,tier:2},{name:"Madagascar",lat:-20,lon:47,tier:2},
+  {name:"Ghana",lat:8,lon:-1,tier:2},{name:"Senegal",lat:14,lon:-14,tier:2},
+  // Tier 3 — smaller, show z<1.8
+  {name:"Polonia",lat:52,lon:19,tier:3},{name:"Romania",lat:46,lon:25,tier:3},
+  {name:"Siria",lat:35,lon:38,tier:3},{name:"Myanmar",lat:19,lon:96,tier:3},
+  {name:"Tailandia",lat:15,lon:101,tier:3},{name:"Tunisia",lat:34,lon:9,tier:3},
+  {name:"Bulgaria",lat:43,lon:25,tier:3},{name:"Ungheria",lat:47,lon:19,tier:3},
+  {name:"Grecia",lat:39,lon:22,tier:3},{name:"Belarus",lat:53,lon:28,tier:3},
+  {name:"Kirghizistan",lat:41,lon:75,tier:3},{name:"Tagikistan",lat:39,lon:71,tier:3},
+  {name:"Turkmenistan",lat:40,lon:59,tier:3},{name:"Bangladesh",lat:23,lon:90,tier:3},
+  {name:"Oman",lat:22,lon:57,tier:3},{name:"Sri Lanka",lat:8,lon:81,tier:3},
 ];
 
 // Cities tier 1 — show at zoom < 3.0
@@ -302,11 +316,11 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
     overlay.style.cssText = "position:absolute;inset:0;overflow:hidden;pointer-events:none;";
     container.appendChild(overlay);
 
-    // Country labels — always visible, no pointer events, uppercase spaced
+    // Country labels — mixed case, no pointer events
     COUNTRIES.forEach(({ name, lat, lon }) => {
       const el = document.createElement("div");
-      el.textContent = name.toUpperCase();
-      el.style.cssText = `position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;color:rgba(255,255,255,0.75);text-shadow:${SHADOW};opacity:0;transition:opacity 0.3s`;
+      el.textContent = name;
+      el.style.cssText = `position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:500;letter-spacing:0.5px;color:rgba(255,255,255,0.8);text-shadow:${SHADOW};opacity:0;transition:opacity 0.25s`;
       overlay.appendChild(el);
       countryLabelEls.current.push({ el, vec: ll(lat, lon, 1.005) });
     });
@@ -409,13 +423,12 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       const euler = new THREE.Euler(rot.x, rot.y, 0, "XYZ");
       const cw = container.clientWidth, ch = container.clientHeight;
 
-      // Country labels — always shown when on front hemisphere, fade by zoom
+      // Country labels — mixed case, sized by country importance, LOD by zoom
       countryLabelEls.current.forEach(({ el, vec }) => {
         const wv = vec.clone().applyEuler(euler);
         const onFront = wv.z > 0.15;
-        // scale font size by zoom — bigger when zoomed in
-        const scale = Math.min(1.4, Math.max(0.7, 3.2 / z));
-        const targetOp = onFront ? Math.min(1, Math.max(0, (z - 1.4) / 1.5)) : 0;
+        // Only show when zoomed in enough (z < 2.8 = starting to zoom into continent)
+        const targetOp = onFront && z < 2.8 ? Math.min(1, Math.max(0, (2.8 - z) / 0.6 + 0.3)) : 0;
         const cur = parseFloat(el.style.opacity) || 0;
         const next = cur + (targetOp - cur) * 0.1;
         el.style.opacity = next < 0.02 ? "0" : String(next);
@@ -423,7 +436,6 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
           const proj = wv.clone().project(camera);
           el.style.left = `${(proj.x * 0.5 + 0.5) * cw}px`;
           el.style.top  = `${(-proj.y * 0.5 + 0.5) * ch}px`;
-          el.style.fontSize = `${Math.round(11 * scale)}px`;
         }
       });
 
