@@ -68,5 +68,5 @@ export function formatTripDate(iso: string): string {
     year: "numeric",
   });
 }
-// Backwards-compatible alias
-export type LocalTrip = Trip;
+// Backwards-compatible alias (created_at optional for test fixtures)
+export type LocalTrip = Omit<Trip, "created_at"> & { created_at?: string };
