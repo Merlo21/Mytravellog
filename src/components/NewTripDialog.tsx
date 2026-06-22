@@ -5,14 +5,49 @@ import { fmtDistance, fmtAltitude, fmtTemp, useSettings } from "@/lib/settings";
 import { toast } from "sonner";
 import { Plus, Search, Loader2, MapPin, Home, Thermometer, Mountain, Route } from "lucide-react";
 
+interface PrefilledCity {
+  name: string;
+  country: string;
+  country_code: string;
+  latitude: number;
+  longitude: number;
+}
+
 interface Props {
   onCreated: () => void;
   defaultHome?: { lat: number; lon: number; label: string } | null;
+  prefilledCity?: PrefilledCity | null;
+  triggerLabel?: string;
 }
 
-export function NewTripDialog({ onCreated, defaultHome }: Props) {
+export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLabel }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
   const [open, setOpen] = useState(false);
+
+  // Auto-open and pre-fill when a city is passed
+  useEffect(() => {
+    if (prefilledCity) {
+      setOpen(true);
+      setDest({
+        id: 0,
+        name: prefilledCity.name,
+        country: prefilledCity.country,
+        country_code: prefilledCity.country_code,
+        latitude: prefilledCity.latitude,
+        longitude: prefilledCity.longitude,
+      });
+      setTitle(`Viaggio a ${prefilledCity.name}`);
+      setStep(2);
+      // fetch data for prefilled city
+      Promise.all([
+        fetchElevation(prefilledCity.latitude, prefilledCity.longitude),
+        fetchTemperature(prefilledCity.latitude, prefilledCity.longitude, new Date().toISOString().slice(0,10)),
+      ]).then(([alt, temp]) => {
+        setPreviewAlt(alt);
+        setPreviewTemp(temp);
+      });
+    }
+  }, [prefilledCity]);
   const [step, setStep] = useState<1 | 2>(1);
 
   const [destQuery, setDestQuery] = useState("");
@@ -132,8 +167,8 @@ export function NewTripDialog({ onCreated, defaultHome }: Props) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="btn-primary flex items-center gap-2">
-        <Plus className="w-4 h-4" /> Nuovo viaggio
+      <button onClick={() => setOpen(true)} className="btn-primary flex items-center gap-2 w-full justify-center">
+        <Plus className="w-4 h-4" /> {triggerLabel || "Nuovo viaggio"}
       </button>
     );
   }
