@@ -24,7 +24,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   const { distanceUnit, temperatureUnit } = useSettings();
   const [open, setOpen] = useState(false);
 
-  // Auto-open and pre-fill when a city is passed
+  // Auto-open and pre-fill when a city is passed from the globe
   useEffect(() => {
     if (prefilledCity) {
       setOpen(true);
@@ -38,15 +38,15 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       });
       setTitle(`Viaggio a ${prefilledCity.name}`);
       setStep(2);
-      // fetch data for prefilled city
+      const today = new Date().toISOString().slice(0, 10);
       Promise.all([
         fetchElevation(prefilledCity.latitude, prefilledCity.longitude),
-        fetchTemperature(prefilledCity.latitude, prefilledCity.longitude, new Date().toISOString().slice(0,10)),
+        fetchTemperature(prefilledCity.latitude, prefilledCity.longitude, today),
       ]).then(([alt, temp]) => {
-        setPreviewAlt(alt);
-        setPreviewTemp(temp);
+        setPreview((p) => ({ ...p, alt, temp }));
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefilledCity]);
   const [step, setStep] = useState<1 | 2>(1);
 
