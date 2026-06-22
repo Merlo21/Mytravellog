@@ -185,7 +185,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   const MG           = useRef<THREE.Group | null>(null);
   const RG           = useRef<THREE.Group | null>(null);
 
-  const countryLabelEls = useRef<{ el: HTMLDivElement; vec: THREE.Vector3 }[]>([]);
+  const countryLabelEls = useRef<{ el: HTMLDivElement; vec: THREE.Vector3; tier: 1|2|3 }[]>([]);
   const cityLabelEls    = useRef<{ el: HTMLDivElement; vec: THREE.Vector3; city: CityInfo }[]>([]);
   const bordersLow  = useRef<THREE.Line[]>([]);
   const bordersHigh = useRef<THREE.Line[]>([]);
@@ -322,7 +322,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       el.textContent = name;
       el.style.cssText = `position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:500;letter-spacing:0.5px;color:rgba(255,255,255,0.8);text-shadow:${SHADOW};opacity:0;transition:opacity 0.25s`;
       overlay.appendChild(el);
-      countryLabelEls.current.push({ el, vec: ll(lat, lon, 1.005) });
+      countryLabelEls.current.push({ el, vec: ll(lat, lon, 1.005), tier });
     });
 
     // City labels + click targets
@@ -423,16 +423,17 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       const euler = new THREE.Euler(rot.x, rot.y, 0, "XYZ");
       const cw = container.clientWidth, ch = container.clientHeight;
 
-      // Country labels — mixed case, sized by country importance, LOD by zoom
-      countryLabelEls.current.forEach(({ el, vec }) => {
+      // Country labels — LOD by tier and zoom
+      countryLabelEls.current.forEach(({ el, vec, tier }) => {
         const wv = vec.clone().applyEuler(euler);
         const onFront = wv.z > 0.15;
-        // Only show when zoomed in enough (z < 2.8 = starting to zoom into continent)
-        const targetOp = onFront && z < 2.8 ? Math.min(1, Math.max(0, (2.8 - z) / 0.6 + 0.3)) : 0;
+        const maxZ = tier === 1 ? 2.8 : tier === 2 ? 2.2 : 1.8;
+        const show = onFront && z < maxZ;
+        const targetOp = show ? Math.min(1, (maxZ - z) / 0.4 + 0.4) : 0;
         const cur = parseFloat(el.style.opacity) || 0;
-        const next = cur + (targetOp - cur) * 0.1;
+        const next = cur + (Math.min(1, targetOp) - cur) * 0.1;
         el.style.opacity = next < 0.02 ? "0" : String(next);
-        if (onFront && next > 0.01) {
+        if (show && next > 0.01) {
           const proj = wv.clone().project(camera);
           el.style.left = `${(proj.x * 0.5 + 0.5) * cw}px`;
           el.style.top  = `${(-proj.y * 0.5 + 0.5) * ch}px`;
