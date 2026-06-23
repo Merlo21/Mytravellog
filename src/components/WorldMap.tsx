@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { feature } from "topojson-client";
 import { Trip } from "@/lib/storage";
-import { GlobeLabels } from "@/lib/settings";
+import { GlobeLabels, AutoRotate } from "@/lib/settings";
 import { RotateCw, Play, Square } from "lucide-react";
 
 export interface CityInfo {
@@ -139,6 +139,7 @@ interface Props {
   onSelectTrip?: (t: Trip) => void;
   onSelectCity?: (city: CityInfo) => void;
   globeLabels?: GlobeLabels;
+  autoRotateSetting?: AutoRotate;
 }
 
 const TEX_DAY   = "https://cdn.jsdelivr.net/npm/three-globe@2.30.0/example/img/earth-day.jpg";
@@ -176,7 +177,7 @@ function arcPoints(a: THREE.Vector3, b: THREE.Vector3, segs = 64): THREE.Vector3
 // Text shadow style used for all labels
 const SHADOW = "0 0 6px rgba(0,0,0,1),0 0 3px rgba(0,0,0,1),1px 1px 2px rgba(0,0,0,0.9),-1px -1px 2px rgba(0,0,0,0.9)";
 
-export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeLabels = "major" }: Props) {
+export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeLabels = "major", autoRotateSetting = "on" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
@@ -205,7 +206,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   const onSelectCityRef = useRef(onSelectCity);
   const globeLabelsRef  = useRef(globeLabels);
 
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(autoRotateSetting === "on");
   const [playing, setPlaying]       = useState(false);
 
   useEffect(() => { tripsRef.current = trips; }, [trips]);
