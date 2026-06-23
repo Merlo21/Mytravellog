@@ -44,9 +44,10 @@ export function CityMapPopup({ city, onClose, onAddTrip }: Props) {
       const map = L.map(mapRef.current, {
         center: [city.latitude, city.longitude],
         zoom: 13,
-        zoomControl: true,
+        zoomControl: false,      // we add it manually bottom-right
         attributionControl: true,
       });
+      L.control.zoom({ position: "bottomright" }).addTo(map);
 
       // Satellite base (Esri)
       L.tileLayer(
