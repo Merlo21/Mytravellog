@@ -32,7 +32,7 @@ import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-rea
 import { CityMapPopup } from "@/components/CityMapPopup";
 
 function HomeInner() {
-  const { distanceUnit, globeLabels } = useSettings();
+  const { distanceUnit, globeLabels, autoRotate } = useSettings();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -107,6 +107,7 @@ function HomeInner() {
             onSelectTrip={(t) => setSelectedId(t.id)}
             onSelectCity={(city) => setSelectedCity(city)}
             globeLabels={globeLabels}
+            autoRotateSetting={autoRotate}
           />
         </div>
       </div>
