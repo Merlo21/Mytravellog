@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { feature } from "topojson-client";
 import { Trip } from "@/lib/storage";
-import { GlobeLabels } from "@/lib/settings";
-import { RotateCw, Play, Square } from "lucide-react";
+import { GlobeLabels, AutoRotate } from "@/lib/settings";
+import { Play, Square } from "lucide-react";
 
 export interface CityInfo {
   name: string;
@@ -139,6 +139,7 @@ interface Props {
   onSelectTrip?: (t: Trip) => void;
   onSelectCity?: (city: CityInfo) => void;
   globeLabels?: GlobeLabels;
+  autoRotateSetting?: AutoRotate;
 }
 
 const TEX_DAY   = "https://cdn.jsdelivr.net/npm/three-globe@2.30.0/example/img/earth-day.jpg";
@@ -176,7 +177,7 @@ function arcPoints(a: THREE.Vector3, b: THREE.Vector3, segs = 64): THREE.Vector3
 // Text shadow style used for all labels
 const SHADOW = "0 0 6px rgba(0,0,0,1),0 0 3px rgba(0,0,0,1),1px 1px 2px rgba(0,0,0,0.9),-1px -1px 2px rgba(0,0,0,0.9)";
 
-export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeLabels = "major" }: Props) {
+export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeLabels = "major", autoRotateSetting = "on" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
@@ -205,13 +206,14 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   const onSelectCityRef = useRef(onSelectCity);
   const globeLabelsRef  = useRef(globeLabels);
 
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(autoRotateSetting === "on");
   const [playing, setPlaying]       = useState(false);
 
   useEffect(() => { tripsRef.current = trips; }, [trips]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
   useEffect(() => { autoRotRef.current = autoRotate; }, [autoRotate]);
+  useEffect(() => { setAutoRotate(autoRotateSetting === "on"); }, [autoRotateSetting]);
   useEffect(() => { globeLabelsRef.current = globeLabels; }, [globeLabels]);
 
   const ordered = useMemo(() => [...trips].sort((a, b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
@@ -317,7 +319,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
     container.appendChild(overlay);
 
     // Country labels — mixed case, no pointer events
-    COUNTRIES.forEach(({ name, lat, lon }) => {
+    COUNTRIES.forEach(({ name, lat, lon, tier }) => {
       const el = document.createElement("div");
       el.textContent = name;
       el.style.cssText = `position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:500;letter-spacing:0.5px;color:rgba(255,255,255,0.8);text-shadow:${SHADOW};opacity:0;transition:opacity 0.25s`;
@@ -545,13 +547,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       style={{ background: "radial-gradient(ellipse at center, #061226 0%, #02060f 70%, #000 100%)" }}>
       <canvas ref={canvasRef} className="w-full h-full" />
 
-      <div className="absolute top-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg flex p-1 gap-1 z-40">
-        <button onClick={() => setAutoRotate(v => !v)}
-          className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-1 ${autoRotate ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-          <RotateCw className="w-3 h-3" />
-          {autoRotate ? "Auto" : "Manuale"}
-        </button>
-      </div>
+
 
       {trips.length >= 1 && (
         <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-2 py-1.5 flex items-center gap-1 z-40">
@@ -561,6 +557,13 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
           }
         </div>
       )}
+
+      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
+        <button onClick={() => { zoomRef.current = Math.max(1.1, zoomRef.current * 0.75); }}
+          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">+</button>
+        <button onClick={() => { zoomRef.current = Math.min(8, zoomRef.current * 1.35); }}
+          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">−</button>
+      </div>
 
       <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Casa</div>
