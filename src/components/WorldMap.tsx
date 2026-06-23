@@ -1,399 +1,499 @@
-import { useEffect, useRef, useState, useMemo } from "react";
-import maplibregl from "maplibre-gl";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+import { feature } from "topojson-client";
 import { Trip } from "@/lib/storage";
-import { GlobeLabels, AutoRotate } from "@/lib/settings";
-import { Play, Square } from "lucide-react";
-
-export interface CityInfo {
-  name: string;
-  country: string;
-  country_code: string;
-  latitude: number;
-  longitude: number;
-  tier: 1 | 2 | 3;
-}
-
-export const ALL_CITIES: CityInfo[] = [
-  // T1
-  {name:"Roma",country:"Italia",country_code:"IT",latitude:41.9,longitude:12.5,tier:1},
-  {name:"Tokyo",country:"Giappone",country_code:"JP",latitude:35.68,longitude:139.69,tier:1},
-  {name:"New York",country:"USA",country_code:"US",latitude:40.71,longitude:-74.01,tier:1},
-  {name:"Londra",country:"Regno Unito",country_code:"GB",latitude:51.51,longitude:-0.13,tier:1},
-  {name:"Pechino",country:"Cina",country_code:"CN",latitude:39.91,longitude:116.39,tier:1},
-  {name:"Mosca",country:"Russia",country_code:"RU",latitude:55.75,longitude:37.62,tier:1},
-  {name:"Cairo",country:"Egitto",country_code:"EG",latitude:30.05,longitude:31.25,tier:1},
-  {name:"São Paulo",country:"Brasile",country_code:"BR",latitude:-23.55,longitude:-46.63,tier:1},
-  {name:"Mumbai",country:"India",country_code:"IN",latitude:19.08,longitude:72.88,tier:1},
-  {name:"Sydney",country:"Australia",country_code:"AU",latitude:-33.87,longitude:151.21,tier:1},
-  // T2
-  {name:"Parigi",country:"Francia",country_code:"FR",latitude:48.85,longitude:2.35,tier:2},
-  {name:"Berlino",country:"Germania",country_code:"DE",latitude:52.52,longitude:13.4,tier:2},
-  {name:"Madrid",country:"Spagna",country_code:"ES",latitude:40.42,longitude:-3.7,tier:2},
-  {name:"Istanbul",country:"Turchia",country_code:"TR",latitude:41.01,longitude:28.95,tier:2},
-  {name:"Seoul",country:"Corea del Sud",country_code:"KR",latitude:37.57,longitude:126.98,tier:2},
-  {name:"Delhi",country:"India",country_code:"IN",latitude:28.61,longitude:77.21,tier:2},
-  {name:"Shanghai",country:"Cina",country_code:"CN",latitude:31.23,longitude:121.47,tier:2},
-  {name:"Lagos",country:"Nigeria",country_code:"NG",latitude:6.45,longitude:3.4,tier:2},
-  {name:"Buenos Aires",country:"Argentina",country_code:"AR",latitude:-34.6,longitude:-58.38,tier:2},
-  {name:"Los Angeles",country:"USA",country_code:"US",latitude:34.05,longitude:-118.24,tier:2},
-  {name:"Dubai",country:"Emirati Arabi",country_code:"AE",latitude:25.2,longitude:55.27,tier:2},
-  {name:"Bangkok",country:"Tailandia",country_code:"TH",latitude:13.75,longitude:100.52,tier:2},
-  {name:"Singapore",country:"Singapore",country_code:"SG",latitude:1.35,longitude:103.82,tier:2},
-  {name:"Amsterdam",country:"Paesi Bassi",country_code:"NL",latitude:52.37,longitude:4.9,tier:2},
-  {name:"Vienna",country:"Austria",country_code:"AT",latitude:48.21,longitude:16.37,tier:2},
-  {name:"Kyiv",country:"Ucraina",country_code:"UA",latitude:50.45,longitude:30.52,tier:2},
-  // T3
-  {name:"Milano",country:"Italia",country_code:"IT",latitude:45.47,longitude:9.19,tier:3},
-  {name:"Napoli",country:"Italia",country_code:"IT",latitude:40.85,longitude:14.27,tier:3},
-  {name:"Firenze",country:"Italia",country_code:"IT",latitude:43.77,longitude:11.26,tier:3},
-  {name:"Barcellona",country:"Spagna",country_code:"ES",latitude:41.39,longitude:2.15,tier:3},
-  {name:"Monaco",country:"Germania",country_code:"DE",latitude:48.14,longitude:11.58,tier:3},
-  {name:"Zurigo",country:"Svizzera",country_code:"CH",latitude:47.38,longitude:8.54,tier:3},
-  {name:"Bruxelles",country:"Belgio",country_code:"BE",latitude:50.85,longitude:4.35,tier:3},
-  {name:"Budapest",country:"Ungheria",country_code:"HU",latitude:47.5,longitude:19.04,tier:3},
-  {name:"Praga",country:"Rep. Ceca",country_code:"CZ",latitude:50.08,longitude:14.44,tier:3},
-  {name:"Oslo",country:"Norvegia",country_code:"NO",latitude:59.91,longitude:10.75,tier:3},
-  {name:"Copenhagen",country:"Danimarca",country_code:"DK",latitude:55.68,longitude:12.57,tier:3},
-  {name:"Helsinki",country:"Finlandia",country_code:"FI",latitude:60.17,longitude:24.94,tier:3},
-  {name:"Varsavia",country:"Polonia",country_code:"PL",latitude:52.23,longitude:21.01,tier:3},
-  {name:"San Francisco",country:"USA",country_code:"US",latitude:37.77,longitude:-122.42,tier:3},
-  {name:"Miami",country:"USA",country_code:"US",latitude:25.77,longitude:-80.19,tier:3},
-  {name:"Montréal",country:"Canada",country_code:"CA",latitude:45.5,longitude:-73.57,tier:3},
-  {name:"Ho Chi Minh",country:"Vietnam",country_code:"VN",latitude:10.82,longitude:106.63,tier:3},
-  {name:"Tel Aviv",country:"Israele",country_code:"IL",latitude:32.08,longitude:34.78,tier:3},
-  {name:"Casablanca",country:"Marocco",country_code:"MA",latitude:33.59,longitude:-7.62,tier:3},
-  {name:"Nairobi",country:"Kenya",country_code:"KE",latitude:-1.29,longitude:36.82,tier:3},
-  {name:"Osaka",country:"Giappone",country_code:"JP",latitude:34.69,longitude:135.5,tier:3},
-];
+import { RotateCw, Play, Square } from "lucide-react";
 
 interface Props {
   trips: Trip[];
   selectedId?: string | null;
   onSelectTrip?: (t: Trip) => void;
-  onSelectCity?: (city: CityInfo) => void;
-  globeLabels?: GlobeLabels;
-  autoRotateSetting?: AutoRotate;
 }
 
-const flag = (c: string) =>
-  c.length === 2 ? String.fromCodePoint(...c.toUpperCase().split("").map(ch => 0x1f1e6 + ch.charCodeAt(0) - 65)) : "🌍";
+const R = 1;
+const GEO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const TEX_ARTISTIC = "https://unpkg.com/three-globe/example/img/earth-day.jpg";
+const TEX_SATELLITE = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+const TEX_BUMP = "https://unpkg.com/three-globe/example/img/earth-topology.png";
+const TEX_NIGHT = "https://unpkg.com/three-globe/example/img/earth-night.jpg";
+const TEX_SPEC = "https://unpkg.com/three-globe/example/img/earth-water.png";
 
-// Free tile sources — no API key needed
-const STYLE = {
-  version: 8 as const,
-  sources: {
-    "esri-satellite": {
-      type: "raster" as const,
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: "© Esri",
-    },
-    "esri-labels": {
-      type: "raster" as const,
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      maxzoom: 19,
-    },
-  },
-  layers: [
-    { id: "background", type: "background" as const, paint: { "background-color": "#061226" } },
-    { id: "satellite", type: "raster" as const, source: "esri-satellite" },
-    { id: "labels",    type: "raster" as const, source: "esri-labels" },
-  ],
+function ll2v(lat: number, lon: number, r = R): THREE.Vector3 {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lon + 180) * (Math.PI / 180);
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(theta),
+    r * Math.cos(phi),
+    r * Math.sin(phi) * Math.sin(theta),
+  );
+}
+
+function arc(a: THREE.Vector3, b: THREE.Vector3, segs = 64): THREE.Vector3[] {
+  const angle = a.angleTo(b);
+  const lift = 0.05 + Math.min(0.35, angle * 0.18);
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    const sinA = Math.sin(angle) || 1;
+    const p = a.clone().multiplyScalar(Math.sin((1 - t) * angle) / sinA)
+      .add(b.clone().multiplyScalar(Math.sin(t * angle) / sinA)).normalize();
+    pts.push(p.multiplyScalar(1 + Math.sin(t * Math.PI) * lift));
+  }
+  return pts;
+}
+
+type State = {
+  renderer?: THREE.WebGLRenderer;
+  scene?: THREE.Scene;
+  camera?: THREE.PerspectiveCamera;
+  earth?: THREE.Mesh;
+  markersGroup?: THREE.Group;
+  routesGroup?: THREE.Group;
+  labelsRoot?: HTMLDivElement;
+  autoRotate: boolean;
+  isDragging: boolean;
+  lastPtr?: { x: number; y: number };
+  rot: { x: number; y: number };
+  vel: { x: number; y: number };
+  zoom: number;
+  raf?: number;
 };
 
-export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeLabels = "major", autoRotateSetting = "on" }: Props) {
+export function WorldMap({ trips, selectedId, onSelectTrip }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const popupsRef = useRef<any[]>([]);
-  const rotationRef = useRef<number | null>(null);
+  const stateRef = useRef<State>({
+    autoRotate: true, isDragging: false,
+    rot: { x: 0, y: 0 }, vel: { x: 0, y: 0 }, zoom: 3.2,
+  });
+  const tripsRef = useRef(trips);
+  useEffect(() => { tripsRef.current = trips; }, [trips]);
+  const onSelectRef = useRef(onSelectTrip);
+  useEffect(() => { onSelectRef.current = onSelectTrip; }, [onSelectTrip]);
+
+  const [autoRotate, setAutoRotate] = useState(true);
+  useEffect(() => { stateRef.current.autoRotate = autoRotate; }, [autoRotate]);
   const [playing, setPlaying] = useState(false);
-  const playingRef = useRef(false);
+  const liveLineRef = useRef<THREE.Line | null>(null);
+  const replayRafRef = useRef<number | null>(null);
 
   const ordered = useMemo(() => [...trips].sort((a, b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
 
-  // ── Init MapLibre ──────────────────────────────────────────────────────────
+  // ---- Init Three.js scene ----
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const w = container.clientWidth, h = container.clientHeight;
 
-    let map: any;
+    const scene = new THREE.Scene();
+    scene.background = null;
+    const camera = new THREE.PerspectiveCamera(40, w / h, 0.01, 1000);
+    camera.position.set(0, 0, stateRef.current.zoom);
 
-    const init = () => {
-      map = new maplibregl.Map({
-        container: containerRef.current!,
-        style: STYLE as any,
-        center: [10, 20],
-        zoom: 1.5,
-        attributionControl: false,
-      });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(w, h);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
 
-      // Force resize — MapLibre needs computed height at init
-      setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 50);
-      setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 300);
-      setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 800);
+    const loader = new THREE.TextureLoader();
+    const dayTex = loader.load(TEX_ARTISTIC);
+    dayTex.colorSpace = THREE.SRGBColorSpace;
+    const nightTex = loader.load(TEX_NIGHT);
+    nightTex.colorSpace = THREE.SRGBColorSpace;
 
-      // Also use ResizeObserver
-      const ro = new ResizeObserver(() => { if (mapRef.current) mapRef.current.resize(); });
-      if (containerRef.current) ro.observe(containerRef.current);
+    const earthMat = new THREE.MeshPhongMaterial({
+      map: dayTex,
+      bumpMap: loader.load(TEX_BUMP),
+      bumpScale: 0.035,
+      specularMap: loader.load(TEX_SPEC),
+      specular: new THREE.Color(0x223344),
+      shininess: 8,
+      emissiveMap: nightTex,
+      emissive: new THREE.Color(0x99b0c8),
+      emissiveIntensity: 0.3,
+    });
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(R, 128, 128), earthMat);
+    scene.add(earth);
 
-      mapRef.current = map;
+    // Country borders
+    const bordersGroup = new THREE.Group();
+    earth.add(bordersGroup);
+    fetch(GEO).then((r) => r.json()).then((topo: any) => {
+      const geo: any = feature(topo, topo.objects.countries);
+      const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false });
+      const addRing = (ring: number[][]) => {
+        const pts = ring.map(([lon, lat]) => ll2v(lat, lon, R * 1.001));
+        bordersGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+      };
+      for (const f of geo.features) {
+        const g = f.geometry;
+        if (!g) continue;
+        if (g.type === "Polygon") g.coordinates.forEach(addRing);
+        else if (g.type === "MultiPolygon") g.coordinates.forEach((p: number[][][]) => p.forEach(addRing));
+      }
+    }).catch(() => {});
 
-      // Atmosphere (star field + glow)
-      map.on("style.load", () => {
-        // Enable globe projection (MapLibre 4.x)
-        try {
-          (map as any).setProjection({ type: "globe" });
-        } catch(_) {
-          try { (map as any).setProjection("globe"); } catch(__) {}
+    // Atmosphere
+    const atmMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, blending: THREE.AdditiveBlending, transparent: true,
+      uniforms: { glowColor: { value: new THREE.Color(0x7ec4ff) } },
+      vertexShader: `varying vec3 vN; void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader: `varying vec3 vN; uniform vec3 glowColor; void main(){float i=pow(0.65-dot(vN,vec3(0,0,1)),2.3);gl_FragColor=vec4(glowColor,1.)*i;}`,
+    });
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(R * 1.18, 64, 64), atmMat));
+
+    // Lights
+    const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+    sun.position.set(5, 3, 5);
+    scene.add(sun);
+    scene.add(new THREE.AmbientLight(0x88aacc, 1.0));
+    const fill = new THREE.DirectionalLight(0xaaccee, 0.6);
+    fill.position.set(-5, -2, -3);
+    scene.add(fill);
+
+    // Stars
+    const starPos = new Float32Array(4000 * 3);
+    for (let i = 0; i < 4000; i++) {
+      const r2 = 80 + Math.random() * 40, t = Math.random() * Math.PI * 2, p = Math.acos(2 * Math.random() - 1);
+      starPos[i * 3] = r2 * Math.sin(p) * Math.cos(t);
+      starPos[i * 3 + 1] = r2 * Math.sin(p) * Math.sin(t);
+      starPos[i * 3 + 2] = r2 * Math.cos(p);
+    }
+    const starsGeo = new THREE.BufferGeometry();
+    starsGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+    scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.25, transparent: true, opacity: 0.8 })));
+
+    const markersGroup = new THREE.Group();
+    earth.add(markersGroup);
+    const routesGroup = new THREE.Group();
+    earth.add(routesGroup);
+
+    // Labels overlay
+    const labelsRoot = document.createElement("div");
+    labelsRoot.style.cssText = "position:absolute;inset:0;pointer-events:none;overflow:hidden;";
+    container.appendChild(labelsRoot);
+
+    // Tooltip
+    const tooltip = document.createElement("div");
+    tooltip.style.cssText = "position:absolute;pointer-events:none;padding:8px 10px;border-radius:10px;font-size:11px;font-family:ui-monospace,monospace;color:#e6f8ff;background:rgba(4,17,31,0.92);border:1px solid rgba(34,211,238,0.45);transform:translate(12px,-50%);opacity:0;transition:opacity 0.15s;white-space:nowrap;z-index:500;";
+    container.appendChild(tooltip);
+
+    const raycaster = new THREE.Raycaster();
+
+    const onPointerDown = (e: PointerEvent) => {
+      stateRef.current.isDragging = true;
+      stateRef.current.lastPtr = { x: e.clientX, y: e.clientY };
+      stateRef.current.vel = { x: 0, y: 0 };
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      const s = stateRef.current;
+      if (s.isDragging && s.lastPtr) {
+        const dx = e.clientX - s.lastPtr.x, dy = e.clientY - s.lastPtr.y;
+        s.rot.y += dx * 0.005; s.rot.x += dy * 0.005;
+        s.rot.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, s.rot.x));
+        s.vel = { x: dy * 0.005, y: dx * 0.005 };
+        s.lastPtr = { x: e.clientX, y: e.clientY };
+        return;
+      }
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+        tooltip.style.opacity = "0"; return;
+      }
+      const ndc = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(markersGroup.children, false);
+      const first = hits[0];
+      const id = (first?.object as any)?.userData?.tripId;
+      if (id) {
+        const t = tripsRef.current.find((x) => x.id === id);
+        if (t) {
+          tooltip.innerHTML = `<div style="font-weight:700;color:#5eead4;margin-bottom:3px;">${t.city}</div><div style="color:#94a3b8;font-size:10px;">${t.country}</div>`;
+          tooltip.style.left = `${e.clientX - rect.left}px`;
+          tooltip.style.top = `${e.clientY - rect.top}px`;
+          tooltip.style.opacity = "1";
+          renderer.domElement.style.cursor = "pointer";
+          return;
         }
-        // Add trip routes and markers
-        addTripsToMap(map, maplibregl);
-      });
-
-      // Auto-rotate
-      if (autoRotateSetting === "on") startRotation(map);
-
-      // Click on map → add city
-      map.on("click", (e: any) => {
-        if (Math.abs(e.point.x) < 5 || playingRef.current) return;
-        // Reverse geocode via nominatim
-        const { lng, lat } = e.lngLat;
-        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=it`)
-          .then(r => r.json())
-          .then(d => {
-            if (!d || !d.address) return;
-            const addr = d.address;
-            const city = addr.city || addr.town || addr.village || addr.county || d.name || "Luogo sconosciuto";
-            const country = addr.country || "";
-            const cc = addr.country_code?.toUpperCase() || "";
-            onSelectCity?.({ name: city, country, country_code: cc, latitude: lat, longitude: lng, tier: 1 });
-          }).catch(() => {});
-      });
-
-      // Stop rotation on drag
-      map.on("mousedown", () => stopRotation());
-      map.on("touchstart", () => stopRotation());
+      }
+      tooltip.style.opacity = "0";
+      renderer.domElement.style.cursor = "grab";
+    };
+    const onPointerUp = () => { stateRef.current.isDragging = false; };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      stateRef.current.zoom = Math.max(1.25, Math.min(8, stateRef.current.zoom * (e.deltaY > 0 ? 1.1 : 0.9)));
+    };
+    const onClick = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const ndc = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(markersGroup.children, false);
+      const id = (hits[0]?.object as any)?.userData?.tripId;
+      if (id) {
+        const t = tripsRef.current.find((x) => x.id === id);
+        if (t) onSelectRef.current?.(t);
+      }
     };
 
-    init();
+    renderer.domElement.style.cursor = "grab";
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+    renderer.domElement.addEventListener("click", onClick);
 
-    let ro: ResizeObserver | null = null;
+    const ro = new ResizeObserver(() => {
+      const w2 = container.clientWidth, h2 = container.clientHeight;
+      renderer.setSize(w2, h2);
+      camera.aspect = w2 / h2;
+      camera.updateProjectionMatrix();
+    });
+    ro.observe(container);
+
+    const labelEls = new Map<string, HTMLDivElement>();
+    const updateLabels = () => {
+      markersGroup.children.forEach((child) => {
+        const id = (child as any).userData?.labelId as string | undefined;
+        if (!id) return;
+        const text = (child as any).userData?.text as string;
+        const wp = new THREE.Vector3();
+        child.getWorldPosition(wp);
+        const proj = wp.clone().project(camera);
+        const dot = wp.clone().normalize().dot(camera.position.clone().normalize());
+        const visible = dot > 0.1 && proj.z < 1;
+        let el = labelEls.get(id);
+        if (!el) {
+          el = document.createElement("div");
+          el.style.cssText = "position:absolute;transform:translate(-50%,-130%);padding:2px 8px;border-radius:8px;font-size:11px;font-family:ui-monospace,monospace;font-weight:600;color:#e6f8ff;background:rgba(4,17,31,0.72);border:1px solid rgba(34,211,238,0.35);white-space:nowrap;pointer-events:none;transition:opacity 0.2s;";
+          el.textContent = text;
+          labelsRoot.appendChild(el);
+          labelEls.set(id, el);
+        }
+        const isHome = id === "home";
+        const fade = isHome ? 1 : Math.max(0, Math.min(1, (2.4 - stateRef.current.zoom) / 0.6));
+        if (visible && fade > 0.01) {
+          el.style.left = `${(proj.x * 0.5 + 0.5) * container.clientWidth}px`;
+          el.style.top = `${(-proj.y * 0.5 + 0.5) * container.clientHeight}px`;
+          el.style.opacity = String(fade);
+        } else {
+          el.style.opacity = "0";
+        }
+      });
+      const validIds = new Set(markersGroup.children.map((c: any) => c.userData?.labelId).filter(Boolean));
+      labelEls.forEach((el, id) => { if (!validIds.has(id)) { el.remove(); labelEls.delete(id); } });
+    };
+
+    const animate = () => {
+      const s = stateRef.current;
+      if (!s.isDragging) {
+        if (s.autoRotate && Math.abs(s.vel.x) < 0.0005 && Math.abs(s.vel.y) < 0.0005) {
+          s.rot.y += 0.0008;
+        } else {
+          s.rot.y += s.vel.y; s.rot.x += s.vel.x;
+          s.vel.x *= 0.94; s.vel.y *= 0.94;
+        }
+        s.rot.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, s.rot.x));
+      }
+      earth.rotation.y = s.rot.y;
+      earth.rotation.x = s.rot.x;
+      camera.position.z += (s.zoom - camera.position.z) * 0.12;
+      renderer.render(scene, camera);
+      updateLabels();
+      s.raf = requestAnimationFrame(animate);
+    };
+    animate();
+
+    Object.assign(stateRef.current, { renderer, scene, camera, earth, markersGroup, routesGroup, labelsRoot });
 
     return () => {
-      stopRotation();
-      if (ro) ro.disconnect();
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+      if (stateRef.current.raf) cancelAnimationFrame(stateRef.current.raf);
+      ro.disconnect();
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      renderer.domElement.removeEventListener("wheel", onWheel);
+      renderer.domElement.removeEventListener("click", onClick);
+      labelEls.forEach((el) => el.remove());
+      labelsRoot.remove();
+      tooltip.remove();
+      renderer.dispose();
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Rotation ────────────────────────────────────────────────────────────────
-  function startRotation(m: any) {
-    if (rotationRef.current) return;
-    const rotate = () => {
-      if (!m || m._removed) return;
-      const zoom = m.getZoom();
-      if (zoom < 3) {
-        m.setCenter([m.getCenter().lng + 0.08, m.getCenter().lat]);
-      }
-      rotationRef.current = requestAnimationFrame(rotate);
-    };
-    rotationRef.current = requestAnimationFrame(rotate);
-  }
-
-  function stopRotation() {
-    if (rotationRef.current) { cancelAnimationFrame(rotationRef.current); rotationRef.current = null; }
-  }
-
-  // Sync autoRotate setting
+  // ---- Rebuild markers when trips/selection change ----
   useEffect(() => {
-    if (!mapRef.current) return;
-    if (autoRotateSetting === "on") startRotation(mapRef.current);
-    else stopRotation();
-  }, [autoRotateSetting]);
-
-  // ── Add trips to map ────────────────────────────────────────────────────────
-  function addTripsToMap(map: any, maplibregl: any) {
-    // Remove old markers
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
-    popupsRef.current.forEach(p => p.remove());
-    popupsRef.current = [];
-
-    // Remove old sources/layers
-    ["route", "trip-points", "home-point"].forEach(id => {
-      if (map.getLayer(id)) map.removeLayer(id);
-      if (map.getSource(id)) map.removeSource(id);
-    });
-
-    if (!ordered.length) return;
+    const { markersGroup, routesGroup } = stateRef.current;
+    if (!markersGroup || !routesGroup) return;
+    while (markersGroup.children.length) {
+      const c = markersGroup.children.pop()!;
+      (c as any).geometry?.dispose?.(); (c as any).material?.dispose?.();
+    }
+    while (routesGroup.children.length) {
+      const c = routesGroup.children.pop()!;
+      (c as any).geometry?.dispose?.(); (c as any).material?.dispose?.();
+    }
+    if (ordered.length === 0) return;
 
     const home = ordered[0];
+    const homePos = ll2v(home.home_latitude, home.home_longitude, R * 1.005);
+    const homeMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.018, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24 }),
+    );
+    homeMesh.position.copy(homePos);
+    (homeMesh as any).userData = { labelId: "home", text: home.home_label };
+    markersGroup.add(homeMesh);
 
-    // Route line
-    const coords = [
-      [home.home_longitude, home.home_latitude],
-      ...ordered.map(t => [t.longitude, t.latitude]),
-    ];
-
-    map.addSource("route", {
-      type: "geojson",
-      data: {
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: coords },
-      },
-    });
-    map.addLayer({
-      id: "route",
-      type: "line",
-      source: "route",
-      paint: {
-        "line-color": "#22d3ee",
-        "line-width": 2,
-        "line-opacity": 0.8,
-        "line-dasharray": [3, 2],
-      },
-    });
-
-    // Home marker
-    const homeEl = document.createElement("div");
-    homeEl.style.cssText = "width:20px;height:20px;border-radius:50%;background:#fbbf24;border:2.5px solid #fff;box-shadow:0 0 8px rgba(251,191,36,0.5);cursor:pointer";
-    const homeMarker = new maplibregl.Marker({ element: homeEl })
-      .setLngLat([home.home_longitude, home.home_latitude])
-      .addTo(map);
-    markersRef.current.push(homeMarker);
-
-    // Trip markers
+    const tripPos: THREE.Vector3[] = [];
     ordered.forEach((t, i) => {
+      const pos = ll2v(t.latitude, t.longitude, R * 1.005);
+      tripPos.push(pos);
       const sel = t.id === selectedId;
-      const el = document.createElement("div");
-      el.style.cssText = `width:${sel?30:24}px;height:${sel?30:24}px;border-radius:50%;background:${sel?"#5eead4":"#22d3ee"};border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:${sel?11:10}px;font-weight:700;color:#02060f;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5),0 0 0 ${sel?4:2}px rgba(34,211,238,0.3);font-family:ui-sans-serif,system-ui,sans-serif;transition:all .15s`;
-      el.textContent = String(i + 1);
-
-      const popup = new maplibregl.Popup({ offset: 20, closeButton: false, className: "atlas-popup" })
-        .setHTML(`
-          <div style="font-family:ui-sans-serif,system-ui,sans-serif;min-width:160px">
-            <div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:2px">${flag(t.country_code)} ${t.city}</div>
-            <div style="font-size:11px;color:#64748b;margin-bottom:8px">${t.country} · ${new Date(t.trip_date+"T00:00:00").toLocaleDateString("it-IT",{day:"2-digit",month:"short",year:"numeric"})}</div>
-            ${t.temperature_c != null ? `<div style="font-size:11px;color:#94a3b8">🌡 ${t.temperature_c.toFixed(1)}°C</div>` : ""}
-            ${t.altitude_m != null ? `<div style="font-size:11px;color:#94a3b8">⛰ ${Math.round(t.altitude_m)} m</div>` : ""}
-            ${t.distance_from_home_km != null ? `<div style="font-size:11px;color:#94a3b8">↔ ${t.distance_from_home_km.toLocaleString("it-IT")} km</div>` : ""}
-            ${t.notes ? `<div style="font-size:10px;color:#64748b;margin-top:6px;font-style:italic">"${t.notes}"</div>` : ""}
-          </div>
-        `);
-
-      popupsRef.current.push(popup);
-
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        onSelectTrip?.(t);
-        map.flyTo({ center: [t.longitude, t.latitude], zoom: Math.max(map.getZoom(), 5), duration: 800 });
-      });
-
-      el.addEventListener("mouseenter", () => popup.setLngLat([t.longitude, t.latitude]).addTo(map));
-      el.addEventListener("mouseleave", () => popup.remove());
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([t.longitude, t.latitude])
-        .addTo(map);
-      markersRef.current.push(marker);
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(sel ? 0.022 : 0.014, 16, 16),
+        new THREE.MeshBasicMaterial({ color: sel ? 0x5eead4 : 0x22d3ee }),
+      );
+      dot.position.copy(pos);
+      (dot as any).userData = { tripId: t.id, labelId: `t-${t.id}`, text: `${i + 1}. ${t.city}` };
+      markersGroup.add(dot);
     });
-  }
 
-  // Rebuild markers when trips/selection change
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    // Re-import maplibregl to rebuild
-    addTripsToMap(map, maplibregl);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const nodes = [homePos, ...tripPos];
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const pts = arc(nodes[i], nodes[i + 1]);
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.85 }),
+      );
+      routesGroup.add(line);
+    }
   }, [ordered, selectedId]);
 
-  // Focus on selected trip
+  // ---- Focus on selected trip ----
   useEffect(() => {
-    if (!selectedId || !mapRef.current) return;
-    const t = ordered.find(x => x.id === selectedId);
+    if (!selectedId) return;
+    const t = ordered.find((x) => x.id === selectedId);
     if (!t) return;
-    mapRef.current.flyTo({ center: [t.longitude, t.latitude], zoom: Math.max(mapRef.current.getZoom(), 5), duration: 1000 });
+    stateRef.current.rot.y = -t.longitude * (Math.PI / 180) - Math.PI / 2;
+    stateRef.current.rot.x = t.latitude * (Math.PI / 180);
+    stateRef.current.vel = { x: 0, y: 0 };
+    stateRef.current.zoom = Math.min(stateRef.current.zoom, 2.2);
   }, [selectedId, ordered]);
 
-  // ── Replay ──────────────────────────────────────────────────────────────────
-  const startReplay = () => {
-    if (!ordered.length || !mapRef.current) return;
-    setPlaying(true); playingRef.current = true;
-    stopRotation();
-
-    const map = mapRef.current;
-    const points = [
-      [ordered[0].home_longitude, ordered[0].home_latitude],
-      ...ordered.map(t => [t.longitude, t.latitude]),
-    ];
-
-    let i = 0;
-    const flyNext = () => {
-      if (!playingRef.current || i >= points.length) { stopReplay(); return; }
-      map.flyTo({ center: points[i] as [number,number], zoom: 4, duration: 2000, essential: true });
-      i++;
-      setTimeout(flyNext, 2500);
-    };
-    map.flyTo({ center: points[0] as [number,number], zoom: 2, duration: 1000 });
-    setTimeout(flyNext, 1200);
-  };
-
+  // ---- Replay ----
   const stopReplay = () => {
-    setPlaying(false); playingRef.current = false;
+    if (replayRafRef.current) cancelAnimationFrame(replayRafRef.current);
+    setPlaying(false);
+    const { routesGroup } = stateRef.current;
+    if (routesGroup) {
+      routesGroup.children.forEach((c) => {
+        if (c !== liveLineRef.current) ((c as THREE.Line).material as any).opacity = 0.85;
+      });
+      if (liveLineRef.current) {
+        routesGroup.remove(liveLineRef.current);
+        (liveLineRef.current.geometry as any).dispose?.();
+        (liveLineRef.current.material as any).dispose?.();
+        liveLineRef.current = null;
+      }
+    }
   };
 
-  // Inject popup styles
-  useEffect(() => {
-    if (!document.getElementById("atlas-popup-style")) {
-      const style = document.createElement("style");
-      style.id = "atlas-popup-style";
-      style.textContent = `
-        .atlas-popup .maplibregl-popup-content {
-          background: #0d1829 !important;
-          border: 1px solid rgba(255,255,255,0.1) !important;
-          border-radius: 10px !important;
-          padding: 12px 14px !important;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-          color: #e2e8f0 !important;
+  const playReplay = () => {
+    const { routesGroup } = stateRef.current;
+    if (!routesGroup || ordered.length === 0 || playing) return;
+    setPlaying(true);
+    setAutoRotate(false);
+
+    const home = ordered[0];
+    const homePos = ll2v(home.home_latitude, home.home_longitude, R * 1.005);
+    const allArcs: { pts: THREE.Vector3[]; target: { lat: number; lon: number } }[] = [];
+    let prev = homePos;
+    ordered.forEach((t) => {
+      const pos = ll2v(t.latitude, t.longitude, R * 1.005);
+      allArcs.push({ pts: arc(prev, pos, 80), target: { lat: t.latitude, lon: t.longitude } });
+      prev = pos;
+    });
+
+    routesGroup.children.forEach((c) => ((c as THREE.Line).material as any).opacity = 0.15);
+
+    const liveGeo = new THREE.BufferGeometry();
+    const liveMat = new THREE.LineBasicMaterial({ color: 0x5eead4, transparent: true, opacity: 1 });
+    const liveLine = new THREE.Line(liveGeo, liveMat);
+    routesGroup.add(liveLine);
+    liveLineRef.current = liveLine;
+
+    let arcIdx = 0, t0 = performance.now();
+    const perArc = 1800;
+    const accumulated: THREE.Vector3[] = [];
+
+    const step = (now: number) => {
+      const arcData = allArcs[arcIdx];
+      const t = Math.min(1, (now - t0) / perArc);
+      const count = Math.max(2, Math.floor(arcData.pts.length * t));
+      liveGeo.setFromPoints([...accumulated, ...arcData.pts.slice(0, count)]);
+      const { lat, lon } = arcData.target;
+      stateRef.current.rot.y += (-lon * (Math.PI / 180) - Math.PI / 2 - stateRef.current.rot.y) * 0.06;
+      stateRef.current.rot.x += (lat * (Math.PI / 180) - stateRef.current.rot.x) * 0.06;
+      stateRef.current.zoom += (2.0 - stateRef.current.zoom) * 0.04;
+      if (t >= 1) {
+        accumulated.push(...arcData.pts);
+        arcIdx++;
+        t0 = now;
+        if (arcIdx >= allArcs.length) {
+          setPlaying(false);
+          routesGroup.children.forEach((c) => { if (c !== liveLine) ((c as THREE.Line).material as any).opacity = 0.85; });
+          setTimeout(() => {
+            routesGroup.remove(liveLine);
+            liveGeo.dispose(); liveMat.dispose();
+            liveLineRef.current = null;
+          }, 800);
+          stateRef.current.zoom = 3.0;
+          return;
         }
-        .atlas-popup .maplibregl-popup-tip { border-top-color: #0d1829 !important; }
-        .maplibregl-ctrl-attrib { background: rgba(0,0,0,0.4) !important; color: #475569 !important; font-size: 9px !important; }
-        .maplibregl-ctrl-attrib a { color: #64748b !important; }
-      `;
-      document.head.appendChild(style);
-    }
-  }, []);
+      }
+      replayRafRef.current = requestAnimationFrame(step);
+    };
+    replayRafRef.current = requestAnimationFrame(step);
+  };
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border" style={{ minHeight: "400px" }}>
-      <div ref={containerRef} style={{ position: "absolute", inset: 0, background: "#061226" }} />
+    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border"
+      style={{ background: "radial-gradient(ellipse at center, #061226 0%, #02060f 70%, #000 100%)" }}>
+      <div ref={containerRef} className="w-full h-full" />
 
-      {/* Zoom buttons */}
-      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
-        <button onClick={() => mapRef.current?.zoomIn()}
-          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">+</button>
-        <button onClick={() => mapRef.current?.zoomOut()}
-          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">−</button>
+      <div className="absolute top-3 right-3 glass-card flex p-1 gap-1 z-40">
+        <button onClick={() => setAutoRotate((v) => !v)}
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-1 ${autoRotate ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+          <RotateCw className="w-3 h-3" />
+          {autoRotate ? "Auto" : "Manuale"}
+        </button>
       </div>
 
-      {/* Replay button */}
       {trips.length >= 1 && (
-        <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-2 py-1.5 flex items-center gap-1 z-40">
+        <div className="absolute bottom-3 left-3 glass-card px-2 py-1.5 flex items-center gap-1 z-40">
           {!playing
-            ? <button onClick={startReplay} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-white/10 transition-colors text-white"><Play className="w-3.5 h-3.5" /> Replay</button>
-            : <button onClick={stopReplay} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-white/10 transition-colors text-white"><Square className="w-3.5 h-3.5" /> Stop</button>
+            ? <button onClick={playReplay} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-secondary transition-colors"><Play className="w-3.5 h-3.5" /> Replay</button>
+            : <button onClick={stopReplay} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-secondary transition-colors"><Square className="w-3.5 h-3.5" /> Stop</button>
           }
         </div>
       )}
 
-      {/* Legend */}
-      <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Casa</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Tappa</div>
+      <div className="absolute bottom-3 right-3 glass-card px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground z-40">
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-accent" /> Casa</div>
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-primary" /> Tappa</div>
+      </div>
+
+      <div className="absolute top-3 left-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60 pointer-events-none">
+        Trascina · Scroll per zoom
       </div>
     </div>
   );
