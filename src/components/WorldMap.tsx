@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { feature } from "topojson-client";
 import { Trip } from "@/lib/storage";
 import { GlobeLabels, AutoRotate } from "@/lib/settings";
-import { RotateCw, Play, Square } from "lucide-react";
+import { Play, Square } from "lucide-react";
 
 export interface CityInfo {
   name: string;
@@ -213,6 +213,8 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
   useEffect(() => { autoRotRef.current = autoRotate; }, [autoRotate]);
+  // Sync with settings change
+  useEffect(() => { setAutoRotate(autoRotateSetting === "on"); }, [autoRotateSetting]);
   useEffect(() => { globeLabelsRef.current = globeLabels; }, [globeLabels]);
 
   const ordered = useMemo(() => [...trips].sort((a, b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
@@ -546,13 +548,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       style={{ background: "radial-gradient(ellipse at center, #061226 0%, #02060f 70%, #000 100%)" }}>
       <canvas ref={canvasRef} className="w-full h-full" />
 
-      <div className="absolute top-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg flex p-1 gap-1 z-40">
-        <button onClick={() => setAutoRotate(v => !v)}
-          className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider transition-colors flex items-center gap-1 ${autoRotate ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-          <RotateCw className="w-3 h-3" />
-          {autoRotate ? "Auto" : "Manuale"}
-        </button>
-      </div>
+
 
       {trips.length >= 1 && (
         <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-2 py-1.5 flex items-center gap-1 z-40">
