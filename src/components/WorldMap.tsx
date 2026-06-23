@@ -81,9 +81,6 @@ const flag = (c: string) =>
 // Free tile sources — no API key needed
 const STYLE = {
   version: 8 as const,
-  name: "Atlas Dark Globe",
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  sprite: "https://demotiles.maplibre.org/styles/osm-bright-gl-style/sprite",
   sources: {
     "esri-satellite": {
       type: "raster" as const,
@@ -129,24 +126,17 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
         style: STYLE as any,
         center: [10, 20],
         zoom: 1.5,
-        projection: { type: "globe" } as any,
         attributionControl: false,
       });
+
+      // Force resize after mount to fix zero-height container issue
+      setTimeout(() => map.resize(), 50);
+      setTimeout(() => map.resize(), 200);
 
       mapRef.current = map;
 
       // Atmosphere (star field + glow)
       map.on("style.load", () => {
-        try {
-          map.setFog({
-            color: "rgb(186, 210, 235)",
-            "high-color": "rgb(36, 92, 223)",
-            "horizon-blend": 0.02,
-            "space-color": "rgb(6, 18, 38)",
-            "star-intensity": 0.6,
-          });
-        } catch(_) {}
-
         // Add trip routes and markers
         addTripsToMap(map, maplibregl);
       });
