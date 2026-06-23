@@ -48,10 +48,16 @@ export function CityMapPopup({ city, onClose, onAddTrip }: Props) {
         attributionControl: true,
       });
 
-      // Base: Esri World Imagery (satellite)
+      // Satellite base (Esri)
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         { attribution: "© Esri © OpenStreetMap contributors", maxZoom: 19 }
+      ).addTo(map);
+
+      // Labels overlay (CartoDB Voyager — clean font, transparent background)
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png",
+        { subdomains: "abcd", attribution: "© CARTO © OpenStreetMap", maxZoom: 19, opacity: 0.95 }
       ).addTo(map);
 
       // Overlay: Esri Reference Labels — roads, cities, POIs, neighborhoods at all zoom levels
