@@ -54,10 +54,11 @@ export function CityMapPopup({ city, onClose, onAddTrip }: Props) {
         { attribution: "© Esri", maxZoom: 19 }
       ).addTo(map);
 
-      // Labels overlay (OSM)
+      // Hybrid labels overlay — shows roads, place names, POIs at all zoom levels
+      // Using Stadia Maps hybrid (satellite + full OSM labels)
       L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png",
-        { attribution: "© OpenStreetMap © CARTO", subdomains: "abcd", maxZoom: 19, opacity: 0.85 }
+        "https://tiles.stadiamaps.com/tiles/stamen_terrain_labels/{z}/{x}/{y}{r}.png",
+        { attribution: "© Stadia Maps © OpenStreetMap", maxZoom: 20, opacity: 0.9 }
       ).addTo(map);
 
       // City marker
