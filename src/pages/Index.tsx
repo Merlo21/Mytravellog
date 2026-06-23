@@ -52,7 +52,7 @@ function HomeInner() {
     : null;
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="h-screen flex flex-col overflow-hidden">
       <header className="border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -98,7 +98,7 @@ function HomeInner() {
           ))}
         </div>
 
-        <div className="flex-1 min-h-[460px] lg:min-h-[600px]">
+        <div style={{ height: "calc(100vh - 220px)", minHeight: "460px" }}>
           <WorldMap
             trips={trips}
             selectedId={selectedId}
