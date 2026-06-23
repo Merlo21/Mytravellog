@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { Trip } from "@/lib/storage";
 import { GlobeLabels, AutoRotate } from "@/lib/settings";
 import { Play, Square } from "lucide-react";
@@ -125,6 +124,15 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
     let map: any;
 
     const init = () => {
+      // Inject MapLibre CSS from CDN
+      if (!document.getElementById("maplibre-css")) {
+        const link = document.createElement("link");
+        link.id = "maplibre-css";
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.css";
+        document.head.appendChild(link);
+      }
+
       map = new maplibregl.Map({
         container: containerRef.current!,
         style: STYLE as any,
