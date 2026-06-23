@@ -129,9 +129,14 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
         attributionControl: false,
       });
 
-      // Force resize after mount to fix zero-height container issue
-      setTimeout(() => map.resize(), 50);
-      setTimeout(() => map.resize(), 200);
+      // Force resize — MapLibre needs computed height at init
+      setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 50);
+      setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 300);
+      setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 800);
+
+      // Also use ResizeObserver
+      const ro = new ResizeObserver(() => { if (mapRef.current) mapRef.current.resize(); });
+      if (containerRef.current) ro.observe(containerRef.current);
 
       mapRef.current = map;
 
@@ -168,8 +173,11 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
 
     init();
 
+    let ro: ResizeObserver | null = null;
+
     return () => {
       stopRotation();
+      if (ro) ro.disconnect();
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -355,8 +363,8 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   }, []);
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border">
-      <div ref={containerRef} style={{ width: "100%", height: "100%", background: "#061226" }} />
+    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border" style={{ minHeight: "400px" }}>
+      <div ref={containerRef} style={{ position: "absolute", inset: 0, background: "#061226" }} />
 
       {/* Zoom buttons */}
       <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
