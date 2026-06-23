@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { Trip } from "@/lib/storage";
 import { GlobeLabels, AutoRotate } from "@/lib/settings";
 import { Play, Square } from "lucide-react";
@@ -122,19 +124,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
 
     let map: any;
 
-    const init = async () => {
-      const ml = await import("maplibre-gl");
-      const maplibregl = ml.default || ml;
-
-      // Import CSS
-      if (!document.getElementById("maplibre-css")) {
-        const link = document.createElement("link");
-        link.id = "maplibre-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/maplibre-gl@4.7.0/dist/maplibre-gl.css";
-        document.head.appendChild(link);
-      }
-
+    const init = () => {
       map = new maplibregl.Map({
         container: containerRef.current!,
         style: STYLE as any,
@@ -314,10 +304,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     // Re-import maplibregl to rebuild
-    import("maplibre-gl").then(ml => {
-      const maplibregl = ml.default || ml;
-      addTripsToMap(map, maplibregl);
-    });
+    addTripsToMap(map, maplibregl);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordered, selectedId]);
 
