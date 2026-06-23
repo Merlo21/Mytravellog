@@ -188,6 +188,10 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
 
   const countryLabelEls = useRef<{ el: HTMLDivElement; vec: THREE.Vector3; tier: 1|2|3 }[]>([]);
   const cityLabelEls    = useRef<{ el: HTMLDivElement; vec: THREE.Vector3; city: CityInfo }[]>([]);
+  const leafletMapRef = useRef<HTMLDivElement>(null);
+  const leafletInstanceRef = useRef<any>(null);
+  const [mapMode, setMapMode] = useState<"globe"|"flat">("globe");
+  const mapModeRef = useRef<"globe"|"flat">("globe");
   const bordersLow  = useRef<THREE.Line[]>([]);
   const bordersHigh = useRef<THREE.Line[]>([]);
   const highLoaded  = useRef(false);
@@ -361,7 +365,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       velRef.current = { x: dy * 0.005, y: dx * 0.005 }; lpRef.current = { x: e.clientX, y: e.clientY };
     };
     const onPU = () => { dragRef.current = false; };
-    const onW  = (e: WheelEvent) => { e.preventDefault(); zoomRef.current = Math.max(1.1, Math.min(8, zoomRef.current * (e.deltaY > 0 ? 1.1 : 0.9))); };
+    const onW  = (e: WheelEvent) => { e.preventDefault(); zoomRef.current = Math.max(0.95, Math.min(8, zoomRef.current * (e.deltaY > 0 ? 1.1 : 0.9))); };
     const onC  = (e: MouseEvent) => {
       if (Math.abs(velRef.current.x) > 0.005 || Math.abs(velRef.current.y) > 0.005) return;
       const rc = canvas.getBoundingClientRect();
@@ -546,7 +550,8 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   return (
     <div ref={containerRef} className="relative w-full h-full rounded-2xl overflow-hidden border border-border"
       style={{ background: "radial-gradient(ellipse at center, #061226 0%, #02060f 70%, #000 100%)" }}>
-      <canvas ref={canvasRef} className="w-full h-full" />
+      <canvas ref={canvasRef} className="w-full h-full" style={{ display: mapMode === "flat" ? "none" : "block" }} />
+      <div ref={leafletMapRef} style={{ position:"absolute", inset:0, display: mapMode === "flat" ? "block" : "none" }} />
 
 
 
@@ -559,22 +564,26 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
         </div>
       )}
 
-      {/* Zoom buttons */}
-      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
-        <button
-          onClick={() => { zoomRef.current = Math.max(1.1, zoomRef.current * 0.75); }}
-          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none"
-        >+</button>
-        <button
-          onClick={() => { zoomRef.current = Math.min(8, zoomRef.current * 1.35); }}
-          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none"
-        >−</button>
-      </div>
+      {/* Zoom buttons — only show on globe mode */}
+      {mapMode === "globe" && (
+        <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
+          <button
+            onClick={() => { zoomRef.current = Math.max(0.95, zoomRef.current * 0.75); }}
+            className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none"
+          >+</button>
+          <button
+            onClick={() => { zoomRef.current = Math.min(8, zoomRef.current * 1.35); }}
+            className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none"
+          >−</button>
+        </div>
+      )}
 
-      <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Casa</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Tappa</div>
-      </div>
+      {mapMode === "globe" && (
+        <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Casa</div>
+          <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Tappa</div>
+        </div>
+      )}
     </div>
   );
 }
