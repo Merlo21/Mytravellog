@@ -48,17 +48,23 @@ export function CityMapPopup({ city, onClose, onAddTrip }: Props) {
         attributionControl: true,
       });
 
-      // Satellite layer (Esri)
+      // Base: Esri World Imagery (satellite)
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "© Esri", maxZoom: 19 }
+        { attribution: "© Esri © OpenStreetMap contributors", maxZoom: 19 }
       ).addTo(map);
 
-      // Hybrid labels overlay — shows roads, place names, POIs at all zoom levels
-      // Using Stadia Maps hybrid (satellite + full OSM labels)
+      // Overlay: Esri Reference Labels — roads, cities, POIs, neighborhoods at all zoom levels
+      // This is the same overlay Google Maps Hybrid uses
       L.tileLayer(
-        "https://tiles.stadiamaps.com/tiles/stamen_terrain_labels/{z}/{x}/{y}{r}.png",
-        { attribution: "© Stadia Maps © OpenStreetMap", maxZoom: 20, opacity: 0.9 }
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "", maxZoom: 19, opacity: 1 }
+      ).addTo(map);
+
+      // Extra detail at high zoom: road names overlay
+      L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+        { attribution: "", maxZoom: 19, opacity: 0.8 }
       ).addTo(map);
 
       // City marker
