@@ -142,6 +142,12 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
 
       // Atmosphere (star field + glow)
       map.on("style.load", () => {
+        // Enable globe projection (MapLibre 4.x)
+        try {
+          (map as any).setProjection({ type: "globe" });
+        } catch(_) {
+          try { (map as any).setProjection("globe"); } catch(__) {}
+        }
         // Add trip routes and markers
         addTripsToMap(map, maplibregl);
       });
