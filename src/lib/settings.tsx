@@ -4,12 +4,14 @@ export type DistanceUnit = "metric" | "imperial";
 export type TemperatureUnit = "celsius" | "fahrenheit";
 export type GlobeStyle = "artistic" | "satellite";
 export type GlobeLabels = "none" | "capitals" | "major" | "all";
+export type AutoRotate = "on" | "off";
 
 type Settings = {
   distanceUnit: DistanceUnit;
   temperatureUnit: TemperatureUnit;
   globeStyle: GlobeStyle;
   globeLabels: GlobeLabels;
+  autoRotate: AutoRotate;
 };
 
 type Ctx = Settings & {
@@ -17,6 +19,7 @@ type Ctx = Settings & {
   setTemperatureUnit: (v: TemperatureUnit) => void;
   setGlobeStyle: (v: GlobeStyle) => void;
   setGlobeLabels: (v: GlobeLabels) => void;
+  setAutoRotate: (v: AutoRotate) => void;
 };
 
 const DEFAULTS: Settings = {
@@ -24,6 +27,7 @@ const DEFAULTS: Settings = {
   temperatureUnit: "celsius",
   globeStyle: "artistic",
   globeLabels: "major",
+  autoRotate: "on",
 };
 
 const KEY = "atlas.settings.v1";
@@ -49,6 +53,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setTemperatureUnit: (v) => setS((p) => ({ ...p, temperatureUnit: v })),
     setGlobeStyle: (v) => setS((p) => ({ ...p, globeStyle: v })),
     setGlobeLabels: (v) => setS((p) => ({ ...p, globeLabels: v })),
+    setAutoRotate: (v) => setS((p) => ({ ...p, autoRotate: v })),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
