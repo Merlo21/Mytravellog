@@ -5,8 +5,7 @@ import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-react";
-import { CityMapPopup } from "@/components/CityMapPopup";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, Plus, CheckCircle } from "lucide-react";
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
   state = { error: null };
@@ -28,8 +27,7 @@ import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart, Settings, X } from "lucide-react";
-import { CityMapPopup } from "@/components/CityMapPopup";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, Plus, CheckCircle } from "lucide-react";
 
 function HomeInner() {
   const { distanceUnit, globeLabels, autoRotate } = useSettings();
@@ -114,15 +112,56 @@ function HomeInner() {
 
       {/* City selected popup — opens NewTripDialog pre-filled */}
       {selectedCity && (
-        <CityMapPopup
-          city={selectedCity}
-          onClose={() => setSelectedCity(null)}
-          onAddTrip={(city) => {
-            setSelectedCity(null);
-            // Open NewTripDialog with prefilled city by setting a trigger
-            setPendingCity(city);
-          }}
-        />
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setSelectedCity(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+              <div className="text-2xl">
+                {selectedCity.country_code.length === 2
+                  ? String.fromCodePoint(...selectedCity.country_code.toUpperCase().split("").map(c => 0x1f1e6 + c.charCodeAt(0) - 65))
+                  : "🌍"}
+              </div>
+              <div className="flex-1">
+                <h2 className="font-bold text-base">{selectedCity.name}</h2>
+                <p className="text-xs text-muted-foreground">{selectedCity.country}</p>
+              </div>
+              <button onClick={() => setSelectedCity(null)}
+                className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            {/* Actions */}
+            <div className="p-3 flex flex-col gap-2">
+              <div onClick={() => setSelectedCity(null)}>
+                <NewTripDialog
+                  onCreated={refresh}
+                  defaultHome={defaultHome}
+                  prefilledCity={selectedCity}
+                  triggerLabel={`✈ Aggiungi come viaggio`}
+                  triggerClassName="w-full btn-primary py-3 text-sm font-semibold flex items-center justify-center gap-2"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  // Mark as visited without adding to trips
+                  const visited = JSON.parse(localStorage.getItem("atlas.visited.v1") || "[]");
+                  const already = visited.find((v: any) => v.name === selectedCity!.name && v.country === selectedCity!.country);
+                  if (!already) {
+                    visited.push({ name: selectedCity!.name, country: selectedCity!.country, country_code: selectedCity!.country_code, latitude: selectedCity!.latitude, longitude: selectedCity!.longitude, visited_at: new Date().toISOString() });
+                    localStorage.setItem("atlas.visited.v1", JSON.stringify(visited));
+                  }
+                  setSelectedCity(null);
+                }}
+                className="w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 rounded-xl border border-border hover:bg-secondary transition-colors text-foreground"
+              >
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                Segna come visitata
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {pendingCity && (
