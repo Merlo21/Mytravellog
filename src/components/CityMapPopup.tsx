@@ -49,31 +49,17 @@ export function CityMapPopup({ city, onClose, onAddTrip }: Props) {
       });
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
-      // Satellite base (Esri)
+      // Layer 1: Esri satellite imagery
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "© Esri © OpenStreetMap contributors", maxZoom: 19 }
+        { attribution: "© Esri", maxZoom: 19 }
       ).addTo(map);
 
-      // Labels overlay (CartoDB Voyager — clean font, transparent background)
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png",
-        { subdomains: "abcd", attribution: "© CARTO © OpenStreetMap", maxZoom: 19, opacity: 0.95 }
-      ).addTo(map);
-
-      // Overlay: Esri Reference Labels — roads, cities, POIs, neighborhoods at all zoom levels
-      // This is the same overlay Google Maps Hybrid uses
+      // Layer 2: Esri transparent labels (city names, streets, POIs)
       L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "", maxZoom: 19, opacity: 1 }
+        { attribution: "", maxZoom: 19 }
       ).addTo(map);
-
-      // Extra detail at high zoom: road names overlay
-      L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "", maxZoom: 19, opacity: 0.8 }
-      ).addTo(map);
-
       // City marker
       const marker = L.circleMarker([city.latitude, city.longitude], {
         radius: 8,
