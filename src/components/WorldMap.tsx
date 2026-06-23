@@ -559,6 +559,18 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
         </div>
       )}
 
+      {/* Zoom buttons */}
+      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
+        <button
+          onClick={() => { zoomRef.current = Math.max(1.1, zoomRef.current * 0.75); }}
+          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none"
+        >+</button>
+        <button
+          onClick={() => { zoomRef.current = Math.min(8, zoomRef.current * 1.35); }}
+          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none"
+        >−</button>
+      </div>
+
       <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Casa</div>
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Tappa</div>
