@@ -103,9 +103,11 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       // When user zooms in very close, transition to Leaflet flat map
       globe.controls().addEventListener("change", () => {
         const cam = globe.camera();
-        const distance = cam.position.length();
+        const distance = Math.round(cam.position.length());
+        const pov = globe.pointOfView();
+        const alt = Math.round(pov.altitude * 100) / 100;
+        setDebugZoom({ dist: distance, alt });
         if (distance < 120) {
-          const pov = globe.pointOfView();
           switchToLeaflet(pov.lat, pov.lng);
         }
       });
@@ -263,6 +265,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
 
   // ── Leaflet flat map overlay ───────────────────────────────────────────────
   const [flatMode, setFlatMode] = useState(false);
+  const [debugZoom, setDebugZoom] = useState<{dist:number;alt:number}>({dist:0,alt:0});
   const flatCenterRef = useRef<{lat:number;lng:number}>({lat:20,lng:10});
   const leafletRef = useRef<any>(null);
   const leafletContRef = useRef<HTMLDivElement>(null);
@@ -348,6 +351,14 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
             🌍 Torna al globo
           </button>
         </>
+      )}
+
+      {/* Debug zoom indicator */}
+      {!flatMode && (
+        <div className="absolute top-3 left-3 z-40 bg-black/60 backdrop-blur border border-white/10 rounded-lg px-3 py-1.5 text-[11px] font-mono text-white/70">
+          dist: <span className="text-cyan-400">{debugZoom.dist}</span> · alt: <span className="text-amber-400">{debugZoom.alt}</span>
+          <span className="text-white/30 ml-1">(→Leaflet &lt;120)</span>
+        </div>
       )}
 
       {/* Zoom — only on globe */}
