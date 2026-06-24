@@ -100,13 +100,15 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
       globe.controls().minDistance = 0.1;
       globe.controls().maxDistance = 800;
 
-      // When user zooms in very close, transition to Leaflet flat map
+      // Bidirectional transition at dist 120
       globe.controls().addEventListener("change", () => {
         const cam = globe.camera();
         const distance = Math.round(cam.position.length());
         const pov = globe.pointOfView();
         const alt = Math.round(pov.altitude * 100) / 100;
         setDebugZoom({ dist: distance, alt });
+        // Store current pov for transition back
+        latLngRef.current = { lat: pov.lat, lng: pov.lng };
         if (distance < 120) {
           switchToLeaflet(pov.lat, pov.lng);
         }
@@ -268,6 +270,7 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   const [debugZoom, setDebugZoom] = useState<{dist:number;alt:number}>({dist:0,alt:0});
   const flatCenterRef = useRef<{lat:number;lng:number}>({lat:20,lng:10});
   const leafletRef = useRef<any>(null);
+  const latLngRef = useRef<{lat:number;lng:number}>({lat:20,lng:10});
   const leafletContRef = useRef<HTMLDivElement>(null);
 
   const switchToLeaflet = (lat: number, lng: number) => {
@@ -277,8 +280,15 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
   };
 
   const switchToGlobe = () => {
-    setFlatMode(false);
     if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; }
+    setFlatMode(false);
+    // After globe reappears, set POV just above the threshold
+    setTimeout(() => {
+      if (globeRef.current) {
+        const { lat, lng } = latLngRef.current;
+        globeRef.current.pointOfView({ lat, lng, altitude: 0.22 }, 0);
+      }
+    }, 50);
   };
 
   // Init Leaflet when flatMode turns on
@@ -303,6 +313,15 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
         { attribution:"© Esri", maxZoom:19 }).addTo(map);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         { attribution:"", maxZoom:19 }).addTo(map);
+      // Zoom out in Leaflet → back to globe
+      map.on("zoomend", () => {
+        if (map.getZoom() < 6) {
+          const center = map.getCenter();
+          latLngRef.current = { lat: center.lat, lng: center.lng };
+          switchToGlobe();
+        }
+      });
+
       // Click to add city
       map.on("click", async (e: any) => {
         const { lat: la, lng: lo } = e.latlng;
