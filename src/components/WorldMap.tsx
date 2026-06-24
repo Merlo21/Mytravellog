@@ -97,8 +97,18 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
         .width(containerRef.current!.clientWidth)
         .height(containerRef.current!.clientHeight);
 
-      globe.controls().minDistance = 150;
+      globe.controls().minDistance = 0.1;
       globe.controls().maxDistance = 800;
+
+      // When user zooms in very close, transition to Leaflet flat map
+      globe.controls().addEventListener("change", () => {
+        const cam = globe.camera();
+        const distance = cam.position.length();
+        if (distance < 120) {
+          const pov = globe.pointOfView();
+          switchToLeaflet(pov.lat, pov.lng);
+        }
+      });
 
       globeRef.current = globe;
 
@@ -251,6 +261,70 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
     setPlaying(false); playingRef.current = false;
   };
 
+  // ── Leaflet flat map overlay ───────────────────────────────────────────────
+  const [flatMode, setFlatMode] = useState(false);
+  const flatCenterRef = useRef<{lat:number;lng:number}>({lat:20,lng:10});
+  const leafletRef = useRef<any>(null);
+  const leafletContRef = useRef<HTMLDivElement>(null);
+
+  const switchToLeaflet = (lat: number, lng: number) => {
+    if (flatMode) return;
+    flatCenterRef.current = {lat, lng};
+    setFlatMode(true);
+  };
+
+  const switchToGlobe = () => {
+    setFlatMode(false);
+    if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; }
+  };
+
+  // Init Leaflet when flatMode turns on
+  useEffect(() => {
+    if (!flatMode || !leafletContRef.current || leafletRef.current) return;
+
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css"; link.rel = "stylesheet";
+      link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+
+    const initLeaflet = () => {
+      const L = (window as any).L;
+      if (!L || !leafletContRef.current) return;
+      const { lat, lng } = flatCenterRef.current;
+      const map = L.map(leafletContRef.current, { center:[lat,lng], zoom:10, zoomControl:false });
+      L.control.zoom({ position:"bottomright" }).addTo(map);
+      // Satellite + labels
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        { attribution:"© Esri", maxZoom:19 }).addTo(map);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        { attribution:"", maxZoom:19 }).addTo(map);
+      // Click to add city
+      map.on("click", async (e: any) => {
+        const { lat: la, lng: lo } = e.latlng;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${la}&lon=${lo}&zoom=14&accept-language=it`);
+          const data = await res.json();
+          if (!data || data.error) return;
+          const addr = data.address || {};
+          const name = addr.city || addr.town || addr.village || addr.suburb || addr.county || data.name || `${la.toFixed(3)}, ${lo.toFixed(3)}`;
+          onSelectCity?.({ name, country: addr.country||"", country_code:(addr.country_code||"").toUpperCase(), latitude:la, longitude:lo, tier:1 });
+        } catch(_) {}
+      });
+      leafletRef.current = map;
+      setTimeout(() => map.invalidateSize(), 100);
+    };
+
+    if ((window as any).L) { initLeaflet(); }
+    else if (!document.getElementById("leaflet-js")) {
+      const s = document.createElement("script");
+      s.id = "leaflet-js"; s.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
+      s.onload = initLeaflet; document.head.appendChild(s);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flatMode]);
+
   // ── Zoom buttons ───────────────────────────────────────────────────────────
   const zoomIn = () => {
     if (!globeRef.current) return;
@@ -265,15 +339,24 @@ export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeL
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border">
-      <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
+      <div ref={containerRef} style={{ width:"100%", height:"100%", display: flatMode ? "none" : "block" }} />
+      {flatMode && (
+        <>
+          <div ref={leafletContRef} style={{ position:"absolute", inset:0 }} />
+          <button onClick={switchToGlobe}
+            className="absolute top-3 left-3 z-50 bg-black/70 backdrop-blur border border-white/15 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-white/10 transition-colors flex items-center gap-1.5">
+            🌍 Torna al globo
+          </button>
+        </>
+      )}
 
-      {/* Zoom */}
-      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
+      {/* Zoom — only on globe */}
+      {!flatMode && <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
         <button onClick={zoomIn}
           className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">+</button>
         <button onClick={zoomOut}
           className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">−</button>
-      </div>
+      </div>}
 
       {/* Replay */}
       {trips.length >= 1 && (
