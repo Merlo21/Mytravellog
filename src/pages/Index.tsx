@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { loadTrips, Trip } from "@/lib/storage";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
+import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, Plus, CheckCircle } from "lucide-react";
@@ -25,6 +26,7 @@ import { Link } from "react-router-dom";
 import { loadTrips, Trip } from "@/lib/storage";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
+import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, Plus, CheckCircle } from "lucide-react";
@@ -35,6 +37,7 @@ function HomeInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
+  const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [pendingCity, setPendingCity] = useState<CityInfo | null>(null);
 
   const refresh = () => setTrips(loadTrips());
@@ -98,7 +101,9 @@ function HomeInner() {
           ))}
         </div>
 
-        <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "#080d1a", borderRadius: "1rem", overflow: "hidden" }}>
+        <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "#080d1a", borderRadius: "1rem", overflow: "hidden", position:"relative" }}
+            onMouseMove={(e) => { if (e.buttons===1) setStarOffset(p=>({x:p.x+e.movementX*0.5,y:p.y+e.movementY*0.5})); }}>
+          <StarField offsetX={starOffset.x} offsetY={starOffset.y} />
           <WorldMap
             trips={trips}
             selectedId={selectedId}
