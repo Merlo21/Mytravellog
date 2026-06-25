@@ -2,14 +2,12 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 
 export type DistanceUnit = "metric" | "imperial";
 export type TemperatureUnit = "celsius" | "fahrenheit";
-export type GlobeStyle = "artistic" | "satellite";
 export type AutoRotate = "on" | "off";
 export type Theme = "dark" | "light";
 
 type Settings = {
   distanceUnit: DistanceUnit;
   temperatureUnit: TemperatureUnit;
-  globeStyle: GlobeStyle;
   autoRotate: AutoRotate;
   theme: Theme;
 };
@@ -17,7 +15,6 @@ type Settings = {
 type Ctx = Settings & {
   setDistanceUnit: (v: DistanceUnit) => void;
   setTemperatureUnit: (v: TemperatureUnit) => void;
-  setGlobeStyle: (v: GlobeStyle) => void;
   setAutoRotate: (v: AutoRotate) => void;
   setTheme: (v: Theme) => void;
 };
@@ -25,7 +22,6 @@ type Ctx = Settings & {
 const DEFAULTS: Settings = {
   distanceUnit: "metric",
   temperatureUnit: "celsius",
-  globeStyle: "artistic",
   autoRotate: "on",
   theme: "dark",
 };
@@ -47,11 +43,19 @@ const Ctx = createContext<Ctx | null>(null);
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [s, setS] = useState<Settings>(load);
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(s)); }, [s]);
+
+  // Apply theme class to document root
+  useEffect(() => {
+    if (s.theme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  }, [s.theme]);
   const value: Ctx = {
     ...s,
     setDistanceUnit: (v) => setS((p) => ({ ...p, distanceUnit: v })),
     setTemperatureUnit: (v) => setS((p) => ({ ...p, temperatureUnit: v })),
-    setGlobeStyle: (v) => setS((p) => ({ ...p, globeStyle: v })),
     setAutoRotate: (v) => setS((p) => ({ ...p, autoRotate: v })),
     setTheme: (v) => setS((p) => ({ ...p, theme: v })),
   };
