@@ -109,13 +109,16 @@ export function WorldMap({
         style: `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`,
         center: [10, 20],
         zoom: 1.5,
-        projection: "globe" as any,
         attributionControl: false,
       });
 
       mapRef.current = map;
 
       map.on("load", () => {
+        // Enable globe projection - try all MapLibre 4.x syntaxes
+        try { map.setProjection({ type: "globe" }); } catch(_) {}
+        try { (map as any).setProjection("globe"); } catch(_) {}
+
         // Globe atmosphere
         try {
           map.setFog({
