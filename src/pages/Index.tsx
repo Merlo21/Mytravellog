@@ -30,7 +30,7 @@ import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, Plus, CheckCircle } from "lucide-react";
 
 function HomeInner() {
-  const { distanceUnit, globeLabels, autoRotate } = useSettings();
+  const { distanceUnit, autoRotate } = useSettings();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -103,8 +103,7 @@ function HomeInner() {
             trips={trips}
             selectedId={selectedId}
             onSelectTrip={(t) => setSelectedId(t.id)}
-            onSelectCity={(city) => setSelectedCity(city)}
-            globeLabels={globeLabels}
+            onSelectCity={(city) => setSelectedCity(city)}={}
             autoRotateSetting={autoRotate}
           />
         </div>
