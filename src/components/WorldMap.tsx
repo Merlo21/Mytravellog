@@ -17,7 +17,6 @@ interface Props {
   selectedId?: string | null;
   onSelectTrip?: (t: Trip) => void;
   onSelectCity?: (city: CityInfo) => void;
-  globeLabels?:;
   autoRotateSetting?: AutoRotate;
 }
 
