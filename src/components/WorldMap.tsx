@@ -289,26 +289,42 @@ export function WorldMap({
 
   // ── City labels ────────────────────────────────────────────────────────────
   function updateCityLabels(map: any, maplibregl: any) {
+    // Remove existing city markers
+    cityMarkerRefs.current.forEach(({marker}) => marker.remove());
+    cityMarkerRefs.current = [];
+
     const maxTier = globeLabels==="none"?0:globeLabels==="capitals"?1:globeLabels==="major"?2:3;
+    if (maxTier === 0) return;
+
     ALL_CITIES.filter(c => c.tier <= maxTier).forEach(city => {
       const el = document.createElement("div");
-      el.style.cssText = `display:flex;align-items:center;gap:3px;cursor:pointer;pointer-events:auto`;
+      el.style.cssText = "display:flex;align-items:center;gap:4px;cursor:pointer;pointer-events:none;opacity:0;transition:opacity 0.4s";
       const dot = document.createElement("div");
       const ds = city.tier===1?5:city.tier===2?4:3;
       dot.style.cssText = `width:${ds}px;height:${ds}px;border-radius:50%;background:rgba(255,255,255,0.9);box-shadow:0 0 4px rgba(0,0,0,0.8);flex-shrink:0`;
       const lbl = document.createElement("span");
       lbl.textContent = city.name;
-      lbl.style.cssText = `font-family:ui-sans-serif,system-ui,sans-serif;font-size:${city.tier===1?12:city.tier===2?11:10}px;font-weight:${city.tier===1?700:600};color:rgba(255,255,255,0.95);text-shadow:0 0 6px rgba(0,0,0,1),1px 1px 2px rgba(0,0,0,0.9);white-space:nowrap`;
+      lbl.style.cssText = `font-family:ui-sans-serif,system-ui,sans-serif;font-size:${city.tier===1?13:city.tier===2?11:10}px;font-weight:${city.tier===1?700:600};color:rgba(255,255,255,0.95);text-shadow:0 0 8px rgba(0,0,0,1),1px 1px 3px rgba(0,0,0,0.9);white-space:nowrap`;
       el.appendChild(dot); el.appendChild(lbl);
       el.addEventListener("mouseenter", () => { dot.style.background="#22d3ee"; lbl.style.color="#22d3ee"; });
       el.addEventListener("mouseleave", () => { dot.style.background="rgba(255,255,255,0.9)"; lbl.style.color="rgba(255,255,255,0.95)"; });
       el.addEventListener("click", (e) => { e.stopPropagation(); onSelectCityRef.current?.(city); });
-      markersRef.current.push(
-        new maplibregl.Marker({ element: el, anchor:"left" })
-          .setLngLat([city.longitude, city.latitude])
-          .addTo(map)
-      );
+      const marker = new maplibregl.Marker({ element: el, anchor:"left" })
+        .setLngLat([city.longitude, city.latitude]).addTo(map);
+      cityMarkerRefs.current.push({ marker, el, city });
     });
+
+    // Show/hide by zoom: T1 at z≥2, T2 at z≥3, T3 at z≥4.5
+    const updateVis = () => {
+      const z = map.getZoom();
+      cityMarkerRefs.current.forEach(({ el, city }) => {
+        const show = city.tier===1 ? z>=2 : city.tier===2 ? z>=3 : z>=4.5;
+        el.style.opacity = show ? "1" : "0";
+        el.style.pointerEvents = show ? "auto" : "none";
+      });
+    };
+    map.on("zoom", updateVis);
+    updateVis();
   }
 
   // Rebuild on trips/selection change
