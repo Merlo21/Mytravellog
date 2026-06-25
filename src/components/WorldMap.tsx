@@ -161,7 +161,7 @@ export function WorldMap({
       }
 
       // Fetch style and inject globe projection + glyphs (MapLibre 5.x)
-      const styleResp = await fetch(`https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`);
+      const styleResp = await fetch(`https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`);
       const style = await styleResp.json();
       style.projection = { type: "globe" };
       // Add glyph server so native symbol layers can render text
@@ -178,6 +178,13 @@ export function WorldMap({
       mapRef.current = map;
 
       map.on("load", () => {
+        // Hide all text/symbol layers below zoom 2 so globe is clean when far
+        map.getStyle().layers?.forEach((layer: any) => {
+          if (layer.type === "symbol") {
+            map.setLayerZoomRange(layer.id, 2, 24);
+          }
+        });
+
         // Globe atmosphere
         try {
           map.setFog({
