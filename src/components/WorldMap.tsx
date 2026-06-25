@@ -344,43 +344,89 @@ export function WorldMap({
   }
 
   // ── City labels ────────────────────────────────────────────────────────────
-  function updateCityLabels(map: any, maplibregl: any) {
-    // Remove existing city markers
+  function updateCityLabels(map: any, _maplibregl: any) {
+    // Remove old city markers (HTML)
     cityMarkerRefs.current.forEach(({marker}) => marker.remove());
     cityMarkerRefs.current = [];
 
-    const maxTier = 3; // Controlled by zoom levels, not settings
-
-    ALL_CITIES.filter(c => c.tier <= maxTier).forEach(city => {
-      const el = document.createElement("div");
-      el.style.cssText = "display:flex;align-items:center;gap:4px;cursor:pointer;pointer-events:none;opacity:0;transition:opacity 0.4s";
-      const dot = document.createElement("div");
-      const ds = city.tier===1?5:city.tier===2?4:3;
-      dot.style.cssText = `width:${ds}px;height:${ds}px;border-radius:50%;background:rgba(255,255,255,0.9);box-shadow:0 0 4px rgba(0,0,0,0.8);flex-shrink:0`;
-      const lbl = document.createElement("span");
-      lbl.textContent = city.name;
-      lbl.style.cssText = `font-family:ui-sans-serif,system-ui,sans-serif;font-size:${city.tier===1?13:city.tier===2?11:10}px;font-weight:${city.tier===1?700:600};color:rgba(255,255,255,0.95);text-shadow:0 0 8px rgba(0,0,0,1),1px 1px 3px rgba(0,0,0,0.9);white-space:nowrap`;
-      el.appendChild(dot); el.appendChild(lbl);
-      el.addEventListener("mouseenter", () => { dot.style.background="#22d3ee"; lbl.style.color="#22d3ee"; });
-      el.addEventListener("mouseleave", () => { dot.style.background="rgba(255,255,255,0.9)"; lbl.style.color="rgba(255,255,255,0.95)"; });
-      el.addEventListener("click", (e) => { e.stopPropagation(); onSelectCityRef.current?.(city); });
-      const marker = new maplibregl.Marker({ element: el, anchor:"left" })
-        .setLngLat([city.longitude, city.latitude]).addTo(map);
-      cityMarkerRefs.current.push({ marker, el, city });
+    // Remove old native layers/sources
+    ["cities-t1","cities-t2","cities-t3","cities-t1-labels","cities-t2-labels","cities-t3-labels"].forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id);
+    });
+    ["cities-src-t1","cities-src-t2","cities-src-t3"].forEach(id => {
+      if (map.getSource(id)) map.removeSource(id);
     });
 
-    // Show/hide by zoom: T1 at z≥2, T2 at z≥3, T3 at z≥4.5
-    const updateVis = () => {
-      const z = map.getZoom();
-      cityMarkerRefs.current.forEach(({ el, city }) => {
-        const show = city.tier===1 ? z>=3 : city.tier===2 ? z>=4 : z>=5;
-        el.style.opacity = show ? "1" : "0";
-        el.style.pointerEvents = show ? "auto" : "none";
+    const tiers: (1|2|3)[] = [1,2,3];
+    tiers.forEach(tier => {
+      const cities = ALL_CITIES.filter(c => c.tier === tier);
+      const minZoom = tier === 1 ? 2 : tier === 2 ? 3.5 : 5;
+
+      map.addSource(`cities-src-t${tier}`, {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: cities.map(c => ({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [c.longitude, c.latitude] },
+            properties: { name: c.name, country: c.country, country_code: c.country_code, latitude: c.latitude, longitude: c.longitude, tier: c.tier },
+          })),
+        },
       });
-    };
-    map.on("zoom", updateVis);
-    updateVis();
+
+      // Dot
+      map.addLayer({
+        id: `cities-t${tier}`,
+        type: "circle",
+        source: `cities-src-t${tier}`,
+        minzoom: minZoom,
+        paint: {
+          "circle-radius": tier === 1 ? 3.5 : tier === 2 ? 2.5 : 2,
+          "circle-color": "#ffffff",
+          "circle-opacity": 0.9,
+          "circle-stroke-width": 0,
+        },
+      });
+
+      // Label
+      map.addLayer({
+        id: `cities-t${tier}-labels`,
+        type: "symbol",
+        source: `cities-src-t${tier}`,
+        minzoom: minZoom,
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": tier === 1 ? 13 : tier === 2 ? 11 : 10,
+          "text-anchor": "left",
+          "text-offset": [0.5, 0],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "rgba(0,0,0,0.9)",
+          "text-halo-width": 1.5,
+          "text-opacity": ["interpolate",["linear"],["zoom"], minZoom, 0, minZoom + 0.5, 1],
+        },
+      });
+
+      // Click on city label
+      map.on("click", `cities-t${tier}`, (e: any) => {
+        if (!e.features?.length) return;
+        const p = e.features[0].properties;
+        onSelectCityRef.current?.({
+          name: p.name, country: p.country, country_code: p.country_code,
+          latitude: p.latitude, longitude: p.longitude, tier: p.tier,
+        });
+        e.preventDefault();
+      });
+
+      map.on("mouseenter", `cities-t${tier}`, () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", `cities-t${tier}`, () => { map.getCanvas().style.cursor = ""; });
+    });
   }
+
 
   // Rebuild on trips/selection change
   useEffect(() => {
