@@ -122,11 +122,11 @@ export function WorldMap({
         // Globe atmosphere
         try {
           map.setFog({
-            color: "rgb(120,180,255)",
-            "high-color": "rgb(20,60,200)",
-            "horizon-blend": 0.06,
-            "space-color": "rgb(4,10,28)",
-            "star-intensity": 0.8,
+            color: "rgb(140,200,255)",
+            "high-color": "rgb(30,100,255)",
+            "horizon-blend": 0.12,
+            "space-color": "rgb(3,8,22)",
+            "star-intensity": 0.9,
           });
         } catch(_) {}
 
