@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Compass } from "lucide-react";
-import { useSettings, DistanceUnit, TemperatureUnit, GlobeLabels, AutoRotate, Theme } from "@/lib/settings";
+import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, Theme } from "@/lib/settings";
 
 function SegmentControl<T extends string>({
   value, onChange, options,
