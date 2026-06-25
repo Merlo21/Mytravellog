@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Trip } from "@/lib/storage";
-import {, AutoRotate } from "@/lib/settings";
+import { AutoRotate } from "@/lib/settings";
 import { Play, Square } from "lucide-react";
 
 export interface CityInfo {
