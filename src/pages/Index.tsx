@@ -103,7 +103,7 @@ function HomeInner() {
             trips={trips}
             selectedId={selectedId}
             onSelectTrip={(t) => setSelectedId(t.id)}
-            onSelectCity={(city) => setSelectedCity(city)}={}
+            onSelectCity={(city) => setSelectedCity(city)}
             autoRotateSetting={autoRotate}
           />
         </div>
