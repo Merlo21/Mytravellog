@@ -161,7 +161,7 @@ export function WorldMap({
       }
 
       // Fetch style and inject globe projection (MapLibre 5.x)
-      const styleResp = await fetch(`https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`);
+      const styleResp = await fetch(`https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`);
       const style = await styleResp.json();
       style.projection = { type: "globe" };
 
