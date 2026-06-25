@@ -98,7 +98,7 @@ function HomeInner() {
           ))}
         </div>
 
-        <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "#000", borderRadius: "1rem", overflow: "hidden" }}>
+        <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "#080d1a", borderRadius: "1rem", overflow: "hidden" }}>
           <WorldMap
             trips={trips}
             selectedId={selectedId}
