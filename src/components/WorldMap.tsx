@@ -160,10 +160,12 @@ export function WorldMap({
         document.head.appendChild(link);
       }
 
-      // Fetch style and inject globe projection (MapLibre 5.x)
+      // Fetch style and inject globe projection + glyphs (MapLibre 5.x)
       const styleResp = await fetch(`https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`);
       const style = await styleResp.json();
       style.projection = { type: "globe" };
+      // Add glyph server so native symbol layers can render text
+      style.glyphs = `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`;
 
       map = new maplibregl.Map({
         container: containerRef.current!,
