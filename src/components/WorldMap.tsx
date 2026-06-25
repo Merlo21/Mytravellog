@@ -316,7 +316,7 @@ export function WorldMap({
     const updateVis = () => {
       const z = map.getZoom();
       cityMarkerRefs.current.forEach(({ el, city }) => {
-        const show = city.tier===1 ? z>=2 : city.tier===2 ? z>=3 : z>=4.5;
+        const show = city.tier===1 ? z>=3 : city.tier===2 ? z>=4 : z>=5;
         el.style.opacity = show ? "1" : "0";
         el.style.pointerEvents = show ? "auto" : "none";
       });
