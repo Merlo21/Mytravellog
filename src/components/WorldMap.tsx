@@ -80,6 +80,7 @@ export function WorldMap({
   const playingRef    = useRef(false);
   const onSelectCityRef = useRef(onSelectCity);
   const onSelectTripRef = useRef(onSelectTrip);
+  const cityMarkerRefs = useRef<{marker:any;el:HTMLElement;city:CityInfo}[]>([]);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
