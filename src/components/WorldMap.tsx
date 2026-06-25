@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Trip } from "@/lib/storage";
-import { GlobeLabels, AutoRotate } from "@/lib/settings";
+import {, AutoRotate } from "@/lib/settings";
 import { Play, Square } from "lucide-react";
 
 export interface CityInfo {
@@ -17,7 +17,7 @@ interface Props {
   selectedId?: string | null;
   onSelectTrip?: (t: Trip) => void;
   onSelectCity?: (city: CityInfo) => void;
-  globeLabels?: GlobeLabels;
+  globeLabels?:;
   autoRotateSetting?: AutoRotate;
 }
 
@@ -69,8 +69,7 @@ export const ALL_CITIES: CityInfo[] = [
 ];
 
 export function WorldMap({
-  trips, selectedId, onSelectTrip, onSelectCity,
-  globeLabels = "major", autoRotateSetting = "on"
+  trips, selectedId, onSelectTrip, onSelectCity, autoRotateSetting = "on"
 }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const mapRef        = useRef<any>(null);
@@ -293,8 +292,7 @@ export function WorldMap({
     cityMarkerRefs.current.forEach(({marker}) => marker.remove());
     cityMarkerRefs.current = [];
 
-    const maxTier = globeLabels==="none"?0:globeLabels==="capitals"?1:globeLabels==="major"?2:3;
-    if (maxTier === 0) return;
+    const maxTier = 3; // Controlled by zoom levels, not settings
 
     ALL_CITIES.filter(c => c.tier <= maxTier).forEach(city => {
       const el = document.createElement("div");
