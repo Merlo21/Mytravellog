@@ -67,6 +67,63 @@ export const ALL_CITIES: CityInfo[] = [
   {name:"Tel Aviv",country:"Israele",country_code:"IL",latitude:32.08,longitude:34.78,tier:3},
 ];
 
+// Canvas-based glow that follows the actual globe circle
+function GlobeHalo() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const draw = () => {
+      const W = canvas.offsetWidth;
+      const H = canvas.offsetHeight;
+      canvas.width  = W * window.devicePixelRatio;
+      canvas.height = H * window.devicePixelRatio;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      // Globe radius in MapLibre at zoom 1.5 is roughly 42% of the smaller dimension
+      const r = Math.min(W, H) * 0.44;
+      const cx = W / 2;
+      const cy = H / 2;
+
+      // Draw glow layers outward from globe edge
+      const layers = [
+        { dr: 2,  blur: 8,  color: "rgba(0,200,255,0.7)" },
+        { dr: 8,  blur: 20, color: "rgba(0,160,255,0.45)" },
+        { dr: 18, blur: 40, color: "rgba(0,110,220,0.25)" },
+        { dr: 35, blur: 70, color: "rgba(0,70,180,0.12)" },
+      ];
+
+      layers.forEach(({ dr, blur, color }) => {
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = blur;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + dr, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      });
+    };
+
+    draw();
+    const ro = new ResizeObserver(draw);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:10 }}
+    />
+  );
+}
+
 export function WorldMap({
   trips, selectedId, onSelectTrip, onSelectCity, autoRotateSetting = "on"
 }: Props) {
