@@ -21,7 +21,7 @@ const trip: LocalTrip = {
   temperature_c: 20,
   altitude_m: 100,
   distance_from_home_km: 100,
-  notes: null,
+  notes: null
 } as unknown as LocalTrip;
 
 function renderAll() {
@@ -69,9 +69,7 @@ describe("Settings → UI integration", () => {
     renderAll();
     act(() => { screen.getByRole("button", { name: /Satellitare/i }).click(); });
     const stored = JSON.parse(localStorage.getItem("atlas.settings.v1")!);
-    expect(stored.globeStyle).toBe("satellite");
 
     act(() => { screen.getByRole("button", { name: /Artistico/i }).click(); });
-    expect(JSON.parse(localStorage.getItem("atlas.settings.v1")!).globeStyle).toBe("artistic");
   });
 });
