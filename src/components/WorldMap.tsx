@@ -100,13 +100,18 @@ export function WorldMap({
       if (!document.getElementById("ml-css")) {
         const link = document.createElement("link");
         link.id = "ml-css"; link.rel = "stylesheet";
-        link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.css";
+        link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.0.0/dist/maplibre-gl.css";
         document.head.appendChild(link);
       }
 
+      // Fetch style and inject globe projection (MapLibre 5.x)
+      const styleResp = await fetch(`https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`);
+      const style = await styleResp.json();
+      style.projection = { type: "globe" };
+
       map = new maplibregl.Map({
         container: containerRef.current!,
-        style: `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`,
+        style,
         center: [10, 20],
         zoom: 1.5,
         attributionControl: false,
@@ -115,10 +120,6 @@ export function WorldMap({
       mapRef.current = map;
 
       map.on("load", () => {
-        // Enable globe projection - try all MapLibre 4.x syntaxes
-        try { map.setProjection({ type: "globe" }); } catch(_) {}
-        try { (map as any).setProjection("globe"); } catch(_) {}
-
         // Globe atmosphere
         try {
           map.setFog({
