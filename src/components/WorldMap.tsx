@@ -21,6 +21,8 @@ interface Props {
   autoRotateSetting?: AutoRotate;
 }
 
+const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
+
 export const ALL_CITIES: CityInfo[] = [
   {name:"Roma",country:"Italia",country_code:"IT",latitude:41.9,longitude:12.5,tier:1},
   {name:"Tokyo",country:"Giappone",country_code:"JP",latitude:35.68,longitude:139.69,tier:1},
@@ -50,358 +52,338 @@ export const ALL_CITIES: CityInfo[] = [
   {name:"Lagos",country:"Nigeria",country_code:"NG",latitude:6.45,longitude:3.4,tier:2},
   {name:"Milano",country:"Italia",country_code:"IT",latitude:45.47,longitude:9.19,tier:3},
   {name:"Napoli",country:"Italia",country_code:"IT",latitude:40.85,longitude:14.27,tier:3},
-  {name:"Firenze",country:"Italia",country_code:"IT",latitude:43.77,longitude:11.26,tier:3},
   {name:"Barcellona",country:"Spagna",country_code:"ES",latitude:41.39,longitude:2.15,tier:3},
   {name:"Monaco",country:"Germania",country_code:"DE",latitude:48.14,longitude:11.58,tier:3},
   {name:"Zurigo",country:"Svizzera",country_code:"CH",latitude:47.38,longitude:8.54,tier:3},
-  {name:"Bruxelles",country:"Belgio",country_code:"BE",latitude:50.85,longitude:4.35,tier:3},
   {name:"Budapest",country:"Ungheria",country_code:"HU",latitude:47.5,longitude:19.04,tier:3},
   {name:"Praga",country:"Rep. Ceca",country_code:"CZ",latitude:50.08,longitude:14.44,tier:3},
   {name:"Oslo",country:"Norvegia",country_code:"NO",latitude:59.91,longitude:10.75,tier:3},
   {name:"Copenhagen",country:"Danimarca",country_code:"DK",latitude:55.68,longitude:12.57,tier:3},
-  {name:"Helsinki",country:"Finlandia",country_code:"FI",latitude:60.17,longitude:24.94,tier:3},
   {name:"Varsavia",country:"Polonia",country_code:"PL",latitude:52.23,longitude:21.01,tier:3},
-  {name:"Lisbona",country:"Portogallo",country_code:"PT",latitude:38.72,longitude:-9.14,tier:3},
-  {name:"Atene",country:"Grecia",country_code:"GR",latitude:37.98,longitude:23.73,tier:3},
-  {name:"Stoccolma",country:"Svezia",country_code:"SE",latitude:59.33,longitude:18.07,tier:3},
   {name:"San Francisco",country:"USA",country_code:"US",latitude:37.77,longitude:-122.42,tier:3},
   {name:"Miami",country:"USA",country_code:"US",latitude:25.77,longitude:-80.19,tier:3},
-  {name:"Chicago",country:"USA",country_code:"US",latitude:41.85,longitude:-87.65,tier:3},
   {name:"Toronto",country:"Canada",country_code:"CA",latitude:43.65,longitude:-79.38,tier:3},
   {name:"Nairobi",country:"Kenya",country_code:"KE",latitude:-1.29,longitude:36.82,tier:3},
   {name:"Osaka",country:"Giappone",country_code:"JP",latitude:34.69,longitude:135.5,tier:3},
   {name:"Tel Aviv",country:"Israele",country_code:"IL",latitude:32.08,longitude:34.78,tier:3},
 ];
 
-export function WorldMap({ trips, selectedId, onSelectTrip, onSelectCity, globeLabels = "major", autoRotateSetting = "on" }: Props) {
-  const containerRef   = useRef<HTMLDivElement>(null);
-  const globeRef       = useRef<any>(null);
-  const autoRotInterv  = useRef<ReturnType<typeof setInterval> | null>(null);
+export function WorldMap({
+  trips, selectedId, onSelectTrip, onSelectCity,
+  globeLabels = "major", autoRotateSetting = "on"
+}: Props) {
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const mapRef        = useRef<any>(null);
+  const markersRef    = useRef<any[]>([]);
+  const popupsRef     = useRef<any[]>([]);
+  const rotTimerRef   = useRef<number | null>(null);
   const [playing, setPlaying] = useState(false);
-  const playingRef = useRef(false);
+  const playingRef    = useRef(false);
+  const onSelectCityRef = useRef(onSelectCity);
+  const onSelectTripRef = useRef(onSelectTrip);
+  useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
+  useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
-  const ordered = useMemo(() => [...trips].sort((a, b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
+  const ordered = useMemo(() =>
+    [...trips].sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
 
-  // ── Init globe.gl ──────────────────────────────────────────────────────────
+  // ── Init MapLibre ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
+    let map: any;
 
-    import("globe.gl").then((mod) => {
-      const Globe = mod.default || mod;
+    const init = async () => {
+      const ml = await import("maplibre-gl");
+      const maplibregl = (ml as any).default || ml;
 
-      const globe = Globe({ animateIn: true })(containerRef.current!)
-        .globeImageUrl("//unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
-        .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
-        .backgroundImageUrl("//unpkg.com/three-globe/example/img/night-sky.png")
-        .pointOfView({ lat: 20, lng: 10, altitude: 2.5 })
-        .width(containerRef.current!.clientWidth)
-        .height(containerRef.current!.clientHeight);
+      // Inject CSS
+      if (!document.getElementById("ml-css")) {
+        const link = document.createElement("link");
+        link.id = "ml-css"; link.rel = "stylesheet";
+        link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.css";
+        document.head.appendChild(link);
+      }
 
-      globe.controls().minDistance = 0.1;
-      globe.controls().maxDistance = 800;
-
-      // Bidirectional transition at dist 120
-      globe.controls().addEventListener("change", () => {
-        const cam = globe.camera();
-        const distance = Math.round(cam.position.length());
-        const pov = globe.pointOfView();
-        const alt = Math.round(pov.altitude * 100) / 100;
-        setDebugZoom({ dist: distance, alt });
-        // Store current pov for transition back
-        latLngRef.current = { lat: pov.lat, lng: pov.lng };
-        if (distance < 120) {
-          switchToLeaflet(pov.lat, pov.lng);
-        }
+      map = new maplibregl.Map({
+        container: containerRef.current!,
+        style: `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`,
+        center: [10, 20],
+        zoom: 1.5,
+        projection: "globe" as any,
+        attributionControl: false,
       });
 
-      globeRef.current = globe;
+      mapRef.current = map;
 
-      // Click on globe → reverse geocode with Nominatim
-      globe.onGlobeClick(async ({ lat, lng }: { lat: number; lng: number }) => {
-        globe.pointOfView({ lat, lng, altitude: 0.5 }, 800);
+      map.on("load", () => {
+        // Globe atmosphere
         try {
-          const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=10&accept-language=it`);
+          map.setFog({
+            color: "rgb(186,210,235)",
+            "high-color": "rgb(36,92,223)",
+            "horizon-blend": 0.02,
+            "space-color": "rgb(6,18,38)",
+            "star-intensity": 0.6,
+          });
+        } catch(_) {}
+
+        // Add trip sources
+        addTripsToMap(map, maplibregl);
+
+        // City labels as markers
+        updateCityLabels(map, maplibregl);
+      });
+
+      // Click → reverse geocode
+      map.on("click", async (e: any) => {
+        const { lng, lat } = e.lngLat;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=14&accept-language=it`
+          );
           const data = await res.json();
           if (!data || data.error) return;
           const addr = data.address || {};
-          const name = addr.city || addr.town || addr.village || addr.county || data.name || `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
-          const country = addr.country || "";
-          const cc = (addr.country_code || "").toUpperCase();
-          onSelectCity?.({ name, country, country_code: cc, latitude: lat, longitude: lng, tier: 1 });
-        } catch (_) {}
+          const name = addr.city || addr.town || addr.village ||
+                       addr.suburb || addr.county || data.name ||
+                       `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+          onSelectCityRef.current?.({
+            name, country: addr.country || "",
+            country_code: (addr.country_code || "").toUpperCase(),
+            latitude: lat, longitude: lng, tier: 1,
+          });
+        } catch(_) {}
       });
-    });
+
+      // Stop rotation on interaction
+      map.on("mousedown", stopRotation);
+      map.on("touchstart", stopRotation);
+
+      setTimeout(() => { map.resize(); }, 100);
+    };
+
+    init();
 
     return () => {
-      if (globeRef.current) {
-        try { globeRef.current._destructor?.(); } catch(_) {}
-        globeRef.current = null;
-      }
-      if (autoRotInterv.current) clearInterval(autoRotInterv.current);
+      stopRotation();
+      markersRef.current.forEach(m => m.remove());
+      markersRef.current = [];
+      popupsRef.current.forEach(p => p.remove());
+      popupsRef.current = [];
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Auto-rotate ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (autoRotInterv.current) clearInterval(autoRotInterv.current);
-    if (autoRotateSetting === "on" && globeRef.current) {
-      autoRotInterv.current = setInterval(() => {
-        if (!globeRef.current || playingRef.current) return;
-        const pov = globeRef.current.pointOfView();
-        if (pov.altitude > 1.2) {
-          globeRef.current.pointOfView({ lat: pov.lat, lng: pov.lng + 0.15, altitude: pov.altitude });
-        }
-      }, 30);
+  function startRotation() {
+    if (rotTimerRef.current) return;
+    const rotate = () => {
+      const map = mapRef.current;
+      if (!map || playingRef.current) return;
+      const center = map.getCenter();
+      map.setCenter([center.lng + 0.1, center.lat]);
+      rotTimerRef.current = requestAnimationFrame(rotate) as unknown as number;
+    };
+    rotTimerRef.current = requestAnimationFrame(rotate) as unknown as number;
+  }
+
+  function stopRotation() {
+    if (rotTimerRef.current) {
+      cancelAnimationFrame(rotTimerRef.current as unknown as number);
+      rotTimerRef.current = null;
     }
-    return () => { if (autoRotInterv.current) clearInterval(autoRotInterv.current); };
+  }
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (autoRotateSetting === "on") startRotation();
+    else stopRotation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRotateSetting]);
 
-  // ── Update arcs (routes) ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (!globeRef.current) return;
+  // ── Add trips ──────────────────────────────────────────────────────────────
+  function addTripsToMap(map: any, maplibregl: any) {
+    // Clean old markers
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+    popupsRef.current.forEach(p => p.remove());
+    popupsRef.current = [];
 
-    if (!ordered.length) {
-      globeRef.current.arcsData([]).pointsData([]).labelsData([]);
-      return;
-    }
+    // Remove old layers/sources
+    ["route-line","route-points"].forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    });
+
+    if (!ordered.length) return;
 
     const home = ordered[0];
-
-    // Arcs between consecutive stops
-    const arcs = [];
-    const allPts = [{ lat: home.home_latitude, lng: home.home_longitude }, ...ordered.map(t => ({ lat: t.latitude, lng: t.longitude }))];
-    for (let i = 0; i < allPts.length - 1; i++) {
-      arcs.push({ startLat: allPts[i].lat, startLng: allPts[i].lng, endLat: allPts[i+1].lat, endLng: allPts[i+1].lng });
-    }
-
-    // Points — home + trips
-    const points = [
-      { lat: home.home_latitude, lng: home.home_longitude, color: "#fbbf24", radius: 0.5, label: "Casa", isHome: true, id: null },
-      ...ordered.map((t, i) => ({
-        lat: t.latitude, lng: t.longitude,
-        color: t.id === selectedId ? "#5eead4" : "#22d3ee",
-        radius: t.id === selectedId ? 0.6 : 0.4,
-        label: `${i + 1}. ${t.city}`,
-        isHome: false,
-        id: t.id,
-      })),
+    const coords = [
+      [home.home_longitude, home.home_latitude],
+      ...ordered.map(t => [t.longitude, t.latitude]),
     ];
 
-    globeRef.current
-      .arcsData(arcs)
-      .arcColor(() => "#22d3ee")
-      .arcAltitude(0.12)
-      .arcStroke(0.5)
-      .arcDashLength(0.4)
-      .arcDashGap(0.2)
-      .arcDashAnimateTime(3000)
-      .pointsData(points)
-      .pointLat((d: any) => d.lat)
-      .pointLng((d: any) => d.lng)
-      .pointColor((d: any) => d.color)
-      .pointRadius((d: any) => d.radius)
-      .pointAltitude(0.01)
-      .onPointClick((d: any) => {
-        if (d.id) {
-          const t = trips.find(x => x.id === d.id);
-          if (t) onSelectTrip?.(t);
-        }
-      })
-      .pointLabel((d: any) => `<div style="background:#0d1829;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:8px 12px;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;color:#e2e8f0">${d.label}</div>`);
+    // Route line
+    map.addSource("route-line", {
+      type: "geojson",
+      data: { type:"Feature", geometry:{ type:"LineString", coordinates: coords } },
+    });
+    map.addLayer({
+      id: "route-line", type: "line", source: "route-line",
+      paint: { "line-color":"#22d3ee", "line-width":2, "line-opacity":0.8, "line-dasharray":[3,2] },
+    });
 
+    // Home marker
+    const homeEl = document.createElement("div");
+    homeEl.style.cssText = "width:16px;height:16px;border-radius:50%;background:#fbbf24;border:2.5px solid #fff;box-shadow:0 0 8px rgba(251,191,36,0.6);cursor:pointer";
+    markersRef.current.push(
+      new maplibregl.Marker({ element: homeEl })
+        .setLngLat([home.home_longitude, home.home_latitude])
+        .addTo(map)
+    );
+
+    // Trip markers
+    ordered.forEach((t, i) => {
+      const sel = t.id === selectedId;
+      const el = document.createElement("div");
+      el.style.cssText = `width:${sel?30:24}px;height:${sel?30:24}px;border-radius:50%;background:${sel?"#5eead4":"#22d3ee"};border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:${sel?11:10}px;font-weight:700;color:#02060f;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:ui-sans-serif,system-ui,sans-serif`;
+      el.textContent = String(i + 1);
+
+      const flag = (c: string) => c.length === 2
+        ? String.fromCodePoint(...c.toUpperCase().split("").map(ch => 0x1f1e6 + ch.charCodeAt(0) - 65))
+        : "🌍";
+
+      const popup = new maplibregl.Popup({ offset:20, closeButton:false, className:"atlas-popup" })
+        .setHTML(`
+          <div style="font-family:ui-sans-serif,system-ui,sans-serif;min-width:150px">
+            <div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:2px">${flag(t.country_code)} ${t.city}</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:6px">${t.country} · ${new Date(t.trip_date+"T00:00:00").toLocaleDateString("it-IT",{day:"2-digit",month:"short",year:"numeric"})}</div>
+            ${t.temperature_c != null ? `<div style="font-size:11px;color:#94a3b8">🌡 ${t.temperature_c.toFixed(1)}°C</div>`:""}
+            ${t.altitude_m != null ? `<div style="font-size:11px;color:#94a3b8">⛰ ${Math.round(t.altitude_m)}m</div>`:""}
+            ${t.distance_from_home_km != null ? `<div style="font-size:11px;color:#94a3b8">↔ ${t.distance_from_home_km.toLocaleString("it-IT")}km</div>`:""}
+            ${t.notes ? `<div style="font-size:10px;color:#64748b;margin-top:4px;font-style:italic">"${t.notes}"</div>`:""}
+          </div>
+        `);
+
+      popupsRef.current.push(popup);
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onSelectTripRef.current?.(t);
+        map.flyTo({ center:[t.longitude,t.latitude], zoom:Math.max(map.getZoom(),5), duration:800 });
+      });
+      el.addEventListener("mouseenter", () => popup.setLngLat([t.longitude,t.latitude]).addTo(map));
+      el.addEventListener("mouseleave", () => popup.remove());
+
+      markersRef.current.push(
+        new maplibregl.Marker({ element: el })
+          .setLngLat([t.longitude, t.latitude])
+          .addTo(map)
+      );
+    });
+  }
+
+  // ── City labels ────────────────────────────────────────────────────────────
+  function updateCityLabels(map: any, maplibregl: any) {
+    const maxTier = globeLabels==="none"?0:globeLabels==="capitals"?1:globeLabels==="major"?2:3;
+    ALL_CITIES.filter(c => c.tier <= maxTier).forEach(city => {
+      const el = document.createElement("div");
+      el.style.cssText = `display:flex;align-items:center;gap:3px;cursor:pointer;pointer-events:auto`;
+      const dot = document.createElement("div");
+      const ds = city.tier===1?5:city.tier===2?4:3;
+      dot.style.cssText = `width:${ds}px;height:${ds}px;border-radius:50%;background:rgba(255,255,255,0.9);box-shadow:0 0 4px rgba(0,0,0,0.8);flex-shrink:0`;
+      const lbl = document.createElement("span");
+      lbl.textContent = city.name;
+      lbl.style.cssText = `font-family:ui-sans-serif,system-ui,sans-serif;font-size:${city.tier===1?12:city.tier===2?11:10}px;font-weight:${city.tier===1?700:600};color:rgba(255,255,255,0.95);text-shadow:0 0 6px rgba(0,0,0,1),1px 1px 2px rgba(0,0,0,0.9);white-space:nowrap`;
+      el.appendChild(dot); el.appendChild(lbl);
+      el.addEventListener("mouseenter", () => { dot.style.background="#22d3ee"; lbl.style.color="#22d3ee"; });
+      el.addEventListener("mouseleave", () => { dot.style.background="rgba(255,255,255,0.9)"; lbl.style.color="rgba(255,255,255,0.95)"; });
+      el.addEventListener("click", (e) => { e.stopPropagation(); onSelectCityRef.current?.(city); });
+      markersRef.current.push(
+        new maplibregl.Marker({ element: el, anchor:"left" })
+          .setLngLat([city.longitude, city.latitude])
+          .addTo(map)
+      );
+    });
+  }
+
+  // Rebuild on trips/selection change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    import("maplibre-gl").then(ml => {
+      const maplibregl = (ml as any).default || ml;
+      addTripsToMap(map, maplibregl);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordered, selectedId]);
 
-  // ── City labels ────────────────────────────────────────────────────────────
+  // Focus selected trip
   useEffect(() => {
-    if (!globeRef.current) return;
-    const maxTier = globeLabels === "none" ? 0 : globeLabels === "capitals" ? 1 : globeLabels === "major" ? 2 : 3;
-    const cities = ALL_CITIES.filter(c => c.tier <= maxTier);
-
-    globeRef.current
-      .labelsData(cities)
-      .labelLat((d: any) => d.latitude)
-      .labelLng((d: any) => d.longitude)
-      .labelText((d: any) => d.name)
-      .labelSize((d: any) => d.tier === 1 ? 0.8 : d.tier === 2 ? 0.6 : 0.45)
-      .labelDotRadius((d: any) => d.tier === 1 ? 0.4 : d.tier === 2 ? 0.3 : 0.2)
-      .labelColor(() => "rgba(255,255,255,0.9)")
-      .labelResolution(2)
-      .onLabelClick((d: any) => onSelectCity?.(d as CityInfo));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globeLabels]);
-
-  // ── Focus selected trip ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!selectedId || !globeRef.current) return;
+    if (!selectedId || !mapRef.current) return;
     const t = ordered.find(x => x.id === selectedId); if (!t) return;
-    globeRef.current.pointOfView({ lat: t.latitude, lng: t.longitude, altitude: 0.8 }, 1000);
+    mapRef.current.flyTo({ center:[t.longitude,t.latitude], zoom:Math.max(mapRef.current.getZoom(),5), duration:1000 });
   }, [selectedId, ordered]);
 
   // ── Replay ─────────────────────────────────────────────────────────────────
   const startReplay = () => {
-    if (!ordered.length || !globeRef.current || playing) return;
-    setPlaying(true); playingRef.current = true;
-    if (autoRotInterv.current) clearInterval(autoRotInterv.current);
-
+    if (!ordered.length || !mapRef.current || playing) return;
+    setPlaying(true); playingRef.current = true; stopRotation();
     const pts = [
-      { lat: ordered[0].home_latitude, lng: ordered[0].home_longitude },
-      ...ordered.map(t => ({ lat: t.latitude, lng: t.longitude })),
+      [ordered[0].home_longitude, ordered[0].home_latitude],
+      ...ordered.map(t => [t.longitude, t.latitude]),
     ];
-
     let i = 0;
     const flyNext = () => {
-      if (!playingRef.current || !globeRef.current || i >= pts.length) { stopReplay(); return; }
-      globeRef.current.pointOfView({ lat: pts[i].lat, lng: pts[i].lng, altitude: 0.7 }, 1800);
+      if (!playingRef.current || !mapRef.current || i >= pts.length) { stopReplay(); return; }
+      mapRef.current.flyTo({ center: pts[i] as [number,number], zoom:4, duration:2000, essential:true });
       i++;
-      setTimeout(flyNext, 2200);
+      setTimeout(flyNext, 2500);
     };
-    globeRef.current.pointOfView({ lat: pts[0].lat, lng: pts[0].lng, altitude: 2 }, 600);
-    setTimeout(flyNext, 800);
+    mapRef.current.flyTo({ center: pts[0] as [number,number], zoom:2, duration:800 });
+    setTimeout(flyNext, 1000);
   };
 
   const stopReplay = () => {
     setPlaying(false); playingRef.current = false;
+    if (autoRotateSetting === "on") startRotation();
   };
 
-  // ── Leaflet flat map overlay ───────────────────────────────────────────────
-  const [flatMode, setFlatMode] = useState(false);
-  const [debugZoom, setDebugZoom] = useState<{dist:number;alt:number}>({dist:0,alt:0});
-  const flatCenterRef = useRef<{lat:number;lng:number}>({lat:20,lng:10});
-  const leafletRef = useRef<any>(null);
-  const latLngRef = useRef<{lat:number;lng:number}>({lat:20,lng:10});
-  const leafletContRef = useRef<HTMLDivElement>(null);
-
-  const switchToLeaflet = (lat: number, lng: number) => {
-    if (flatMode) return;
-    flatCenterRef.current = {lat, lng};
-    setFlatMode(true);
-  };
-
-  const switchToGlobe = () => {
-    if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; }
-    setFlatMode(false);
-    // After globe reappears, set POV just above the threshold
-    setTimeout(() => {
-      if (globeRef.current) {
-        const { lat, lng } = latLngRef.current;
-        globeRef.current.pointOfView({ lat, lng, altitude: 0.22 }, 0);
-      }
-    }, 50);
-  };
-
-  // Init Leaflet when flatMode turns on
+  // Popup styles
   useEffect(() => {
-    if (!flatMode || !leafletContRef.current || leafletRef.current) return;
-
-    if (!document.getElementById("leaflet-css")) {
-      const link = document.createElement("link");
-      link.id = "leaflet-css"; link.rel = "stylesheet";
-      link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
+    if (!document.getElementById("atlas-popup-css")) {
+      const s = document.createElement("style"); s.id = "atlas-popup-css";
+      s.textContent = `.atlas-popup .maplibregl-popup-content{background:#0d1829!important;border:1px solid rgba(255,255,255,0.1)!important;border-radius:10px!important;padding:12px 14px!important;box-shadow:0 8px 32px rgba(0,0,0,0.6)!important;color:#e2e8f0!important}.atlas-popup .maplibregl-popup-tip{border-top-color:#0d1829!important}.maplibregl-ctrl-attrib{background:rgba(0,0,0,0.4)!important;color:#475569!important;font-size:9px!important}`;
+      document.head.appendChild(s);
     }
-
-    const initLeaflet = () => {
-      const L = (window as any).L;
-      if (!L || !leafletContRef.current) return;
-      const { lat, lng } = flatCenterRef.current;
-      const map = L.map(leafletContRef.current, { center:[lat,lng], zoom:10, zoomControl:false });
-      L.control.zoom({ position:"bottomright" }).addTo(map);
-      // Satellite + labels
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution:"© Esri", maxZoom:19 }).addTo(map);
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-        { attribution:"", maxZoom:19 }).addTo(map);
-      // Zoom out in Leaflet → back to globe
-      map.on("zoomend", () => {
-        if (map.getZoom() < 6) {
-          const center = map.getCenter();
-          latLngRef.current = { lat: center.lat, lng: center.lng };
-          switchToGlobe();
-        }
-      });
-
-      // Click to add city
-      map.on("click", async (e: any) => {
-        const { lat: la, lng: lo } = e.latlng;
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${la}&lon=${lo}&zoom=14&accept-language=it`);
-          const data = await res.json();
-          if (!data || data.error) return;
-          const addr = data.address || {};
-          const name = addr.city || addr.town || addr.village || addr.suburb || addr.county || data.name || `${la.toFixed(3)}, ${lo.toFixed(3)}`;
-          onSelectCity?.({ name, country: addr.country||"", country_code:(addr.country_code||"").toUpperCase(), latitude:la, longitude:lo, tier:1 });
-        } catch(_) {}
-      });
-      leafletRef.current = map;
-      setTimeout(() => map.invalidateSize(), 100);
-    };
-
-    if ((window as any).L) { initLeaflet(); }
-    else if (!document.getElementById("leaflet-js")) {
-      const s = document.createElement("script");
-      s.id = "leaflet-js"; s.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
-      s.onload = initLeaflet; document.head.appendChild(s);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flatMode]);
-
-  // ── Zoom buttons ───────────────────────────────────────────────────────────
-  const zoomIn = () => {
-    if (!globeRef.current) return;
-    const pov = globeRef.current.pointOfView();
-    globeRef.current.pointOfView({ ...pov, altitude: Math.max(0.15, pov.altitude * 0.6) }, 400);
-  };
-  const zoomOut = () => {
-    if (!globeRef.current) return;
-    const pov = globeRef.current.pointOfView();
-    globeRef.current.pointOfView({ ...pov, altitude: Math.min(5, pov.altitude * 1.6) }, 400);
-  };
+  }, []);
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border">
-      <div ref={containerRef} style={{ width:"100%", height:"100%", display: flatMode ? "none" : "block" }} />
-      {flatMode && (
-        <>
-          <div ref={leafletContRef} style={{ position:"absolute", inset:0 }} />
-          <button onClick={switchToGlobe}
-            className="absolute top-3 left-3 z-50 bg-black/70 backdrop-blur border border-white/15 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-white/10 transition-colors flex items-center gap-1.5">
-            🌍 Torna al globo
-          </button>
-        </>
-      )}
+      <div ref={containerRef} style={{ position:"absolute", inset:0 }} />
 
-      {/* Debug zoom indicator */}
-      {!flatMode && (
-        <div className="absolute top-3 left-3 z-40 bg-black/60 backdrop-blur border border-white/10 rounded-lg px-3 py-1.5 text-[11px] font-mono text-white/70">
-          dist: <span className="text-cyan-400">{debugZoom.dist}</span> · alt: <span className="text-amber-400">{debugZoom.alt}</span>
-          <span className="text-white/30 ml-1">(→Leaflet &lt;120)</span>
-        </div>
-      )}
-
-      {/* Zoom — only on globe */}
-      {!flatMode && <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
-        <button onClick={zoomIn}
+      {/* Zoom */}
+      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
+        <button onClick={() => mapRef.current?.zoomIn()}
           className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">+</button>
-        <button onClick={zoomOut}
+        <button onClick={() => mapRef.current?.zoomOut()}
           className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">−</button>
-      </div>}
+      </div>
 
       {/* Replay */}
       {trips.length >= 1 && (
         <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-2 py-1.5 flex items-center gap-1 z-40">
           {!playing
-            ? <button onClick={startReplay} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-white/10 transition-colors text-white"><Play className="w-3.5 h-3.5" /> Replay</button>
-            : <button onClick={stopReplay}  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-white/10 transition-colors text-white"><Square className="w-3.5 h-3.5" /> Stop</button>
+            ? <button onClick={startReplay} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-white/10 transition-colors text-white"><Play className="w-3.5 h-3.5"/>Replay</button>
+            : <button onClick={stopReplay}  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-white/10 transition-colors text-white"><Square className="w-3.5 h-3.5"/>Stop</button>
           }
         </div>
       )}
 
       {/* Legend */}
       <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400" /> Casa</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400" /> Tappa</div>
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/>Casa</div>
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400"/>Tappa</div>
       </div>
     </div>
   );
