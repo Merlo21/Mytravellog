@@ -6,7 +6,7 @@ import {
   formatDistanceKm,
   formatAltitudeM,
   formatTemperatureC,
-  parseStoredSettings,
+  parseStoredSettings
 } from "./settings";
 
 describe("settings formatters", () => {
@@ -69,12 +69,10 @@ describe("SettingsProvider", () => {
       <div>
         <span data-testid="distance">{s.distanceUnit}</span>
         <span data-testid="temperature">{s.temperatureUnit}</span>
-        <span data-testid="globe">{s.globeStyle}</span>
         <span data-testid="minMarker">{s.minMarkerScale}</span>
         <span data-testid="maxMarker">{s.maxMarkerScale}</span>
         <button onClick={() => s.setDistanceUnit("imperial")}>d</button>
         <button onClick={() => s.setTemperatureUnit("fahrenheit")}>t</button>
-        <button onClick={() => s.setGlobeStyle("satellite")}>g</button>
         <button onClick={() => s.setMinMarkerScale(0.3)}>min</button>
         <button onClick={() => s.setMaxMarkerScale(1.5)}>max</button>
       </div>
@@ -117,9 +115,8 @@ describe("SettingsProvider", () => {
     expect(stored).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
-      globeStyle: "satellite",
       minMarkerScale: 0.3,
-      maxMarkerScale: 1.5,
+      maxMarkerScale: 1.5
     });
   });
 
@@ -129,9 +126,8 @@ describe("SettingsProvider", () => {
       JSON.stringify({
         distanceUnit: "imperial",
         temperatureUnit: "fahrenheit",
-        globeStyle: "satellite",
         minMarkerScale: 0.8,
-        maxMarkerScale: 1.2,
+        maxMarkerScale: 1.2
       })
     );
     render(
@@ -167,8 +163,7 @@ describe("SettingsProvider", () => {
       JSON.stringify({
         distanceUnit: "imperial",
         temperatureUnit: "kelvin",
-        globeStyle: 123,
-        minMarkerScale: 5,
+        minMarkerScale: 5
       })
     );
     render(<SettingsProvider><Probe /></SettingsProvider>);
@@ -197,9 +192,8 @@ describe("parseStoredSettings", () => {
   const DEFAULTS = {
     distanceUnit: "metric",
     temperatureUnit: "celsius",
-    globeStyle: "artistic",
     minMarkerScale: 0.5,
-    maxMarkerScale: 1.0,
+    maxMarkerScale: 1.0
   } as const;
   it("returns defaults for null / non-objects", () => {
     expect(parseStoredSettings(null)).toEqual(DEFAULTS);
@@ -214,30 +208,26 @@ describe("parseStoredSettings", () => {
     expect(parseStoredSettings({
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
-      globeStyle: "satellite",
       minMarkerScale: 0.3,
-      maxMarkerScale: 1.5,
+      maxMarkerScale: 1.5
     })).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "fahrenheit",
-      globeStyle: "satellite",
       minMarkerScale: 0.3,
-      maxMarkerScale: 1.5,
+      maxMarkerScale: 1.5
     });
   });
   it("repairs partially invalid input field by field", () => {
     expect(parseStoredSettings({
       distanceUnit: "imperial",
       temperatureUnit: "rankine",
-      globeStyle: null,
       minMarkerScale: 5,
-      maxMarkerScale: "abc",
+      maxMarkerScale: "abc"
     })).toEqual({
       distanceUnit: "imperial",
       temperatureUnit: "celsius",
-      globeStyle: "artistic",
       minMarkerScale: 0.5,
-      maxMarkerScale: 1.0,
+      maxMarkerScale: 1.0
     });
   });
 });
