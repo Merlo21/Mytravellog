@@ -13,7 +13,7 @@ vi.mock("three", () => {
       set: () => v, copy: () => v, clone: () => makeVec(),
       add: () => v, sub: () => v, multiplyScalar: () => v, normalize: () => v,
       project: () => makeVec(), angleTo: () => 1, dot: () => 1,
-      lengthSq: () => 1, length: () => 1,
+      lengthSq: () => 1, length: () => 1
     };
     return v;
   };
@@ -33,7 +33,7 @@ vi.mock("three", () => {
       remove(c: any) { base.children = base.children.filter((x: any) => x !== c); return base; },
       lookAt() {}, updateMatrixWorld() {},
       getWorldPosition: (target?: any) => target ?? makeVec(),
-      ...extra,
+      ...extra
     };
     return base;
   };
@@ -73,7 +73,7 @@ vi.mock("three", () => {
     CatmullRomCurve3: Generic, TubeGeometry: Generic,
     Raycaster: function () { return { setFromCamera() {}, intersectObjects: () => [] }; },
     SRGBColorSpace: 0, BackSide: 0, FrontSide: 0, DoubleSide: 0,
-    AdditiveBlending: 0, NormalBlending: 0,
+    AdditiveBlending: 0, NormalBlending: 0
   };
 });
 
@@ -90,7 +90,7 @@ const trip: LocalTrip = {
   latitude: 41.9, longitude: 12.5,
   home_latitude: 45.5, home_longitude: 9.2, home_label: "Casa",
   trip_date: "2024-01-01",
-  temperature_c: 20, altitude_m: 100, distance_from_home_km: 100, notes: null,
+  temperature_c: 20, altitude_m: 100, distance_from_home_km: 100, notes: null
 } as unknown as LocalTrip;
 
 beforeEach(() => {
@@ -142,8 +142,7 @@ describe("Reload simulation: settings hydrate from localStorage", () => {
       "atlas.settings.v1",
       JSON.stringify({
         distanceUnit: "imperial",
-        temperatureUnit: "fahrenheit",
-        globeStyle: "satellite",
+        temperatureUnit: "fahrenheit"
       })
     );
 
