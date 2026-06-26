@@ -6,7 +6,7 @@ import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, Plus, CheckCircle } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, CheckCircle } from "lucide-react";
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
   state = { error: null };
