@@ -118,7 +118,7 @@ function HomeInner() {
           ))}
         </div>
 
-        <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "#0d1f3c", borderRadius: "1rem", overflow: "hidden", position:"relative" }}
+        <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "transparent", overflow: "hidden", position:"relative" }}
             onMouseMove={(e) => {
               if (e.buttons===1) setStarOffset(p=>({x:p.x+e.movementX*0.5,y:p.y+e.movementY*0.5}));
               setStarMouse({x: e.clientX, y: e.clientY});
