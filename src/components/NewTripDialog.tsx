@@ -237,7 +237,9 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   ];
 
   return (
-      <button onClick={() => setOpen(true)} className="btn-primary flex items-center gap-2 w-full justify-center">
+      <button onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10"
+        style={{color:"#22d3ee", border:"1.5px solid #22d3ee"}}>
         <Plus className="w-4 h-4" /> {triggerLabel || "Nuovo viaggio"}
       </button>
     );
