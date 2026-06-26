@@ -430,6 +430,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                 </button>
               </div>
             </div>
+            </div>
 
           </div>
         </div>
