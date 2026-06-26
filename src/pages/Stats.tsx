@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Compass, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { Trip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
 import { ContinentsMap } from "@/components/ContinentsMap";
