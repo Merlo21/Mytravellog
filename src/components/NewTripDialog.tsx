@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { fmtDistance, useSettings } from "@/lib/settings";
@@ -230,8 +229,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
         <Plus className="w-4 h-4"/> {triggerLabel || "Nuovo viaggio"}
       </button>
 
-      {open && createPortal(
-        <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.75)",backdropFilter:"blur(6px)"}}
+      {open && (
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.75)",backdropFilter:"blur(6px)"}}
           onClick={e => { if (e.target === e.currentTarget) { setOpen(false); reset(); } }}>
           <div className="glass-card w-full max-w-lg mx-4 overflow-hidden"
             style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
@@ -434,8 +433,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
 
           </div>
         </div>
-      , document.body)
-      }
+      )}
     </>
   );
 }
