@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Compass, Plane, Car, Train } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
@@ -84,53 +84,84 @@ export function TravelHighlights({ trips }: Props) {
       <div className="glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
 
-        {/* 5-cell grid */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-border border border-border rounded-xl overflow-hidden">
+        {/* Hero row: total km + globe/moon mini cards */}
+        <div className="flex items-center justify-between gap-3 pb-5 border-b border-border mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(55,138,221,0.12)"}}>
+              <Globe2 className="w-6 h-6" style={{color:"#378ADD"}} strokeWidth={1.5}/>
+            </div>
+            <div>
+              <div className="text-2xl font-bold font-mono">{formatDistanceKm(totalKm, distanceUnit)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">chilometri percorsi in totale</div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {/* Intorno al mondo — globe with meridians + orbit arrow */}
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 border transition-transform hover:-translate-y-0.5"
+              style={{background:"rgba(99,153,34,0.08)", borderColor:"rgba(99,153,34,0.3)"}}>
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5" stroke="#639922" strokeWidth="1.5"/>
+                <path d="M4.5 11 Q11 4.5 17.5 11 Q11 17.5 4.5 11Z" stroke="#639922" strokeWidth="1.2" fill="none"/>
+                <path d="M11 4.5 V17.5" stroke="#639922" strokeWidth="1.2"/>
+                <path d="M18 8 A8 8 0 0 0 18 14" stroke="#639922" strokeWidth="1.8" strokeLinecap="round"/>
+                <polyline points="16.5,6.5 18,8 19.5,6.5" fill="#639922"/>
+              </svg>
+              <div>
+                <div className="text-sm font-bold font-mono" style={{color:"#639922"}}>{aroundWorld.toFixed(2).replace(".",",")}×</div>
+                <div className="text-[10px] text-muted-foreground">Intorno al mondo</div>
+              </div>
+            </div>
+            {/* Alla luna */}
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 border transition-transform hover:-translate-y-0.5"
+              style={{background:"rgba(127,119,221,0.08)", borderColor:"rgba(127,119,221,0.3)"}}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{background:"rgba(127,119,221,0.12)"}}>
+                <Moon className="w-4 h-4" style={{color:"#7F77DD"}} strokeWidth={1.5}/>
+              </div>
+              <div>
+                <div className="text-sm font-bold font-mono" style={{color:"#7F77DD"}}>{toMoon.toFixed(3).replace(".",",")}×</div>
+                <div className="text-[10px] text-muted-foreground">Alla luna</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 transport cards */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
           {[
-            { icon: <Globe2 className="w-6 h-6" />, color: "text-primary", val: formatDistanceKm(totalKm, distanceUnit), label: "Totale" },
-            { icon: <Compass className="w-6 h-6" />, color: "text-muted-foreground", val: `${aroundWorld.toFixed(2).replace(".",",")}×`, label: "Giri del mondo" },
-            { icon: <Moon className="w-6 h-6" />, color: "text-muted-foreground", val: `${toMoon.toFixed(3).replace(".",",")}×`, label: "Alla luna" },
-            { icon: <Plane className="w-6 h-6" />, color: "text-blue-400", val: formatDistanceKm(byPlane, distanceUnit), label: "In aereo" },
-            { icon: <Train className="w-6 h-6" />, color: "text-amber-400", val: formatDistanceKm(byTrain, distanceUnit), label: "In treno" },
-            { icon: <Car className="w-6 h-6" />, color: "text-emerald-400", val: formatDistanceKm(byRoad, distanceUnit), label: "Su strada" },
-          ].map(({ icon, color, val, label }) => (
-            <div key={label} className="flex flex-col items-center gap-1.5 py-4 px-2 bg-secondary/20">
-              <div className={color}>{icon}</div>
-              <div className={`text-sm font-bold font-mono ${color}`}>{val}</div>
-              <div className="text-[10px] text-muted-foreground text-center leading-tight">{label}</div>
+            { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>, color: "#378ADD", bg: "rgba(55,138,221,0.12)", border: "rgba(55,138,221,0.3)", val: formatDistanceKm(byPlane, distanceUnit), label: "In aereo" },
+            { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>, color: "#BA7517", bg: "rgba(186,117,23,0.12)",  border: "rgba(186,117,23,0.3)",  val: formatDistanceKm(byTrain, distanceUnit), label: "In treno" },
+            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,   color: "#639922", bg: "rgba(99,153,34,0.12)",   border: "rgba(99,153,34,0.3)",   val: formatDistanceKm(byRoad, distanceUnit),  label: "Su strada" },
+          ].map(({ icon, color, bg, border, val, label }) => (
+            <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border transition-transform hover:-translate-y-0.5"
+              style={{background: bg.replace("0.12","0.08"), borderColor: border}}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{background: bg}}>
+                <span style={{color}}>{icon}</span>
+              </div>
+              <div>
+                <div className="text-sm font-bold font-mono" style={{color}}>{val}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Proportional bar */}
         {totalKm > 0 && (
-          <div className="mt-4 bg-secondary/30 rounded-xl p-4">
-            <div className="flex justify-between text-xs text-muted-foreground mb-2 flex-wrap gap-2">
-              <span className="flex items-center gap-1"><Plane className="w-3 h-3 text-blue-400" /> Aereo {Math.round(byPlane / totalKm * 100)}%</span>
-              <span className="flex items-center gap-1"><Train className="w-3 h-3 text-amber-400" /> Treno {Math.round(byTrain / totalKm * 100)}%</span>
-              <span className="flex items-center gap-1"><Car className="w-3 h-3 text-emerald-400" /> Strada {Math.round(byRoad / totalKm * 100)}%</span>
+          <div>
+            <div className="flex justify-between flex-wrap gap-2 text-[11px] text-muted-foreground mb-1.5">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{background:"#378ADD"}}/>Aereo {Math.round(byPlane/totalKm*100)}%</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{background:"#BA7517"}}/>Treno {Math.round(byTrain/totalKm*100)}%</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{background:"#639922"}}/>Strada {Math.round(byRoad/totalKm*100)}%</span>
             </div>
-            <div className="h-2 rounded-full overflow-hidden flex bg-muted">
-              <div className="h-full bg-blue-400 transition-all" style={{ width: `${byPlane / totalKm * 100}%` }} />
-              <div className="h-full bg-amber-400 transition-all" style={{ width: `${byTrain / totalKm * 100}%` }} />
-              <div className="h-full bg-emerald-400 transition-all" style={{ width: `${byRoad / totalKm * 100}%` }} />
+            <div className="h-1.5 rounded-full overflow-hidden flex bg-muted">
+              <div className="h-full transition-all duration-700" style={{width:`${byPlane/totalKm*100}%`, background:"#378ADD"}}/>
+              <div className="h-full transition-all duration-700" style={{width:`${byTrain/totalKm*100}%`, background:"#BA7517"}}/>
+              <div className="h-full transition-all duration-700" style={{width:`${byRoad/totalKm*100}%`, background:"#639922"}}/>
             </div>
           </div>
         )}
       </div>
-    </div>
-  );
-}
 
-function HighlightCard({
-  icon, color, label, value, sub,
-}: { icon: React.ReactNode; color: string; label: string; value: string; sub?: string }) {
-  return (
-    <div className="glass-card p-5 flex flex-col items-center text-center">
-      <div className={color}>{icon}</div>
-      <div className="text-2xl font-extrabold mt-3 tracking-tight">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
-      <div className={`text-sm font-semibold mt-2 ${color}`}>{label}</div>
     </div>
   );
 }
