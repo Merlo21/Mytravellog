@@ -67,12 +67,7 @@ export default function Stats() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-3xl space-y-8">
-        {trips.length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground">
-            <Globe className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p>Nessun viaggio ancora. Torna alla home e aggiungine uno!</p>
-          </div>
-        ) : (
+        
           <>
             {/* Countries overview */}
             <section className="glass-card p-6">
