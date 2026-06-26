@@ -109,14 +109,14 @@ export function TravelHighlights({ trips }: Props) {
             <div className="text-xl font-bold text-blue-400">
               {formatDistanceKm(byPlane, distanceUnit)}
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">In aereo <span className="opacity-60">(&gt;500km)</span></div>
+            <div className="text-xs text-muted-foreground mt-0.5">In aereo</div>
           </div>
           <div className="flex flex-col items-center">
             <Car className="w-7 h-7 text-emerald-400 mb-2" strokeWidth={1.8} />
             <div className="text-xl font-bold text-emerald-400">
               {formatDistanceKm(byRoad, distanceUnit)}
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">Su strada <span className="opacity-60">(&lt;500km)</span></div>
+            <div className="text-xs text-muted-foreground mt-0.5">Su strada</div>
           </div>
         </div>
       </div>
