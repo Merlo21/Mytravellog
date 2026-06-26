@@ -474,16 +474,15 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                     </button>
                   ))}
                 </div>
-                <div style={{ position:"relative", display:"flex", justifyContent:"center" }}>
-                  <div style={{ position:"relative", width:180 }}>
+                <div style={{ display:"flex", justifyContent:"center" }}>
+                  <div style={{ position:"relative", width:200 }}>
                   <input style={{ background:"transparent", border:"1px dashed #1a2d4a", borderRadius:99,
                     padding:"6px 16px 6px 32px", fontSize:11, color:"rgba(255,255,255,0.35)",
-                    width:"100%", outline:"none", boxSizing:"border-box", textAlign:"center",
-                    cursor:"pointer" }}
+                    width:"100%", outline:"none", boxSizing:"border-box", textAlign:"center" }}
                     value={wpQuery} onChange={e => setWpQuery(e.target.value)}
                     placeholder="Aggiungi tappa"
-                    onFocus={e => { e.target.style.borderColor="#60a5fa"; e.target.style.borderStyle="solid"; e.target.style.textAlign="left"; e.target.style.width="280px"; e.target.style.marginLeft="-50px"; }}
-                    onBlur={e => { e.target.style.borderColor="#1a2d4a"; e.target.style.borderStyle="dashed"; e.target.style.textAlign="center"; e.target.style.width="180px"; e.target.style.marginLeft="0"; }}/>
+                    onFocus={e => { e.target.style.borderColor="#60a5fa"; e.target.style.borderStyle="solid"; e.target.style.textAlign="left"; }}
+                    onBlur={e => { e.target.style.borderColor="#1a2d4a"; e.target.style.borderStyle="dashed"; e.target.style.textAlign="center"; }}/>
                   </div>
                   {wpLoading
                     ? <Loader2 className="w-3.5 h-3.5 absolute text-muted-foreground animate-spin"
