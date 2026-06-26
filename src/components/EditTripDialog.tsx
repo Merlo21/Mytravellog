@@ -20,6 +20,7 @@ const schema = z.object({
 });
 
 export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
+  const [title, setTitle] = useState(trip.title);
   const [country, setCountry] = useState(trip.country);
   const [city, setCity] = useState(trip.city);
   const [temp, setTemp] = useState(trip.temperature_c?.toString() ?? "");
@@ -31,6 +32,7 @@ export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
   // Reset state every time the dialog opens or the trip changes
   useEffect(() => {
     if (open) {
+      setTitle(trip.title);
       setCountry(trip.country);
       setCity(trip.city);
       setTemp(trip.temperature_c?.toString() ?? "");
@@ -45,6 +47,7 @@ export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
     if (!parsed.success) { toast.error(parsed.error.issues[0]?.message ?? "Dati non validi"); return false; }
     const v = parsed.data;
     const result = updateTrip(trip.id, {
+      title: title.trim() || trip.title,
       country: v.country, city: v.city,
       temperature_c: v.temperature_c === "" ? null : v.temperature_c,
       altitude_m: v.altitude_m === "" ? null : v.altitude_m,
@@ -72,7 +75,11 @@ export function EditTripDialog({ trip, open, onOpenChange, onSaved }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onOpenChange(false); }}>
       <div className="glass-card w-full max-w-md mx-4 p-6 animate-fade-up" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold mb-1">Modifica viaggio</h2>
-        <p className="text-sm text-muted-foreground mb-5">"{trip.title}"</p>
+        <div className="space-y-1.5 mb-4">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome del viaggio</label>
+          <input className="input-field w-full" value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="Es. Weekend a Parigi, Viaggio di nozze…"/>
+        </div>
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
