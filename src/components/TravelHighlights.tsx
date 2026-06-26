@@ -149,8 +149,8 @@ export function TravelHighlights({ trips }: Props) {
                 <span style={{color}}>{icon}</span>
               </div>
               <div>
-                <div className="text-sm font-bold font-mono" style={{color}}>{val}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
+                <div className="text-lg font-extrabold font-mono leading-none" style={{color}}>{val}</div>
+                <div className="text-[11px] text-muted-foreground mt-1">{label}</div>
               </div>
             </div>
           ))}
