@@ -101,21 +101,29 @@ function HomeInner() {
       </header>
 
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { icon: <Plane className="w-4 h-4" />, label: "Viaggi", value: stats.trips },
-            { icon: <Globe className="w-4 h-4" />, label: "Paesi", value: stats.countries, accent: "text-primary" },
-            { icon: <MapPin className="w-4 h-4" />, label: "Città", value: stats.cities },
-            { icon: <Compass className="w-4 h-4" />, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "text-accent" },
-          ].map(({ icon, label, value, accent }) => (
-            <div key={label} className="glass-card p-4 flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center ${accent ?? "text-foreground"}`}>{icon}</div>
-              <div>
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono">{label}</div>
-                <div className={`text-2xl font-bold font-mono ${accent ?? ""}`}>{value}</div>
+        <div className="rounded-xl overflow-hidden" style={{background:"#0a1628", border:"0.5px solid #1a2d4a"}}>
+          <div className="flex">
+            {[
+            { icon: <Plane className="w-[18px] h-[18px]"/>,   label: "Viaggi",   value: stats.trips.toString(),              accent: "#60a5fa", border: "#60a5fa" },
+            { icon: <Globe className="w-[18px] h-[18px]"/>,   label: "Paesi",    value: stats.countries.toString(),           accent: "#fbbf24", border: "#fbbf24" },
+            { icon: <MapPin className="w-[18px] h-[18px]"/>,  label: "Città",    value: stats.cities.toString(),              accent: "#60a5fa", border: "#60a5fa" },
+            { icon: <Compass className="w-[18px] h-[18px]"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24", border: "#fbbf24" },
+          ].map(({ icon, label, value, accent, border }, i, arr) => (
+            <div key={label}
+              className="flex-1 py-3 px-4"
+              style={{
+                borderLeft: `3px solid ${border}`,
+                borderRight: i < arr.length - 1 ? "0.5px solid #1a2d4a" : "none",
+              }}>
+              <div className="text-[10px] uppercase tracking-widest mb-1.5" style={{color:"rgba(255,255,255,0.35)"}}>{label}</div>
+              <div className="flex items-center gap-2">
+                <span style={{color: accent}}>{icon}</span>
+                <span className="text-xl font-bold" style={{color: accent === "#fbbf24" ? "#fbbf24" : "#fff"}}>{value}</span>
               </div>
             </div>
           ))}
+          </div>
+        </div>
         </div>
 
         <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "transparent", overflow: "hidden", position:"relative" }}
