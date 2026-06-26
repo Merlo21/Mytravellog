@@ -49,10 +49,51 @@ function RouteArcs({
 }) {
   if (waypoints.length === 0) return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 0",
-        color:"rgba(255,255,255,0.25)", fontSize:12 }}>
-        Aggiungi almeno una città all'itinerario
+      {/* Show home node even when no cities added */}
+      <div style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 0 8px", position:"relative" }}>
+        <div style={{ position:"relative", cursor:"pointer" }} onClick={onEditHome}>
+          <div style={{ width:40, height:40, borderRadius:"50%", background:"rgba(251,191,36,0.1)",
+            border:"1.5px dashed #fbbf24", display:"flex", alignItems:"center",
+            justifyContent:"center", fontSize:20 }}>🏠</div>
+          <div style={{ position:"absolute", top:-4, right:-4, width:16, height:16, borderRadius:"50%",
+            background:"#0d1f3c", border:"1px solid #fbbf24", display:"flex",
+            alignItems:"center", justifyContent:"center", fontSize:10, color:"#fbbf24" }}>✎</div>
+          <div style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textAlign:"center", marginTop:4 }}>
+            {home?.label?.split(",")[0] ?? "Casa"}
+          </div>
+        </div>
+        <div style={{ flex:1, height:"1.5px", background:"#1a2d4a", borderRadius:99,
+          borderTop:"1.5px dashed #1a2d4a" }}/>
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.2)" }}>Aggiungi una città →</div>
       </div>
+
+      {/* Home edit field */}
+      {editingHome && (
+        <div style={{ background:"#0d1f3c", border:"0.5px solid #fbbf24",
+          borderRadius:8, padding:"7px 12px", marginTop:4,
+          display:"flex", alignItems:"center", gap:8, position:"relative" }}>
+          <span style={{ fontSize:13, color:"#fbbf24" }}>🏠</span>
+          <input autoFocus
+            style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:12, flex:1 }}
+            value={homeQuery} onChange={e => setHomeQuery(e.target.value)}
+            placeholder="La tua città…"/>
+          <Search className="w-3.5 h-3.5" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+          {homeResults.length > 0 && (
+            <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#0d1f3c",
+              border:"0.5px solid #1a2d4a", borderRadius:8, zIndex:10, overflow:"hidden", marginTop:4 }}>
+              {homeResults.map((r,i) => (
+                <button key={i} type="button" onClick={() => onSelectHome(r)}
+                  style={{ width:"100%", textAlign:"left", padding:"8px 12px", fontSize:12,
+                    color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
+                    display:"flex", alignItems:"center", gap:8 }}>
+                  <MapPin className="w-3.5 h-3.5" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+                  {r.name}, {r.country}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 
