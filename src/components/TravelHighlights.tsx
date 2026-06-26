@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
@@ -36,17 +36,26 @@ export function TravelHighlights({ trips }: Props) {
   const aroundWorld = totalKm / EARTH_CIRCUMFERENCE_KM;
   const toMoon = totalKm / DISTANCE_TO_MOON_KM;
 
-  const byPlane = useMemo(
-    () => trips.filter(t => (t.distance_from_home_km ?? 0) > 1000)
-      .reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0),
-    [trips]
-  );
-  const byTrain = useMemo(
-    () => trips.filter(t => { const d = t.distance_from_home_km ?? 0; return d >= 200 && d <= 1000; })
-      .reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0),
-    [trips]
-  );
-  const byRoad = totalKm - byPlane - byTrain;
+  // Use actual transport_mode if set, otherwise estimate by distance
+  const byMode = useMemo(() => {
+    const acc = { plane:0, train:0, car:0, ship:0, walk:0 };
+    for (const t of trips) {
+      const d = t.distance_from_home_km ?? 0;
+      const mode = t.transport_mode ?? (d > 1000 ? "plane" : d >= 200 ? "train" : d >= 20 ? "car" : "walk");
+      acc[mode] = (acc[mode] ?? 0) + d;
+      // Add waypoints distances (approximate)
+      for (const wp of t.waypoints ?? []) {
+        acc[wp.transport_mode] = (acc[wp.transport_mode] ?? 0) + d * 0.3;
+      }
+    }
+    return acc;
+  }, [trips]);
+  const byPlane = byMode.plane;
+  const byTrain = byMode.train;
+  const byCar   = byMode.car;
+  const byShip  = byMode.ship;
+  const byWalk  = byMode.walk;
+  const byRoad  = byCar;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -126,11 +135,13 @@ export function TravelHighlights({ trips }: Props) {
         </div>
 
         {/* 3 transport cards */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-5 gap-2 mb-4">
           {[
-            { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>, color: "#378ADD", bg: "rgba(55,138,221,0.12)", border: "rgba(55,138,221,0.3)", val: formatDistanceKm(byPlane, distanceUnit), label: "In aereo" },
-            { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>, color: "#BA7517", bg: "rgba(186,117,23,0.12)",  border: "rgba(186,117,23,0.3)",  val: formatDistanceKm(byTrain, distanceUnit), label: "In treno" },
-            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,   color: "#639922", bg: "rgba(99,153,34,0.12)",   border: "rgba(99,153,34,0.3)",   val: formatDistanceKm(byRoad, distanceUnit),  label: "Su strada" },
+            { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>,      color: "#378ADD", bg: "rgba(55,138,221,0.12)", border: "rgba(55,138,221,0.3)", val: formatDistanceKm(byPlane, distanceUnit), label: "In aereo" },
+            { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>,      color: "#BA7517", bg: "rgba(186,117,23,0.12)", border: "rgba(186,117,23,0.3)", val: formatDistanceKm(byTrain, distanceUnit), label: "In treno" },
+            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color: "#639922", bg: "rgba(99,153,34,0.12)", border: "rgba(99,153,34,0.3)",  val: formatDistanceKm(byCar,   distanceUnit), label: "In auto" },
+            { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color: "#0F6E56", bg: "rgba(15,110,86,0.12)", border: "rgba(15,110,86,0.3)",  val: formatDistanceKm(byShip,  distanceUnit), label: "In nave" },
+            { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color: "#D85A30", bg: "rgba(216,90,48,0.12)", border: "rgba(216,90,48,0.3)",  val: formatDistanceKm(byWalk,  distanceUnit), label: "A piedi" },
           ].map(({ icon, color, bg, border, val, label }) => (
             <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border transition-transform hover:-translate-y-0.5"
               style={{background: bg.replace("0.12","0.08"), borderColor: border}}>
@@ -148,15 +159,30 @@ export function TravelHighlights({ trips }: Props) {
         {/* Proportional bar */}
         {totalKm > 0 && (
           <div>
-            <div className="flex justify-between flex-wrap gap-2 text-[11px] text-muted-foreground mb-1.5">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{background:"#378ADD"}}/>Aereo {Math.round(byPlane/totalKm*100)}%</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{background:"#BA7517"}}/>Treno {Math.round(byTrain/totalKm*100)}%</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{background:"#639922"}}/>Strada {Math.round(byRoad/totalKm*100)}%</span>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground mb-1.5">
+              {[
+                {color:"#378ADD",label:"Aereo",  pct:byPlane},
+                {color:"#BA7517",label:"Treno",  pct:byTrain},
+                {color:"#639922",label:"Auto",   pct:byCar},
+                {color:"#0F6E56",label:"Nave",   pct:byShip},
+                {color:"#D85A30",label:"Piedi",  pct:byWalk},
+              ].filter(x=>x.pct>0).map(x=>(
+                <span key={x.label} className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
+                  {x.label} {Math.round(x.pct/totalKm*100)}%
+                </span>
+              ))}
             </div>
             <div className="h-1.5 rounded-full overflow-hidden flex bg-muted">
-              <div className="h-full transition-all duration-700" style={{width:`${byPlane/totalKm*100}%`, background:"#378ADD"}}/>
-              <div className="h-full transition-all duration-700" style={{width:`${byTrain/totalKm*100}%`, background:"#BA7517"}}/>
-              <div className="h-full transition-all duration-700" style={{width:`${byRoad/totalKm*100}%`, background:"#639922"}}/>
+              {[
+                {color:"#378ADD",pct:byPlane},
+                {color:"#BA7517",pct:byTrain},
+                {color:"#639922",pct:byCar},
+                {color:"#0F6E56",pct:byShip},
+                {color:"#D85A30",pct:byWalk},
+              ].map((x,i)=>(
+                <div key={i} className="h-full transition-all duration-700" style={{width:`${x.pct/totalKm*100}%`, background:x.color}}/>
+              ))}
             </div>
           </div>
         )}
