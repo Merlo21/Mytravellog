@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
@@ -434,7 +434,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
 
           </div>
         </div>
-      , document.body)}
+      , document.body)
+      }
     </>
   );
 }
