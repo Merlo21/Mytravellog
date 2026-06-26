@@ -248,8 +248,11 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
               </button>
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+            {/* Body — 2 columns */}
+            <div className="flex-1 overflow-hidden flex">
+
+              {/* Left column */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5 border-r border-border">
 
               {/* Nome */}
               <div>
@@ -318,6 +321,11 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                   )}
                 </div>
               </div>
+
+              </div>{/* end left column */}
+
+              {/* Right column */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
 
               {/* Itinerario */}
               <div>
@@ -415,7 +423,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                 </div>
               </div>
 
-            </div>
+              </div>{/* end right column */}
+            </div>{/* end body */}
 
             {/* Footer */}
             <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-secondary/10">
