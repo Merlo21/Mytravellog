@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { fmtDistance, fmtAltitude, fmtTemp, useSettings } from "@/lib/settings";
@@ -23,6 +23,8 @@ interface Props {
 export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLabel }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropPos, setDropPos] = useState<{top:number;right:number}|null>(null);
 
   // Auto-open and pre-fill when a city is passed from the globe
   useEffect(() => {
@@ -237,7 +239,13 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   ];
 
   return (
-      <button onClick={() => setOpen(true)}
+      <button ref={buttonRef} onClick={() => {
+        if (buttonRef.current) {
+          const r = buttonRef.current.getBoundingClientRect();
+          setDropPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+        }
+        setOpen(true);
+      }}
         className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10"
         style={{color:"#60a5fa", border:"1.5px solid #60a5fa"}}>
         <Plus className="w-4 h-4" /> {triggerLabel || "Nuovo viaggio"}
@@ -268,7 +276,16 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm" style={{paddingTop:"56px"}} onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="glass-card w-full sm:max-w-md sm:mx-4 sm:rounded-xl rounded-t-2xl rounded-b-none p-6" style={{maxHeight:"90vh", overflowY:"auto"}}>
+      <div className="glass-card w-full max-w-md p-6" style={{
+          position:"fixed",
+          top: dropPos?.top ?? "50%",
+          right: dropPos?.right ?? undefined,
+          left: dropPos ? undefined : "50%",
+          transform: dropPos ? undefined : "translate(-50%,-50%)",
+          maxHeight:"80vh",
+          overflowY:"auto",
+          zIndex:51,
+        }}>
         <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4 sm:hidden"/>
         <h2 className="text-xl font-bold mb-1">{step === 1 ? "Dove sei stato?" : "Dettagli del viaggio"}</h2>
         <p className="text-sm text-muted-foreground mb-5">{step === 1 ? "Cerca la città visitata." : "Completa con partenza e dettagli."}</p>
