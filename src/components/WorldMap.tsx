@@ -496,7 +496,7 @@ export function WorldMap({
   }, []);
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-border">
+    <div className="relative w-full h-full overflow-hidden">
       <div ref={containerRef} style={{ position:"absolute", inset:0 }} />
 
       {/* Zoom */}
