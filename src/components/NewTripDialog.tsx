@@ -45,6 +45,7 @@ function RouteArcs({
   setHomeQuery: (v: string) => void;
   homeResults: GeoResult[];
   onSelectHome: (r: GeoResult) => void;
+  onRemoveWaypoint: (i: number) => void;
 }) {
   if (waypoints.length === 0) return (
     <div>
@@ -116,10 +117,7 @@ function RouteArcs({
               )}
               {/* Remove on non-home stops */}
               {!stop.isHome && (
-                <g style={{cursor:"pointer"}} onClick={() => {
-                  const idx = i - 1;
-                  // handled outside
-                }}>
+                <g style={{cursor:"pointer"}} onClick={() => onRemoveWaypoint(i - 1)}>
                   <circle cx={x+r-2} cy={cy-r+2} r="7" fill="#060e1e"
                     stroke={isLast ? borderColor : "#1a2d4a"} strokeWidth="1"/>
                   <text x={x+r-2} y={cy-r+6} fontSize="9" textAnchor="middle"
@@ -297,49 +295,64 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       background:"rgba(6,14,30,0.55)", backdropFilter:"blur(16px)" }}
       onClick={e => { if (e.target === e.currentTarget) { setOpen(false); reset(); } }}>
 
-      <div className="w-full max-w-lg mx-4"
-        style={{ maxHeight:"90vh", display:"flex", flexDirection:"column", overflow:"hidden", background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:14, boxShadow:"0 32px 80px rgba(0,0,0,0.5)" }}>
+      <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:14,
+        overflow:"hidden", width:480, maxWidth:"calc(100vw - 32px)",
+        boxShadow:"0 32px 80px rgba(0,0,0,0.5)",
+        maxHeight:"90vh", display:"flex", flexDirection:"column" }}>
 
-        {/* Header */}
-        <div style={{ padding:"14px 20px", borderBottom:"0.5px solid #1a2d4a", display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:30, height:30, borderRadius:8, background:"rgba(96,165,250,0.12)",
-            display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+        {/* Header — exact mockup */}
+        <div style={{ padding:"14px 20px", borderBottom:"0.5px solid #1a2d4a",
+          display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:30, height:30, borderRadius:8,
+            background:"rgba(96,165,250,0.12)", display:"flex",
+            alignItems:"center", justifyContent:"center", flexShrink:0 }}>
             <MapPin className="w-4 h-4" style={{ color:"#60a5fa" }}/>
           </div>
           <span style={{ fontSize:15, fontWeight:700, color:"#f0f4ff", flex:1 }}>Nuovo viaggio</span>
           <button onClick={() => { setOpen(false); reset(); }}
-            style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)", fontSize:20 }}>×</button>
+            style={{ background:"none", border:"none", cursor:"pointer",
+              color:"rgba(255,255,255,0.3)", fontSize:20, lineHeight:1 }}>×</button>
         </div>
 
         {/* Body */}
-        <div style={{ flex:1, overflowY:"auto", padding:"14px 20px", display:"flex", flexDirection:"column", gap:12 }}>
+        <div style={{ flex:1, overflowY:"auto", padding:"14px 20px",
+          display:"flex", flexDirection:"column", gap:12 }}>
 
-          {/* Nome */}
+          {/* Nome del viaggio */}
           <div>
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1">Nome del viaggio</div>
-            <input className="input-field w-full text-sm" value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="Es. Viaggio di nozze, Tokyo 2024…"/>
+            <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+              textTransform:"uppercase", marginBottom:4 }}>Nome del viaggio</div>
+            <input style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
+              padding:"8px 11px", fontSize:12, color:"rgba(255,255,255,0.25)", width:"100%",
+              outline:"none", boxSizing:"border-box" }}
+              value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="Es. Viaggio di nozze, Tokyo 2024…"
+              onFocus={e => (e.target.style.borderColor="#60a5fa")}
+              onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
           </div>
 
           {/* Periodo */}
           <div>
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1">Periodo</div>
+            <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+              textTransform:"uppercase", marginBottom:4 }}>Periodo</div>
             <div style={{ display:"flex", alignItems:"stretch", background:"#060e1e",
               border:"0.5px solid #1a2d4a", borderRadius:8, overflow:"hidden" }}>
               <div style={{ flex:1, padding:"8px 12px", display:"flex", alignItems:"center", gap:7 }}>
-                <Plane className="w-3.5 h-3.5 text-primary flex-shrink-0" style={{ transform:"rotate(-45deg)" }}/>
+                <Plane className="w-3.5 h-3.5" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(-45deg)" }}/>
                 <div>
                   <div style={{ fontSize:8, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</div>
-                  <input type="date" style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:12, fontWeight:500 }}
+                  <input type="date" style={{ background:"transparent", border:"none", outline:"none",
+                    color:"#f0f4ff", fontSize:12, fontWeight:500 }}
                     value={dateStart} onChange={e => setDateStart(e.target.value)}/>
                 </div>
               </div>
               <div style={{ width:"0.5px", background:"#1a2d4a" }}/>
               <div style={{ flex:1, padding:"8px 12px", display:"flex", alignItems:"center", gap:7 }}>
-                <Plane className="w-3.5 h-3.5 text-primary flex-shrink-0" style={{ transform:"rotate(45deg) scaleX(-1)" }}/>
+                <Plane className="w-3.5 h-3.5" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(45deg) scaleX(-1)" }}/>
                 <div>
                   <div style={{ fontSize:8, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</div>
-                  <input type="date" style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:12, fontWeight:500 }}
+                  <input type="date" style={{ background:"transparent", border:"none", outline:"none",
+                    color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.25)", fontSize:12, fontWeight:500 }}
                     value={dateEnd} onChange={e => setDateEnd(e.target.value)}/>
                 </div>
               </div>
@@ -357,23 +370,31 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
 
           {/* Itinerario */}
           <div>
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1">
-              Itinerario <span style={{ opacity:0.4, fontSize:8, textTransform:"none" }}>· clicca 🏠 per cambiare città di partenza</span>
+            <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+              textTransform:"uppercase", marginBottom:4, display:"flex", alignItems:"center", gap:6 }}>
+              Itinerario
+              <span style={{ opacity:0.4, fontSize:8, textTransform:"none", letterSpacing:0 }}>
+                · clicca 🏠 per cambiare città di partenza
+              </span>
             </div>
-            <div style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"16px 14px 10px", overflowX:"auto" }}>
+            <div style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
+              padding:"16px 14px 10px" }}>
               <RouteArcs
                 waypoints={waypoints} home={home}
                 onEditHome={() => { setEditingHome(v => !v); setHomeQuery(home?.label ?? ""); }}
                 editingHome={editingHome}
-                homeQuery={homeQuery}
-                setHomeQuery={setHomeQuery}
+                homeQuery={homeQuery} setHomeQuery={setHomeQuery}
                 homeResults={homeResults}
-                onSelectHome={r => { setHome({ lat:r.lat, lon:r.lon, label:`${r.name}, ${r.country}` }); setHomeQuery(`${r.name}, ${r.country}`); setHomeResults([]); setEditingHome(false); }}
+                onSelectHome={r => {
+                  setHome({ lat:r.lat, lon:r.lon, label:`${r.name}, ${r.country}` });
+                  setHomeQuery(`${r.name}, ${r.country}`);
+                  setHomeResults([]); setEditingHome(false);
+                }}
+                onRemoveWaypoint={removeWaypoint}
               />
 
-              {/* Transport selector + add city */}
+              {/* Mezzo + aggiungi città */}
               <div style={{ marginTop:8 }}>
-                {/* Transport pills */}
                 <div style={{ display:"flex", gap:4, marginBottom:6, flexWrap:"wrap" }}>
                   {TRANSPORT.map(t => (
                     <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
@@ -385,18 +406,24 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                     </button>
                   ))}
                 </div>
-                {/* Add city search */}
                 <div style={{ position:"relative" }}>
-                  <input className="input-field w-full text-sm pl-8" value={wpQuery}
-                    onChange={e => setWpQuery(e.target.value)}
-                    placeholder="Aggiungi una città…"/>
+                  <input style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
+                    padding:"8px 11px 8px 30px", fontSize:12, color:"rgba(255,255,255,0.25)",
+                    width:"100%", outline:"none", boxSizing:"border-box" }}
+                    value={wpQuery} onChange={e => setWpQuery(e.target.value)}
+                    placeholder="Aggiungi una città…"
+                    onFocus={e => (e.target.style.borderColor="#60a5fa")}
+                    onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
                   {wpLoading
-                    ? <Loader2 className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 animate-spin"/>
-                    : <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2"/>}
+                    ? <Loader2 className="w-3.5 h-3.5 absolute text-muted-foreground animate-spin"
+                        style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)" }}/>
+                    : <Search className="w-3.5 h-3.5 text-muted-foreground"
+                        style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", color:"rgba(255,255,255,0.3)" }}/>
+                  }
                   {wpResults.length > 0 && (
                     <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#0d1f3c",
                       border:"0.5px solid #1a2d4a", borderRadius:8, zIndex:10, overflow:"hidden", marginTop:4 }}>
-                      {wpResults.map((r, i) => (
+                      {wpResults.map((r,i) => (
                         <button key={i} type="button" onClick={() => addWaypoint(r)}
                           style={{ width:"100%", textAlign:"left", padding:"8px 12px", fontSize:12,
                             color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
@@ -408,49 +435,47 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                     </div>
                   )}
                 </div>
-                {/* Waypoints list */}
-                {waypoints.map((wp, i) => (
-                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, marginTop:4, fontSize:12 }}>
-                    <span>{countryFlag(wp.country_code)}</span>
-                    <span style={{ flex:1, color:"#f0f4ff" }}>{wp.city}</span>
-                    <button type="button" onClick={() => removeWaypoint(i)}
-                      style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)" }}>
-                      <X className="w-3.5 h-3.5"/>
-                    </button>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
 
-          {/* Note + Stelle */}
+          {/* Note + Stelle — stessa riga */}
           <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
             <div style={{ flex:1 }}>
-              <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1">
-                Note <span style={{ opacity:0.4, fontSize:8 }}>(opzionale)</span>
+              <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+                textTransform:"uppercase", marginBottom:4 }}>
+                Note <span style={{ opacity:0.4, fontSize:8, textTransform:"none" }}>(opzionale)</span>
               </div>
-              <textarea className="input-field w-full text-sm resize-none" rows={2}
-                value={notes} onChange={e => setNotes(e.target.value)} placeholder="Aggiungi una nota…"/>
+              <textarea style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
+                padding:"8px 11px", fontSize:12, color:"rgba(255,255,255,0.25)", width:"100%",
+                outline:"none", resize:"none", boxSizing:"border-box", height:50,
+                fontFamily:"inherit" }}
+                value={notes} onChange={e => setNotes(e.target.value)}
+                placeholder="Aggiungi una nota…"
+                onFocus={e => (e.target.style.borderColor="#60a5fa")}
+                onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
             </div>
             <div style={{ flexShrink:0 }}>
-              <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1">
-                Valutazione <span style={{ opacity:0.4, fontSize:8 }}>(opzionale)</span>
+              <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+                textTransform:"uppercase", marginBottom:4 }}>
+                Valutazione <span style={{ opacity:0.4, fontSize:8, textTransform:"none" }}>(opzionale)</span>
               </div>
-              <div className="input-field" style={{ display:"flex", alignItems:"center", gap:2, padding:"8px 10px" }}>
+              <div style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
+                padding:"8px 10px", display:"flex", alignItems:"center", gap:2, height:50 }}>
                 {[1,2,3,4,5].map(i => (
                   <button key={i} type="button"
                     onMouseEnter={() => setHoverRating(i)}
                     onMouseLeave={() => setHoverRating(0)}
                     onClick={() => setRating(rating === i ? 0 : i)}
                     style={{ fontSize:20, background:"none", border:"none", cursor:"pointer", padding:0,
-                      color: i <= (hoverRating || rating) ? "#fbbf24" : "rgba(255,255,255,0.15)",
-                      transform: i <= (hoverRating || rating) ? "scale(1.15)" : "scale(1)",
+                      color: i <= (hoverRating||rating) ? "#fbbf24" : "rgba(255,255,255,0.15)",
+                      transform: i <= (hoverRating||rating) ? "scale(1.15)" : "scale(1)",
                       transition:"color 0.1s, transform 0.1s" }}>★</button>
                 ))}
               </div>
-              {(hoverRating || rating) > 0 && (
+              {(hoverRating||rating) > 0 && (
                 <div style={{ fontSize:9, color:"#fbbf24", textAlign:"center", marginTop:3 }}>
-                  {RATING_LABELS[hoverRating || rating]}
+                  {RATING_LABELS[hoverRating||rating]}
                 </div>
               )}
             </div>
@@ -459,14 +484,20 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
         </div>
 
         {/* Footer */}
-        <div style={{ padding:"12px 20px", borderTop:"0.5px solid #1a2d4a", background:"rgba(0,0,0,0.2)",
-          display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ padding:"12px 20px", borderTop:"0.5px solid #1a2d4a",
+          background:"rgba(0,0,0,0.2)", display:"flex", alignItems:"center",
+          justifyContent:"space-between" }}>
           <span style={{ fontSize:10, color:"rgba(255,255,255,0.2)" }}>* Solo itinerario obbligatorio</span>
           <div style={{ display:"flex", gap:6 }}>
             <button onClick={() => { setOpen(false); reset(); }}
-              className="btn-ghost text-sm px-3 py-1.5 rounded-lg">Annulla</button>
+              style={{ background:"none", border:"none", cursor:"pointer", fontSize:12,
+                color:"rgba(255,255,255,0.4)", padding:"6px 12px", borderRadius:7 }}>
+              Annulla
+            </button>
             <button onClick={handleSave} disabled={saving}
-              className="btn-primary flex items-center gap-2 text-sm px-4 py-1.5 rounded-lg">
+              style={{ background:"#60a5fa", border:"none", cursor:"pointer", fontSize:12,
+                color:"#060e1e", fontWeight:700, padding:"7px 16px", borderRadius:8,
+                display:"flex", alignItems:"center", gap:6 }}>
               {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
               Salva viaggio
             </button>
