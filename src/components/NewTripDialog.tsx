@@ -475,13 +475,14 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                   ))}
                 </div>
                 <div style={{ position:"relative" }}>
-                  <input style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
-                    padding:"8px 11px 8px 30px", fontSize:12, color:"rgba(255,255,255,0.25)",
-                    width:"100%", outline:"none", boxSizing:"border-box" }}
+                  <input style={{ background:"transparent", border:"1px dashed #1a2d4a", borderRadius:99,
+                    padding:"6px 16px 6px 32px", fontSize:11, color:"rgba(255,255,255,0.35)",
+                    width:"100%", outline:"none", boxSizing:"border-box", textAlign:"center",
+                    cursor:"pointer" }}
                     value={wpQuery} onChange={e => setWpQuery(e.target.value)}
-                    placeholder="Aggiungi una città…"
-                    onFocus={e => (e.target.style.borderColor="#60a5fa")}
-                    onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
+                    placeholder="Aggiungi tappa"
+                    onFocus={e => { e.target.style.borderColor="#60a5fa"; e.target.style.borderStyle="solid"; e.target.style.textAlign="left"; }}
+                    onBlur={e => { e.target.style.borderColor="#1a2d4a"; e.target.style.borderStyle="dashed"; e.target.style.textAlign="center"; }}/>
                   {wpLoading
                     ? <Loader2 className="w-3.5 h-3.5 absolute text-muted-foreground animate-spin"
                         style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)" }}/>
