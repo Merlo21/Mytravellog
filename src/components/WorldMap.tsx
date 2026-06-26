@@ -177,6 +177,13 @@ export function WorldMap({
 
       mapRef.current = map;
 
+      // Suppress MapLibre globe projection warnings
+      const _warn = console.warn.bind(console);
+      console.warn = (...args: any[]) => {
+        if (typeof args[0] === 'string' && args[0].includes('globe projection')) return;
+        _warn(...args);
+      };
+
       map.on("load", () => {
         // Hide all text/symbol layers below zoom 2 so globe is clean when far
         map.getStyle().layers?.forEach((layer: any) => {
