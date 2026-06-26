@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  html, body { background-color: #0d1f3c !important; }
+  html, body { background-color: #060e1e !important; }
 
   :root {
     --background: 217 64% 14%;
@@ -44,7 +44,7 @@
 }
 
 @layer base {
-  html, body { background-color: #0d1f3c !important; }
+  html, body { background-color: #060e1e !important; }
 
   * { @apply border-border; }
   body {
