@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound.tsx";
 const queryClient = new QueryClient();
 
 const App = () => (
+  <div style={{backgroundColor:"#060e1e",minHeight:"100vh"}}>
   <QueryClientProvider client={queryClient}>
     <SettingsProvider>
       <TooltipProvider>
@@ -29,6 +30,7 @@ const App = () => (
       </TooltipProvider>
     </SettingsProvider>
   </QueryClientProvider>
+  </div>
 );
 
 export default App;
