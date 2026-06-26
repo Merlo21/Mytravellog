@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Compass, Plane, Car } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Compass, Plane, Car, Train } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
@@ -37,11 +37,16 @@ export function TravelHighlights({ trips }: Props) {
   const toMoon = totalKm / DISTANCE_TO_MOON_KM;
 
   const byPlane = useMemo(
-    () => trips.filter(t => (t.distance_from_home_km ?? 0) > 500)
+    () => trips.filter(t => (t.distance_from_home_km ?? 0) > 1000)
       .reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0),
     [trips]
   );
-  const byRoad = totalKm - byPlane;
+  const byTrain = useMemo(
+    () => trips.filter(t => { const d = t.distance_from_home_km ?? 0; return d >= 200 && d <= 1000; })
+      .reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0),
+    [trips]
+  );
+  const byRoad = totalKm - byPlane - byTrain;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -78,47 +83,40 @@ export function TravelHighlights({ trips }: Props) {
 
       <div className="glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
-        <div className="border-t border-border pt-6 flex flex-col items-center text-center">
-          <Globe2 className="w-20 h-20 text-primary mb-3" strokeWidth={1.5} />
-          <div className="text-3xl font-extrabold tracking-tight">
-            {formatDistanceKm(totalKm, distanceUnit)}
-          </div>
-          <div className="text-sm text-muted-foreground mt-1">{distanceUnit === "imperial" ? "miglia percorse" : "chilometri percorsi"}</div>
+
+        {/* 5-cell grid */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-border border border-border rounded-xl overflow-hidden">
+          {[
+            { icon: <Globe2 className="w-6 h-6" />, color: "text-primary", val: formatDistanceKm(totalKm, distanceUnit), label: "Totale" },
+            { icon: <Compass className="w-6 h-6" />, color: "text-muted-foreground", val: `${aroundWorld.toFixed(2).replace(".",",")}×`, label: "Giri del mondo" },
+            { icon: <Moon className="w-6 h-6" />, color: "text-muted-foreground", val: `${toMoon.toFixed(3).replace(".",",")}×`, label: "Alla luna" },
+            { icon: <Plane className="w-6 h-6" />, color: "text-blue-400", val: formatDistanceKm(byPlane, distanceUnit), label: "In aereo" },
+            { icon: <Train className="w-6 h-6" />, color: "text-amber-400", val: formatDistanceKm(byTrain, distanceUnit), label: "In treno" },
+            { icon: <Car className="w-6 h-6" />, color: "text-emerald-400", val: formatDistanceKm(byRoad, distanceUnit), label: "Su strada" },
+          ].map(({ icon, color, val, label }) => (
+            <div key={label} className="flex flex-col items-center gap-1.5 py-4 px-2 bg-secondary/20">
+              <div className={color}>{icon}</div>
+              <div className={`text-sm font-bold font-mono ${color}`}>{val}</div>
+              <div className="text-[10px] text-muted-foreground text-center leading-tight">{label}</div>
+            </div>
+          ))}
         </div>
 
-        <div className="border-t border-border mt-6 pt-5 grid grid-cols-2 gap-4 text-center">
-          <div className="flex flex-col items-center">
-            <Compass className="w-7 h-7 text-primary mb-2" strokeWidth={1.8} />
-            <div className="text-xl font-bold">
-              {aroundWorld.toFixed(1).replace(".", ",")} <span className="text-sm font-semibold">x</span>
+        {/* Proportional bar */}
+        {totalKm > 0 && (
+          <div className="mt-4 bg-secondary/30 rounded-xl p-4">
+            <div className="flex justify-between text-xs text-muted-foreground mb-2 flex-wrap gap-2">
+              <span className="flex items-center gap-1"><Plane className="w-3 h-3 text-blue-400" /> Aereo {Math.round(byPlane / totalKm * 100)}%</span>
+              <span className="flex items-center gap-1"><Train className="w-3 h-3 text-amber-400" /> Treno {Math.round(byTrain / totalKm * 100)}%</span>
+              <span className="flex items-center gap-1"><Car className="w-3 h-3 text-emerald-400" /> Strada {Math.round(byRoad / totalKm * 100)}%</span>
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">Intorno al mondo</div>
-          </div>
-          <div className="flex flex-col items-center">
-            <Moon className="w-7 h-7 text-primary mb-2" strokeWidth={1.8} />
-            <div className="text-xl font-bold">
-              {toMoon.toFixed(1).replace(".", ",")} <span className="text-sm font-semibold">x</span>
+            <div className="h-2 rounded-full overflow-hidden flex bg-muted">
+              <div className="h-full bg-blue-400 transition-all" style={{ width: `${byPlane / totalKm * 100}%` }} />
+              <div className="h-full bg-amber-400 transition-all" style={{ width: `${byTrain / totalKm * 100}%` }} />
+              <div className="h-full bg-emerald-400 transition-all" style={{ width: `${byRoad / totalKm * 100}%` }} />
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">alla luna</div>
           </div>
-        </div>
-
-        <div className="border-t border-border mt-5 pt-5 grid grid-cols-2 gap-4 text-center">
-          <div className="flex flex-col items-center">
-            <Plane className="w-7 h-7 text-blue-400 mb-2" strokeWidth={1.8} />
-            <div className="text-xl font-bold text-blue-400">
-              {formatDistanceKm(byPlane, distanceUnit)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">In aereo</div>
-          </div>
-          <div className="flex flex-col items-center">
-            <Car className="w-7 h-7 text-emerald-400 mb-2" strokeWidth={1.8} />
-            <div className="text-xl font-bold text-emerald-400">
-              {formatDistanceKm(byRoad, distanceUnit)}
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">Su strada</div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
