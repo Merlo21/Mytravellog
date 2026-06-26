@@ -67,8 +67,7 @@ export default function Stats() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-3xl space-y-8">
-        
-          <>
+        <>
             {/* Countries overview */}
             <section className="glass-card p-6">
               <div className="flex items-center justify-between mb-4">
@@ -137,8 +136,7 @@ export default function Stats() {
                 ))}
               </div>
             </section>
-          </>
-        )}
+        </>
       </div>
     </main>
   );
