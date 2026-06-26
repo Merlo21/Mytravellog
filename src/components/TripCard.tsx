@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Trip, deleteTrip, formatTripDate } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
 import { fmtDistance, fmtAltitude, fmtTemp, useSettings } from "@/lib/settings";
-import { Thermometer, Mountain, Route, Calendar, Trash2, Pencil } from "lucide-react";
+import { Thermometer, Mountain, Route, Calendar, Trash2, Pencil, Plane, Train, Car, Ship, Footprints } from "lucide-react";
 import { toast } from "sonner";
 import { EditTripDialog } from "./EditTripDialog";
 
@@ -13,6 +13,16 @@ interface Props {
   onDeleted?: () => void;
   onUpdated?: () => void;
 }
+
+
+const TRANSPORT_STYLE: Record<string, { color: string; bg: string; icon: React.ReactNode }> = {
+  plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", icon: <Plane className="w-3 h-3"/> },
+  train: { color: "#BA7517", bg: "rgba(186,117,23,0.12)", icon: <Train className="w-3 h-3"/> },
+  car:   { color: "#639922", bg: "rgba(99,153,34,0.12)",  icon: <Car className="w-3 h-3"/> },
+  ship:  { color: "#0F6E56", bg: "rgba(15,110,86,0.12)",  icon: <Ship className="w-3 h-3"/> },
+  walk:  { color: "#D85A30", bg: "rgba(216,90,48,0.12)",  icon: <Footprints className="w-3 h-3"/> },
+};
+const DEFAULT_STYLE = { color: "#60a5fa", bg: "rgba(96,165,250,0.12)", icon: <Route className="w-3 h-3"/> };
 
 export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
@@ -28,7 +38,11 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
 
   return (
     <div onClick={onClick}
-      className={`glass-card p-4 cursor-pointer transition-all duration-200 hover:border-primary/40 animate-fade-up ${selected ? "border-primary/60" : ""}`}>
+      className="glass-card p-4 cursor-pointer transition-all duration-200 animate-fade-up"
+      style={{
+        borderLeft: `3px solid ${(TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_STYLE).color}`,
+        borderColor: selected ? (TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_STYLE).color : undefined,
+      }}>
       <div className="flex items-start gap-3">
         <div className="text-3xl">{countryFlag(trip.country_code)}</div>
         <div className="flex-1 min-w-0">
