@@ -38,6 +38,7 @@ function HomeInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
+  const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
   const [pendingCity, setPendingCity] = useState<CityInfo | null>(null);
 
   const refresh = () => setTrips(loadTrips());
@@ -119,8 +120,12 @@ function HomeInner() {
         </div>
 
         <div style={{ height: "calc(100vh - 220px)", minHeight: "460px", background: "#080d1a", borderRadius: "1rem", overflow: "hidden", position:"relative" }}
-            onMouseMove={(e) => { if (e.buttons===1) setStarOffset(p=>({x:p.x+e.movementX*0.5,y:p.y+e.movementY*0.5})); }}>
-          <StarField offsetX={starOffset.x} offsetY={starOffset.y} />
+            onMouseMove={(e) => {
+              if (e.buttons===1) setStarOffset(p=>({x:p.x+e.movementX*0.5,y:p.y+e.movementY*0.5}));
+              setStarMouse({x: e.clientX, y: e.clientY});
+            }}
+            onMouseLeave={() => setStarMouse(null)}>
+          <StarField offsetX={starOffset.x} offsetY={starOffset.y} mousePos={starMouse} />
           <WorldMap
             trips={trips}
             selectedId={selectedId}
