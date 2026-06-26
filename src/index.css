@@ -4,16 +4,16 @@
 
 @layer base {
   :root {
-    --background: 213 64% 9%;
+    --background: 217 64% 14%;
     --foreground: 210 20% 95%;
-    --card: 213 55% 13%;
+    --card: 217 50% 18%;
     --card-foreground: 210 20% 95%;
-    --border: 213 40% 18%;
+    --border: 217 38% 22%;
     --primary: 213 93% 68%;
     --primary-foreground: 213 64% 5%;
-    --secondary: 213 50% 15%;
+    --secondary: 217 48% 20%;
     --secondary-foreground: 210 20% 85%;
-    --muted: 213 50% 15%;
+    --muted: 217 48% 20%;
     --muted-foreground: 213 20% 52%;
     --accent: 45 95% 60%;
     --accent-foreground: 213 64% 5%;
