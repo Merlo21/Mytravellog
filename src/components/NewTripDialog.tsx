@@ -232,8 +232,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       {open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm" style={{paddingTop:"60px"}}
           onClick={e => { if (e.target === e.currentTarget) { setOpen(false); reset(); } }}>
-          <div className="glass-card w-full max-w-lg mx-4 overflow-hidden"
-            style={{ maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
+          <div className="glass-card w-full max-w-2xl mx-4 overflow-hidden"
+            style={{ maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
 
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
