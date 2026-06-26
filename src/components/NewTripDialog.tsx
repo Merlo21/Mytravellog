@@ -267,8 +267,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="glass-card w-full max-w-md mx-4 p-6 animate-fade-up" style={{maxHeight:"90vh", overflowY:"auto"}}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm" style={{paddingTop:"56px"}} onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+      <div className="glass-card w-full max-w-md mx-4 p-6 animate-fade-up" style={{maxHeight:"calc(100vh - 72px)", overflowY:"auto"}}>
         <h2 className="text-xl font-bold mb-1">{step === 1 ? "Dove sei stato?" : "Dettagli del viaggio"}</h2>
         <p className="text-sm text-muted-foreground mb-5">{step === 1 ? "Cerca la città visitata." : "Completa con partenza e dettagli."}</p>
 
