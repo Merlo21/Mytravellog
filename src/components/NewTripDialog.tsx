@@ -46,19 +46,6 @@ function RouteArcs({
   homeResults: GeoResult[];
   onSelectHome: (r: GeoResult) => void;
 }) {
-  const W = 420, H = 115;
-  const stops = [
-    { label: home?.label?.split(",")[0] ?? "Casa", flag: "🏠", isHome: true, transport: null as TransportMode | null },
-    ...waypoints.map(w => ({ label: w.city, flag: countryFlag(w.country_code), isHome: false, transport: w.transport_mode })),
-  ];
-
-  const n = stops.length;
-  const pad = 55;
-  const step = n > 1 ? (W - pad * 2) / (n - 1) : 0;
-  const cx = (i: number) => pad + i * step;
-  const cy = 82;
-
-  // Only show SVG when there are cities added
   if (waypoints.length === 0) return (
     <div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 0",
@@ -68,111 +55,133 @@ function RouteArcs({
     </div>
   );
 
+  const stops = [
+    { label: home?.label?.split(",")[0] ?? "Casa", flag: "🏠", isHome: true, transport: null as TransportMode | null },
+    ...waypoints.map(w => ({ label: w.city, flag: countryFlag(w.country_code), isHome: false, transport: w.transport_mode })),
+  ];
+
+  const n = stops.length;
+  const W = 420, nodeR = 20, cy = 82, pad = 55;
+  const step = n > 1 ? (W - pad * 2) / (n - 1) : 0;
+  const cx = (i: number) => pad + i * step;
+
   return (
-    <div>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible", minWidth: W }}>
+    <div style={{ position:"relative" }}>
+      {/* SVG for arcs only */}
+      <svg width={W} height={120} viewBox={`0 0 ${W} 120`}
+        style={{ display:"block", overflow:"visible", minWidth:W }}>
         <defs>
           {TRANSPORT.map(t => (
-            <marker key={t.value} id={`arr-ntd-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <marker key={t.value} id={`arr-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
               <path d="M0,0 L6,3 L0,6 Z" fill={t.color} opacity="0.8"/>
             </marker>
           ))}
         </defs>
-
         {stops.map((stop, i) => {
           if (i === 0) return null;
           const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
-          const x1 = cx(i - 1), x2 = cx(i);
-          const mx = (x1 + x2) / 2;
-          const arcH = Math.min(62, Math.max(22, (x2 - x1) * 0.38));
+          const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
+          const arcH = Math.min(62, Math.max(22, (x2-x1)*0.38));
           return (
             <g key={i}>
-              <path d={`M ${x1} ${cy} Q ${mx} ${cy - arcH} ${x2} ${cy}`}
+              <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
                 stroke={t.color} strokeWidth="1.8" strokeDasharray="5 3"
-                fill="none" opacity="0.6"
-                markerEnd={`url(#arr-ntd-${t.value})`}/>
-              <rect x={mx - 29} y={cy - arcH - 13} width="58" height="17" rx="8"
+                fill="none" opacity="0.6" markerEnd={`url(#arr-${t.value})`}/>
+              <rect x={mx-29} y={cy-arcH-13} width="58" height="17" rx="8"
                 fill={t.bg} stroke={t.color} strokeWidth="0.5" strokeOpacity="0.7"/>
-              <text x={mx} y={cy - arcH - 2} fontSize="9.5" textAnchor="middle" fill={t.color}>
-                {t.label === "Aereo" ? "✈" : t.label === "Treno" ? "🚂" : t.label === "Auto" ? "🚗" : t.label === "Nave" ? "⛵" : "🚶"} {t.label}
+              <text x={mx} y={cy-arcH-2} fontSize="9.5" textAnchor="middle" fill={t.color}>
+                {t.label}
               </text>
             </g>
           );
         })}
-
+        {/* Circle backgrounds */}
         {stops.map((stop, i) => {
           const x = cx(i);
-          const isLast = i === stops.length - 1 && stops.length > 1;
+          const isLast = i === stops.length-1 && stops.length > 1;
           const lastT = isLast ? TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0] : null;
           const borderColor = stop.isHome ? "#fbbf24" : lastT ? lastT.color : "#60a5fa";
           const bgFill = stop.isHome ? "rgba(251,191,36,0.1)" : lastT ? lastT.bg : "rgba(96,165,250,0.08)";
-          const nodeR = isLast ? 21 : 18;
+          const r = isLast ? nodeR+3 : nodeR;
           return (
-            <g key={i} style={{ cursor: stop.isHome ? "pointer" : "default" }}
-              onClick={stop.isHome ? onEditHome : undefined}>
-              <circle cx={x} cy={cy} r={nodeR}
-                fill={bgFill}
-                stroke={borderColor} strokeWidth={isLast ? 2 : 1.5}
-                strokeDasharray={stop.isHome ? "3 2" : "none"}/>
-              <text x={x} y={cy + 5} fontSize={isLast ? 17 : 15}
-                textAnchor="middle" dominantBaseline="middle">{stop.flag}</text>
-              <text x={x} y={cy + nodeR + 10} fontSize="8.5" textAnchor="middle"
-                fill={isLast ? borderColor : "rgba(255,255,255,0.4)"}
-                fontWeight={isLast ? "600" : "normal"}>
-                {stop.label.length > 8 ? stop.label.slice(0, 7) + "…" : stop.label}
-              </text>
+            <g key={i}>
+              <circle cx={x} cy={cy} r={r} fill={bgFill} stroke={borderColor}
+                strokeWidth={isLast ? 2 : 1.5} strokeDasharray={stop.isHome ? "3 2" : "none"}/>
               {/* Edit pencil on home */}
               {stop.isHome && (
-                <g>
-                  <circle cx={x + nodeR - 4} cy={cy - nodeR + 4} r="8" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
-                  <text x={x + nodeR - 4} y={cy - nodeR + 8} fontSize="9" textAnchor="middle" fill="#fbbf24">✎</text>
+                <g style={{cursor:"pointer"}} onClick={onEditHome}>
+                  <circle cx={x+r-4} cy={cy-r+4} r="8" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
+                  <text x={x+r-4} y={cy-r+8} fontSize="10" textAnchor="middle" fill="#fbbf24">✎</text>
                 </g>
               )}
-              {/* Remove button on waypoints (not home, not last) */}
-              {!stop.isHome && !isLast && (
-                <g>
-                  <circle cx={x + nodeR - 2} cy={cy - nodeR + 2} r="7" fill="#060e1e" stroke="#1a2d4a" strokeWidth="1"/>
-                  <text x={x + nodeR - 2} y={cy - nodeR + 6} fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.3)">×</text>
+              {/* Remove on non-home stops */}
+              {!stop.isHome && (
+                <g style={{cursor:"pointer"}} onClick={() => {
+                  const idx = i - 1;
+                  // handled outside
+                }}>
+                  <circle cx={x+r-2} cy={cy-r+2} r="7" fill="#060e1e"
+                    stroke={isLast ? borderColor : "#1a2d4a"} strokeWidth="1"/>
+                  <text x={x+r-2} y={cy-r+6} fontSize="9" textAnchor="middle"
+                    fill={isLast ? borderColor : "rgba(255,255,255,0.3)"}>×</text>
                 </g>
               )}
-              {/* Remove on last city too */}
-              {!stop.isHome && isLast && (
-                <g>
-                  <circle cx={x + nodeR - 2} cy={cy - nodeR + 2} r="7" fill="#060e1e" stroke={borderColor} strokeWidth="1"/>
-                  <text x={x + nodeR - 2} y={cy - nodeR + 6} fontSize="9" textAnchor="middle" fill={borderColor}>×</text>
-                </g>
-              )}
+              {/* City label */}
+              <text x={x} y={cy+r+11} fontSize="8.5" textAnchor="middle"
+                fill={isLast ? borderColor : "rgba(255,255,255,0.4)"}
+                fontWeight={isLast ? "600" : "normal"}>
+                {stop.label.length > 8 ? stop.label.slice(0,7)+"…" : stop.label}
+              </text>
             </g>
           );
         })}
       </svg>
 
+      {/* HTML emoji overlays — positioned absolutely over SVG circles */}
+      <div style={{ position:"absolute", top:0, left:0, pointerEvents:"none", width:"100%" }}>
+        {stops.map((stop, i) => {
+          const x = cx(i);
+          const isLast = i === stops.length-1 && stops.length > 1;
+          const r = isLast ? nodeR+3 : nodeR;
+          return (
+            <div key={i} style={{
+              position:"absolute",
+              left: x - 12,
+              top: cy - 12,
+              width:24, height:24,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize: isLast ? 17 : 15,
+              lineHeight:1,
+              userSelect:"none",
+            }}>
+              {stop.flag}
+            </div>
+          );
+        })}
+      </div>
+
       {/* Home edit field */}
       {editingHome && (
         <div style={{
-          background: "#0d1f3c", border: "0.5px solid #fbbf24",
-          borderRadius: 8, padding: "7px 12px", marginTop: 4,
-          display: "flex", alignItems: "center", gap: 8, position: "relative"
+          background:"#0d1f3c", border:"0.5px solid #fbbf24",
+          borderRadius:8, padding:"7px 12px", marginTop:4,
+          display:"flex", alignItems:"center", gap:8, position:"relative"
         }}>
-          <span style={{ fontSize: 13, color: "#fbbf24" }}>🏠</span>
-          <input
-            autoFocus
-            style={{ background: "transparent", border: "none", outline: "none", color: "#f0f4ff", fontSize: 12, flex: 1 }}
-            value={homeQuery}
-            onChange={e => setHomeQuery(e.target.value)}
+          <span style={{fontSize:13, color:"#fbbf24"}}>🏠</span>
+          <input autoFocus
+            style={{background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:12, flex:1}}
+            value={homeQuery} onChange={e => setHomeQuery(e.target.value)}
             placeholder="La tua città…"/>
           <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0"/>
           {homeResults.length > 0 && (
-            <div style={{
-              position: "absolute", top: "100%", left: 0, right: 0,
-              background: "#0d1f3c", border: "0.5px solid #1a2d4a",
-              borderRadius: 8, zIndex: 10, overflow: "hidden", marginTop: 4
-            }}>
-              {homeResults.map((r, i) => (
+            <div style={{position:"absolute", top:"100%", left:0, right:0,
+              background:"#0d1f3c", border:"0.5px solid #1a2d4a",
+              borderRadius:8, zIndex:10, overflow:"hidden", marginTop:4}}>
+              {homeResults.map((r,i) => (
                 <button key={i} type="button" onClick={() => onSelectHome(r)}
-                  style={{ width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12,
-                    color: "#f0f4ff", background: "none", border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: 8 }}>
+                  style={{width:"100%", textAlign:"left", padding:"8px 12px", fontSize:12,
+                    color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
+                    display:"flex", alignItems:"center", gap:8}}>
                   <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0"/>
                   {r.name}, {r.country}
                 </button>
