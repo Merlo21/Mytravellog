@@ -129,22 +129,25 @@ export function TravelHighlights({ trips }: Props) {
           </div>
         </div>
 
-        {/* 5 transport cards */}
-        <div className="grid grid-cols-5 gap-2 mb-4">
+        {/* 5 transport cards — horizontal style */}
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-4">
           {([
-            { icon: <Plane className="w-4 h-4" strokeWidth={1.5}/>,      color:"#378ADD", val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
-            { icon: <Train className="w-4 h-4" strokeWidth={1.5}/>,      color:"#BA7517", val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
-            { icon: <Car className="w-4 h-4" strokeWidth={1.5}/>,        color:"#639922", val: formatDistanceKm(byCar,   distanceUnit), label:"In auto" },
-            { icon: <Ship className="w-4 h-4" strokeWidth={1.5}/>,       color:"#0F6E56", val: formatDistanceKm(byShip,  distanceUnit), label:"In nave" },
-            { icon: <Footprints className="w-4 h-4" strokeWidth={1.5}/>, color:"#D85A30", val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi" },
-          ] as const).map(({ icon, color, val, label }) => (
+            { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
+            { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
+            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#639922", bg:"rgba(99,153,34,0.12)",   border:"rgba(99,153,34,0.3)",   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto" },
+            { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   val: formatDistanceKm(byShip,  distanceUnit), label:"In nave" },
+            { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi" },
+          ] as const).map(({ icon, color, bg, border, val, label }) => (
             <div key={label}
-              className="flex flex-col items-center gap-1.5 rounded-xl py-3 px-2 border border-border bg-secondary/30 hover:-translate-y-0.5 transition-transform">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-secondary/60">
+              className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
+              style={{background: bg, borderColor: border}}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
                 <span style={{color}}>{icon}</span>
               </div>
-              <div className="text-sm font-bold font-mono" style={{color}}>{val}</div>
-              <div className="text-[10px] text-muted-foreground text-center">{label}</div>
+              <div>
+                <div className="text-sm font-bold font-mono" style={{color}}>{val}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
+              </div>
             </div>
           ))}
         </div>
