@@ -55,7 +55,7 @@ function HomeInner() {
     : null;
 
   return (
-    <main className="h-screen flex flex-col overflow-hidden">
+    <main className="h-screen flex flex-col overflow-hidden" style={{backgroundColor:"#060e1e"}}>
       <header className="border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="container mx-auto px-4 py-2.5 flex items-center justify-between">
           {/* Logo */}
