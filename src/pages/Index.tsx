@@ -57,17 +57,20 @@ function HomeInner() {
   return (
     <main className="h-screen flex flex-col overflow-hidden">
       <header className="border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-20">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-2.5 flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-              <Compass className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"#22d3ee"}}>
+              <Compass className="w-5 h-5" style={{color:"#020d1a"}} />
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-none">Atlas</h1>
-              <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">trip tracker</p>
+              <h1 className="text-[19px] font-bold leading-none">Atlas</h1>
+              <p className="text-[9px] text-muted-foreground font-mono uppercase tracking-widest mt-0.5">Trip Tracker</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Nav */}
+          <div className="flex items-center gap-1">
             <button onClick={() => setSidebarOpen(true)}
               className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
               <Plane className="w-4 h-4 text-primary" /> I tuoi viaggi
@@ -75,10 +78,11 @@ function HomeInner() {
             <Link to="/statistiche" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
               <PieChart className="w-4 h-4 text-primary" /> Statistiche
             </Link>
+            <div className="w-px h-5 bg-border mx-1" />
             <Link to="/impostazioni" className="btn-ghost p-2" aria-label="Impostazioni">
-              <Settings className="w-4 h-4 text-primary" />
+              <Settings className="w-4 h-4 text-muted-foreground" />
             </Link>
-            <NewTripDialog onCreated={refresh} defaultHome={defaultHome} />
+            <NewTripDialog onCreated={refresh} defaultHome={defaultHome} prefilledCity={pendingCity} />
           </div>
         </div>
       </header>
