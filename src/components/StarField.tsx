@@ -66,11 +66,7 @@ export function StarField({ offsetX, offsetY, mousePos }: Props) {
       const ctx = canvas.getContext("2d")!;
       ctx.scale(devicePixelRatio, devicePixelRatio);
 
-      const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
-      bg.addColorStop(0, "#0d1f3c");
-      bg.addColorStop(0.5, "#0a1628");
-      bg.addColorStop(1, "#060e1e");
-      ctx.fillStyle = bg;
+      ctx.fillStyle = "#0d1f3c";
       ctx.fillRect(0, 0, W, H);
 
       ctx.strokeStyle = "rgba(100,160,255,0.12)";
