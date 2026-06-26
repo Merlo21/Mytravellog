@@ -5,6 +5,8 @@ export type Trip = {
   city: string;
   trip_date: string; // YYYY-MM-DD
   notes: string | null;
+  transport_mode: "plane" | "train" | "car" | "ship" | "walk" | null;
+  waypoints: { city: string; country: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" }[];
   latitude: number;
   longitude: number;
   home_latitude: number;
