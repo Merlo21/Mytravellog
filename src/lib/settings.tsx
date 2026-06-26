@@ -46,10 +46,17 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   // Apply theme class to document root
   useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const rootEl = document.getElementById("root");
     if (s.theme === "light") {
-      document.documentElement.classList.add("light");
+      root.classList.add("light");
+      body.style.backgroundColor = "#e8f0fe";
+      if (rootEl) rootEl.style.backgroundColor = "#e8f0fe";
     } else {
-      document.documentElement.classList.remove("light");
+      root.classList.remove("light");
+      body.style.backgroundColor = "#060e1e";
+      if (rootEl) rootEl.style.backgroundColor = "#060e1e";
     }
   }, [s.theme]);
   const value: Ctx = {
