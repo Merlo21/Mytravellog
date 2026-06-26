@@ -3,12 +3,13 @@
 @tailwind utilities;
 
 @layer base {
-  html, body { background-color: #060e1e !important; }
+  html, body, [class*="bg-background"] { background-color: #060e1e !important; }
+  .bg-background { background-color: #060e1e !important; }
 
   :root {
-    --background: 217 64% 14%;
+    --background: 220 67% 7%;
     --foreground: 210 20% 95%;
-    --card: 217 50% 18%;
+    --card: 218 60% 11%;
     --card-foreground: 210 20% 95%;
     --border: 217 38% 22%;
     --primary: 213 93% 68%;
@@ -44,7 +45,8 @@
 }
 
 @layer base {
-  html, body { background-color: #060e1e !important; }
+  html, body, [class*="bg-background"] { background-color: #060e1e !important; }
+  .bg-background { background-color: #060e1e !important; }
 
   * { @apply border-border; }
   body {
