@@ -156,9 +156,9 @@ export function TravelHighlights({ trips }: Props) {
           ))}
         </div>
 
-        {/* Proportional bar */}
-        {totalKm > 0 && (
-          <div>
+        {/* Proportional bar — always visible */
+        <div>
+          {totalKm > 0 ? (
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground mb-1.5">
               {([
                 {color:"#378ADD", label:"Aereo", pct:byPlane},
@@ -173,20 +173,37 @@ export function TravelHighlights({ trips }: Props) {
                 </span>
               ))}
             </div>
-            <div className="h-2 rounded-full overflow-hidden flex bg-secondary/40">
+          ) : (
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground mb-1.5">
               {([
-                {color:"#378ADD", pct:byPlane},
-                {color:"#BA7517", pct:byTrain},
-                {color:"#639922", pct:byCar},
-                {color:"#0F6E56", pct:byShip},
-                {color:"#D85A30", pct:byWalk},
-              ] as const).map((x,i) => (
-                <div key={i} className="h-full transition-all duration-700"
-                  style={{width:`${x.pct/totalKm*100}%`, background:x.color}}/>
+                {color:"#378ADD", label:"Aereo"},
+                {color:"#BA7517", label:"Treno"},
+                {color:"#639922", label:"Auto"},
+                {color:"#0F6E56", label:"Nave"},
+                {color:"#D85A30", label:"Piedi"},
+              ] as const).map(x => (
+                <span key={x.label} className="flex items-center gap-1 opacity-30">
+                  <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
+                  {x.label} 0%
+                </span>
               ))}
             </div>
+          )}
+          <div className="h-2 rounded-full overflow-hidden flex bg-secondary/40">
+            {totalKm > 0 ? ([
+              {color:"#378ADD", pct:byPlane},
+              {color:"#BA7517", pct:byTrain},
+              {color:"#639922", pct:byCar},
+              {color:"#0F6E56", pct:byShip},
+              {color:"#D85A30", pct:byWalk},
+            ] as const).map((x,i) => (
+              <div key={i} className="h-full transition-all duration-700"
+                style={{width:`${x.pct/totalKm*100}%`, background:x.color}}/>
+            )) : (
+              <div className="h-full w-full bg-secondary/60 rounded-full" />
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
