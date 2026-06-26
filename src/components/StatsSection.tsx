@@ -58,13 +58,15 @@ export function StatsSection({ trips }: Props) {
           image={earthImg}
           alt="Pianeta Terra dallo spazio"
           value={count.toString()}
-          label="paesi"
+          label="paesi visitati"
+          overlayColor="linear-gradient(135deg, rgba(14,55,100,0.6) 0%, rgba(0,20,60,0.35) 100%)"
         />
         <StatHero
           image={forestImg}
           alt="Strada nella foresta"
           value={`${percentLabel}%`}
           label="del mondo visto"
+          overlayColor="linear-gradient(135deg, rgba(10,60,20,0.6) 0%, rgba(5,30,10,0.35) 100%)"
         />
       </div>
 
@@ -160,8 +162,8 @@ function formatDateIt(iso: string): string {
 }
 
 function StatHero({
-  image, alt, value, label,
-}: { image: string; alt: string; value: string; label: string }) {
+  image, alt, value, label, overlayColor,
+}: { image: string; alt: string; value: string; label: string; overlayColor: string }) {
   return (
     <div className="relative rounded-2xl overflow-hidden aspect-[16/10] group">
       <img
@@ -172,12 +174,17 @@ function StatHero({
         height={1024}
         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30" />
+      {/* Themed overlay — semi-transparent to keep texture visible */}
+      <div className="absolute inset-0" style={{background: overlayColor}} />
+      {/* Bottom fade for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
-        <div className="text-5xl sm:text-6xl font-extrabold text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.6)] tracking-tight">
+        <div className="text-5xl sm:text-6xl font-extrabold text-white tracking-tight"
+          style={{textShadow:"0 2px 20px rgba(0,0,0,0.4)"}}>
           {value}
         </div>
-        <div className="text-sm sm:text-base text-white/90 font-medium mt-1 drop-shadow-md">
+        <div className="text-sm sm:text-base text-white/90 font-medium mt-1"
+          style={{textShadow:"0 1px 8px rgba(0,0,0,0.5)"}}>
           {label}
         </div>
       </div>
