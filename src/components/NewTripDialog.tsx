@@ -36,7 +36,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
         latitude: prefilledCity.latitude,
         longitude: prefilledCity.longitude,
       });
-      setTitle(`Viaggio a ${prefilledCity.name}`);
+      
       setStep(2);
       const today = new Date().toISOString().slice(0, 10);
       Promise.all([
@@ -164,7 +164,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   const pickDest = (p: GeoResult) => {
     setDest(p); setDestResults([]);
     setDestQuery(`${p.name}, ${p.country}`);
-    setTitle(`Viaggio a ${p.name}`);
+    
   };
 
   const pickHome = (p: GeoResult) => {
@@ -187,7 +187,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
     setSaving(true);
     try {
       addTrip({
-        title: title.trim() || `Viaggio a ${dest.name}`,
+        title: title.trim() || dest.name,
         country: dest.country,
         city: dest.name,
         trip_date: tripDate,
