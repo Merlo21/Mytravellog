@@ -329,8 +329,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Titolo</label>
-              <input className="input-base" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome del viaggio</label>
+              <input className="input-base" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Es. Weekend a Parigi, Viaggio di nozze…" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
