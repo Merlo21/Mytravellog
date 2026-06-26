@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Trip, deleteTrip, formatTripDate } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
 import { fmtDistance, fmtAltitude, fmtTemp, useSettings } from "@/lib/settings";
-import { Thermometer, Mountain, Route, Calendar, Trash2, Pencil, Plane, Train, Car, Ship, Footprints } from "lucide-react";
-import { toast } from "sonner";
+import { Thermometer, Mountain, Trash2, Pencil, Plane, Train, Car, Ship, Footprints, Route } from "lucide-react";
 import { EditTripDialog } from "./EditTripDialog";
+import React from "react";
 
 interface Props {
   trip: Trip;
@@ -13,7 +13,6 @@ interface Props {
   onDeleted?: () => void;
   onUpdated?: () => void;
 }
-
 
 const TRANSPORT_STYLE: Record<string, { color: string; bg: string; icon: React.ReactNode }> = {
   plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", icon: <Plane className="w-3 h-3"/> },
@@ -24,70 +23,123 @@ const TRANSPORT_STYLE: Record<string, { color: string; bg: string; icon: React.R
 };
 const DEFAULT_STYLE = { color: "#60a5fa", bg: "rgba(96,165,250,0.12)", icon: <Route className="w-3 h-3"/> };
 
-export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Props) {
-  const { distanceUnit, temperatureUnit } = useSettings();
-  const [editOpen, setEditOpen] = useState(false);
+function StarDisplay({ rating }: { rating: number | null }) {
+  if (!rating) return null;
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1,2,3,4,5].map(i => (
+        <span key={i} style={{
+          fontSize: "12px",
+          color: i <= rating ? "#fbbf24" : "rgba(255,255,255,0.15)"
+        }}>★</span>
+      ))}
+    </div>
+  );
+}
 
-  const remove = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Eliminare questo viaggio?")) return;
+export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Props) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { distanceUnit, temperatureUnit } = useSettings();
+  const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_STYLE;
+  const flag = countryFlag(trip.country_code ?? "");
+
+  const handleDelete = () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
     deleteTrip(trip.id);
-    toast.success("Viaggio eliminato");
     onDeleted?.();
   };
 
+  // Title: use custom title if different from city name
+  const displayTitle = trip.title && trip.title !== trip.city ? trip.title : trip.city;
+  const showSubtitle = trip.title && trip.title !== trip.city;
+
   return (
-    <div onClick={onClick}
-      className="glass-card p-4 cursor-pointer transition-all duration-200 animate-fade-up"
-      style={{
-        borderLeft: `3px solid ${(TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_STYLE).color}`,
-        borderColor: selected ? (TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_STYLE).color : undefined,
-      }}>
-      <div className="flex items-start gap-3">
-        <div className="text-3xl">{countryFlag(trip.country_code)}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="font-semibold truncate text-sm">{trip.title}</h3>
-              <p className="text-xs text-muted-foreground truncate">{trip.city}, {trip.country}</p>
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <button onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors" aria-label="Modifica">
-                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-              <button onClick={remove}
-                className="p-1.5 rounded-lg hover:bg-destructive/20 transition-colors" aria-label="Elimina">
-                <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            </div>
-          </div>
+    <>
+      <div onClick={onClick}
+        className="glass-card p-4 cursor-pointer transition-all duration-200 animate-fade-up"
+        style={{
+          borderLeft: `3px solid ${ts.color}`,
+          outline: selected ? `1.5px solid ${ts.color}` : "none",
+          outlineOffset: "1px",
+        }}>
 
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 font-mono">
-            <Calendar className="w-3 h-3" />
-            {formatTripDate(trip.trip_date)}
-          </div>
+        <div className="flex items-start gap-3">
+          {/* Flag */}
+          <div className="text-2xl flex-shrink-0 mt-0.5">{flag}</div>
 
-          <div className="grid grid-cols-3 gap-1.5 mt-2.5">
-            {[
-              { icon: <Thermometer className="w-3 h-3 mx-auto mb-0.5 opacity-70" />, val: fmtTemp(trip.temperature_c, temperatureUnit) },
-              { icon: <Mountain className="w-3 h-3 mx-auto mb-0.5 opacity-70" />, val: fmtAltitude(trip.altitude_m, distanceUnit) },
-              { icon: <Route className="w-3 h-3 mx-auto mb-0.5 opacity-70" />, val: fmtDistance(trip.distance_from_home_km, distanceUnit) },
-            ].map(({ icon, val }, i) => (
-              <div key={i} className="rounded-lg p-2 text-center bg-muted/40">
-                {icon}
-                <div className="font-mono text-xs font-semibold">{val}</div>
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            {/* Title + stars */}
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-sm font-bold text-foreground leading-tight">{displayTitle}</div>
+                {showSubtitle && (
+                  <div className="text-xs text-muted-foreground mt-0.5">{trip.city}, {trip.country}</div>
+                )}
+                {!showSubtitle && (
+                  <div className="text-xs text-muted-foreground mt-0.5">{trip.country}</div>
+                )}
               </div>
-            ))}
+              <StarDisplay rating={trip.rating ?? null} />
+            </div>
+
+            {/* Date */}
+            <div className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+              <span>{formatTripDate(trip.trip_date)}</span>
+              {trip.date_end && trip.date_end !== trip.trip_date && (
+                <>
+                  <span style={{color:"rgba(255,255,255,0.2)"}}>→</span>
+                  <span>{formatTripDate(trip.date_end)}</span>
+                </>
+              )}
+            </div>
+
+            {/* Pills */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {trip.transport_mode && (() => {
+                const s = TRANSPORT_STYLE[trip.transport_mode] ?? DEFAULT_STYLE;
+                return (
+                  <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium"
+                    style={{background: s.bg, color: s.color}}>
+                    {s.icon}
+                    {{plane:"Aereo",train:"Treno",car:"Auto",ship:"Nave",walk:"A piedi"}[trip.transport_mode]}
+                  </span>
+                );
+              })()}
+              {trip.distance_from_home_km != null && (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-secondary/50 text-muted-foreground">
+                  {fmtDistance(trip.distance_from_home_km, distanceUnit)}
+                </span>
+              )}
+              {trip.altitude_m != null && (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-secondary/50 text-muted-foreground">
+                  <Mountain className="w-2.5 h-2.5"/> {fmtAltitude(trip.altitude_m, distanceUnit)}
+                </span>
+              )}
+              {trip.temperature_c != null && (
+                <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-secondary/50 text-muted-foreground">
+                  <Thermometer className="w-2.5 h-2.5"/> {fmtTemp(trip.temperature_c, temperatureUnit)}
+                </span>
+              )}
+            </div>
           </div>
 
-          {trip.notes && (
-            <p className="text-xs text-muted-foreground mt-2 line-clamp-2 italic">"{trip.notes}"</p>
-          )}
+          {/* Actions */}
+          <div className="flex gap-1 flex-shrink-0">
+            <button onClick={e => { e.stopPropagation(); setEditOpen(true); }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-secondary/60">
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground"/>
+            </button>
+            <button onClick={e => { e.stopPropagation(); handleDelete(); }}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${confirmDelete ? "bg-red-500/20" : "hover:bg-secondary/60"}`}>
+              <Trash2 className={`w-3.5 h-3.5 ${confirmDelete ? "text-red-400" : "text-muted-foreground"}`}/>
+            </button>
+          </div>
         </div>
       </div>
 
-      <EditTripDialog trip={trip} open={editOpen} onOpenChange={setEditOpen} onSaved={onUpdated} />
-    </div>
+      <EditTripDialog trip={trip} open={editOpen} onOpenChange={setEditOpen} onSaved={() => { setEditOpen(false); onUpdated?.(); }}/>
+    </>
   );
 }
