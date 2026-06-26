@@ -1,79 +1,63 @@
-/* === NAV·TA exact background override === */
+/* === NAV·TA Design Tokens — all hex, no HSL === */
 html, body, #root { background-color: #060e1e !important; }
-.bg-background, [class~="bg-background"] { background-color: #060e1e !important; }
-* { scrollbar-color: #0a1628 #060e1e; }
+* { scrollbar-color: #0a1628 #060e1e; box-sizing: border-box; }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  .bg-background { background-color: #060e1e !important; }
-
   :root {
-    --background: 220 67% 7%;
-    --tw-bg-opacity: 1;
-    --foreground: 210 20% 95%;
-    --card: 218 60% 11%;
-    --card-foreground: 210 20% 95%;
-    --border: 217 38% 22%;
-    --primary: 213 93% 68%;
-    --primary-foreground: 213 64% 5%;
-    --secondary: 217 48% 20%;
-    --secondary-foreground: 210 20% 85%;
-    --muted: 217 48% 20%;
-    --muted-foreground: 213 20% 52%;
-    --accent: 45 95% 60%;
-    --accent-foreground: 213 64% 5%;
-    --destructive: 0 72% 58%;
-    --destructive-foreground: 0 0% 100%;
     --radius: 0.75rem;
   }
 
-  .light {
-    --background: 210 20% 96%;
-    --foreground: 222 28% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 28% 12%;
-    --border: 220 15% 85%;
-    --primary: 186 75% 40%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 15% 90%;
-    --secondary-foreground: 222 28% 20%;
-    --muted: 210 15% 90%;
-    --muted-foreground: 215 15% 45%;
-    --accent: 45 90% 50%;
-    --accent-foreground: 222 28% 7%;
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 0% 100%;
+  * {
+    border-color: #1a2d4a;
   }
-}
 
-@layer base {
-  .bg-background { background-color: #060e1e !important; }
-
-  * { @apply border-border; }
   body {
-    @apply bg-background text-foreground;
-    font-family: ui-sans-serif, system-ui, sans-serif;
+    color: #f0f4ff;
+    background-color: #060e1e;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-card/70 backdrop-blur-sm border border-border rounded-xl;
+    background: #0a1628;
+    border: 0.5px solid #1a2d4a;
+    border-radius: 0.75rem;
   }
-  .btn-primary {
-    @apply bg-primary text-primary-foreground font-semibold px-4 py-2 rounded-lg
-           hover:brightness-110 active:scale-95 transition-all duration-150;
-  }
+
   .btn-ghost {
-    @apply bg-transparent text-foreground border border-border px-4 py-2 rounded-lg
-           hover:bg-secondary active:scale-95 transition-all duration-150;
+    background: transparent;
+    color: #94a8c8;
+    border-radius: 0.5rem;
+    transition: background 0.15s;
   }
-  .input-base {
-    @apply w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm
-           text-foreground placeholder:text-muted-foreground
-           focus:outline-none focus:ring-2 focus:ring-primary/40;
+  .btn-ghost:hover {
+    background: #0a1628;
+  }
+
+  .btn-primary {
+    background: #60a5fa;
+    color: #060e1e;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+
+  .input-field {
+    background: #0a1628;
+    border: 0.5px solid #1a2d4a;
+    border-radius: 0.5rem;
+    color: #f0f4ff;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-field:focus {
+    border-color: #60a5fa;
   }
 }
