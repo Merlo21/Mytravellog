@@ -61,23 +61,3 @@ html, body, #root { background-color: #060e1e !important; }
     border-color: #60a5fa;
   }
 }
-
-/* === Light theme === */
-.light {
-  --tw-bg-opacity: 1;
-}
-.light html, .light body, html.light, body.light,
-:root.light, .light #root, .light [style*="backgroundColor"] {
-  background-color: #e8f0fe !important;
-  color: #0d1f3c !important;
-}
-.light .bg-background { background-color: #e8f0fe !important; }
-.light .bg-card       { background-color: #ffffff !important; }
-.light .bg-secondary  { background-color: #dce8ff !important; }
-.light .bg-muted      { background-color: #dce8ff !important; }
-.light .border-border { border-color: #b0c8f0 !important; }
-.light .text-foreground      { color: #0d1f3c !important; }
-.light .text-muted-foreground { color: #4a6080 !important; }
-.light .text-secondary-foreground { color: #2a4060 !important; }
-.light header { background-color: rgba(232,240,254,0.85) !important; }
-.light .glass-card { background: #ffffff !important; border-color: #b0c8f0 !important; }
