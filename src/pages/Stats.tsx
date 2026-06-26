@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Compass, Settings as SettingsIcon } from "lucide-react";
 import { Trip, loadTrips } from "@/lib/storage";
