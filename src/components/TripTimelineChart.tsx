@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { LocalTrip } from "@/lib/storage";
+import { Trip as LocalTrip } from "@/lib/storage";
 import {
   LineChart,
   Line,
