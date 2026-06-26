@@ -8,7 +8,10 @@ import Home from "./pages/Index";
 import Stats from "./pages/Stats";
 import SettingsPage from "./pages/Settings";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootEl = document.getElementById("root")!;
+rootEl.style.backgroundColor = "#060e1e";
+rootEl.style.minHeight = "100vh";
+ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <SettingsProvider>
       <HashRouter>
