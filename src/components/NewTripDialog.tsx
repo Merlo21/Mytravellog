@@ -4,7 +4,7 @@ import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag
 import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, MapPin, X, Plane, Train, Car, Ship, Footprints } from "lucide-react";
+import { Plus, Search, Loader2, MapPin, X, Plane, Train, Car, Ship, Footprints, Route } from "lucide-react";
 
 interface Props {
   onCreated: () => void;
@@ -306,7 +306,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
           <div style={{ width:30, height:30, borderRadius:8,
             background:"rgba(96,165,250,0.12)", display:"flex",
             alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <MapPin className="w-4 h-4" style={{ color:"#60a5fa" }}/>
+            <Route className="w-4 h-4" style={{ color:"#60a5fa" }}/>
           </div>
           <span style={{ fontSize:15, fontWeight:700, color:"#f0f4ff", flex:1 }}>Nuovo viaggio</span>
           <button onClick={() => { setOpen(false); reset(); }}
