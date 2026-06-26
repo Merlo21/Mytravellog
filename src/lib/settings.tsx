@@ -3,27 +3,23 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 export type DistanceUnit = "metric" | "imperial";
 export type TemperatureUnit = "celsius" | "fahrenheit";
 export type AutoRotate = "on" | "off";
-export type Theme = "dark" | "light";
 
 type Settings = {
   distanceUnit: DistanceUnit;
   temperatureUnit: TemperatureUnit;
   autoRotate: AutoRotate;
-  theme: Theme;
 };
 
 type Ctx = Settings & {
   setDistanceUnit: (v: DistanceUnit) => void;
   setTemperatureUnit: (v: TemperatureUnit) => void;
   setAutoRotate: (v: AutoRotate) => void;
-  setTheme: (v: Theme) => void;
 };
 
 const DEFAULTS: Settings = {
   distanceUnit: "metric",
   temperatureUnit: "celsius",
   autoRotate: "on",
-  theme: "dark",
 };
 
 const KEY = "atlas.settings.v1";
@@ -45,26 +41,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(s)); }, [s]);
 
   // Apply theme class to document root
-  useEffect(() => {
-    const root = document.documentElement;
-    const body = document.body;
-    const rootEl = document.getElementById("root");
-    if (s.theme === "light") {
-      root.classList.add("light");
-      body.style.backgroundColor = "#e8f0fe";
-      if (rootEl) rootEl.style.backgroundColor = "#e8f0fe";
-    } else {
-      root.classList.remove("light");
-      body.style.backgroundColor = "#060e1e";
-      if (rootEl) rootEl.style.backgroundColor = "#060e1e";
-    }
-  }, [s.theme]);
+
   const value: Ctx = {
     ...s,
     setDistanceUnit: (v) => setS((p) => ({ ...p, distanceUnit: v })),
     setTemperatureUnit: (v) => setS((p) => ({ ...p, temperatureUnit: v })),
     setAutoRotate: (v) => setS((p) => ({ ...p, autoRotate: v })),
-    setTheme: (v) => setS((p) => ({ ...p, theme: v })),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
