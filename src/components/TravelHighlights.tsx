@@ -185,7 +185,10 @@ export function TravelHighlights({ trips }: Props) {
             )) : <div className="h-full w-full rounded-full bg-secondary/60"/>}
           </div>
         </div>
-
+      </div>
+    </div>
+  );
+}
 
 function HighlightCard({
   icon, color, label, value, sub,
