@@ -65,10 +65,14 @@ function HomeInner() {
                 <circle cx="15" cy="15" r="11" stroke="#020d1a" strokeWidth="1.6"/>
                 <ellipse cx="15" cy="15" rx="11" ry="4.8" stroke="#020d1a" strokeWidth="1.2"/>
                 <ellipse cx="15" cy="15" rx="6.5" ry="11" stroke="#020d1a" strokeWidth="1.2"/>
-                <polygon points="15,5.5 13.5,13 15,11.5 16.5,13" fill="#020d1a"/>
-                <polygon points="15,24.5 13.5,17 15,18.5 16.5,17" fill="#020d1a" opacity="0.35"/>
-                <polygon points="24.5,15 17,13.5 18.5,15 17,16.5" fill="#020d1a" opacity="0.6"/>
-                <polygon points="5.5,15 13,13.5 11.5,15 13,16.5" fill="#020d1a" opacity="0.35"/>
+                {/* Nord — bianco pieno */}
+                <polygon points="15,5.5 13.5,13 15,11.5 16.5,13" fill="#ffffff"/>
+                {/* Sud — bianco semitrasparente */}
+                <polygon points="15,24.5 13.5,17 15,18.5 16.5,17" fill="#ffffff" opacity="0.35"/>
+                {/* Est — dorato */}
+                <polygon points="24.5,15 17,13.5 18.5,15 17,16.5" fill="#fbbf24"/>
+                {/* Ovest — dorato semitrasparente */}
+                <polygon points="5.5,15 13,13.5 11.5,15 13,16.5" fill="#fbbf24" opacity="0.35"/>
               </svg>
             </div>
             <div>
