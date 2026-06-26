@@ -3,7 +3,7 @@ import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag
 import { addTrip } from "@/lib/storage";
 import { fmtDistance, fmtAltitude, fmtTemp, useSettings } from "@/lib/settings";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, MapPin, Home, Thermometer, Mountain, Route } from "lucide-react";
+import { Plus, Search, Loader2, MapPin, Home, Thermometer, Mountain, Route, Plane, Train, Car, Ship, Footprints, X } from "lucide-react";
 
 interface PrefilledCity {
   name: string;
@@ -62,6 +62,11 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   const [title, setTitle] = useState("");
   const [tripDate, setTripDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [transportMode, setTransportMode] = useState<"plane"|"train"|"car"|"ship"|"walk"|null>(null);
+  const [waypoints, setWaypoints] = useState<{city:string;country:string;transport_mode:"plane"|"train"|"car"|"ship"|"walk"}[]>([]);
+  const [wpSearch, setWpSearch] = useState("");
+  const [wpResults, setWpResults] = useState<any[]>([]);
+  const [wpTransport, setWpTransport] = useState<"plane"|"train"|"car"|"ship"|"walk">("plane");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<{ temp: number | null; alt: number | null; dist: number | null }>({ temp: null, alt: null, dist: null });
 
@@ -90,7 +95,28 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       setDestResults(await searchPlaces(destQuery));
       setSearching(false);
     }, 300);
-    return () => clearTimeout(t);
+    const searchWaypoint = async (q: string) => {
+    if (q.length < 2) { setWpResults([]); return; }
+    const res = await searchPlaces(q);
+    setWpResults(res.slice(0, 5));
+  };
+
+  const addWaypoint = (r: any) => {
+    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
+    setWpSearch(""); setWpResults([]);
+  };
+
+  const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
+
+  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
+    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
+    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
+    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
+    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
+    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
+  ];
+
+  return () => clearTimeout(t);
   }, [destQuery]);
 
   // Home autocomplete
@@ -99,7 +125,28 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       if (homeQuery.length < 2 || home?.label === homeQuery) { setHomeResults([]); return; }
       setHomeResults(await searchPlaces(homeQuery));
     }, 300);
-    return () => clearTimeout(t);
+    const searchWaypoint = async (q: string) => {
+    if (q.length < 2) { setWpResults([]); return; }
+    const res = await searchPlaces(q);
+    setWpResults(res.slice(0, 5));
+  };
+
+  const addWaypoint = (r: any) => {
+    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
+    setWpSearch(""); setWpResults([]);
+  };
+
+  const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
+
+  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
+    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
+    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
+    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
+    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
+    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
+  ];
+
+  return () => clearTimeout(t);
   }, [homeQuery, home?.label]);
 
   // Distance preview
@@ -145,6 +192,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
         city: dest.name,
         trip_date: tripDate,
         notes: notes.trim() || null,
+      transport_mode: transportMode,
+      waypoints,
         latitude: dest.latitude,
         longitude: dest.longitude,
         home_latitude: home.lat,
@@ -166,12 +215,54 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   };
 
   if (!open) {
-    return (
+    const searchWaypoint = async (q: string) => {
+    if (q.length < 2) { setWpResults([]); return; }
+    const res = await searchPlaces(q);
+    setWpResults(res.slice(0, 5));
+  };
+
+  const addWaypoint = (r: any) => {
+    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
+    setWpSearch(""); setWpResults([]);
+  };
+
+  const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
+
+  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
+    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
+    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
+    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
+    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
+    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
+  ];
+
+  return (
       <button onClick={() => setOpen(true)} className="btn-primary flex items-center gap-2 w-full justify-center">
         <Plus className="w-4 h-4" /> {triggerLabel || "Nuovo viaggio"}
       </button>
     );
   }
+
+  const searchWaypoint = async (q: string) => {
+    if (q.length < 2) { setWpResults([]); return; }
+    const res = await searchPlaces(q);
+    setWpResults(res.slice(0, 5));
+  };
+
+  const addWaypoint = (r: any) => {
+    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
+    setWpSearch(""); setWpResults([]);
+  };
+
+  const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
+
+  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
+    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
+    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
+    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
+    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
+    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
