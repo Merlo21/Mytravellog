@@ -49,22 +49,49 @@ function RouteArcs({
 }) {
   if (waypoints.length === 0) return (
     <div>
-      {/* Show home node even when no cities added */}
-      <div style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 0 8px", position:"relative" }}>
-        <div style={{ position:"relative", cursor:"pointer" }} onClick={onEditHome}>
-          <div style={{ width:40, height:40, borderRadius:"50%", background:"rgba(251,191,36,0.1)",
-            border:"1.5px dashed #fbbf24", display:"flex", alignItems:"center",
-            justifyContent:"center", fontSize:20 }}>🏠</div>
-          <div style={{ position:"absolute", top:-4, right:-4, width:16, height:16, borderRadius:"50%",
-            background:"#0d1f3c", border:"1px solid #fbbf24", display:"flex",
-            alignItems:"center", justifyContent:"center", fontSize:10, color:"#fbbf24" }}>✎</div>
-          <div style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textAlign:"center", marginTop:4 }}>
-            {home?.label?.split(",")[0] ?? "Casa"}
-          </div>
+      {/* Home + 2 ghost destinations with curved arcs */}
+      <div style={{ position:"relative", paddingBottom:8 }}>
+        <svg width="420" height="100" viewBox="0 0 420 100"
+          style={{ display:"block", overflow:"visible", minWidth:420 }}>
+          {/* Arco casa → ghost1 */}
+          <path d="M 55 70 Q 140 20 220 70"
+            stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="5 3" fill="none"/>
+          {/* Arco ghost1 → ghost2 */}
+          <path d="M 220 70 Q 305 20 370 70"
+            stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="5 3" fill="none"/>
+
+          {/* Casa */}
+          <circle cx="55" cy="70" r="20" fill="rgba(251,191,36,0.1)"
+            stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2"/>
+          {/* Pencil edit */}
+          <circle cx="70" cy="54" r="8" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
+          <text x="70" y="58" fontSize="10" textAnchor="middle" fill="#fbbf24">✎</text>
+          <text x="55" y="96" fontSize="8.5" textAnchor="middle" fill="rgba(255,255,255,0.4)">
+            {(home?.label?.split(",")[0] ?? "Casa").slice(0,8)}
+          </text>
+
+          {/* Ghost 1 */}
+          <circle cx="220" cy="70" r="20" fill="rgba(255,255,255,0.03)"
+            stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
+          <text x="220" y="75" fontSize="16" textAnchor="middle" dominantBaseline="middle"
+            fill="rgba(255,255,255,0.15)">+</text>
+          <text x="220" y="96" fontSize="8.5" textAnchor="middle" fill="rgba(255,255,255,0.2)">città</text>
+
+          {/* Ghost 2 */}
+          <circle cx="370" cy="70" r="22" fill="rgba(255,255,255,0.03)"
+            stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
+          <text x="370" y="75" fontSize="16" textAnchor="middle" dominantBaseline="middle"
+            fill="rgba(255,255,255,0.15)">+</text>
+          <text x="370" y="98" fontSize="8.5" textAnchor="middle" fill="rgba(255,255,255,0.2)">destinazione</text>
+        </svg>
+
+        {/* HTML emoji overlay for home */}
+        <div style={{ position:"absolute", top:50, left:35,
+          width:40, height:40, display:"flex", alignItems:"center",
+          justifyContent:"center", fontSize:18, pointerEvents:"none",
+          cursor:"pointer" }} onClick={onEditHome}>
+          🏠
         </div>
-        <div style={{ flex:1, height:"1.5px", background:"#1a2d4a", borderRadius:99,
-          borderTop:"1.5px dashed #1a2d4a" }}/>
-        <div style={{ fontSize:11, color:"rgba(255,255,255,0.2)" }}>Aggiungi una città →</div>
       </div>
 
       {/* Home edit field */}
