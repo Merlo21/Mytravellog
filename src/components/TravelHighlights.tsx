@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import React from "react";
 import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
@@ -188,6 +189,18 @@ export function TravelHighlights({ trips }: Props) {
         )}
       </div>
 
+    </div>
+  );
+}
+function HighlightCard({
+  icon, color, label, value, sub,
+}: { icon: React.ReactNode; color: string; label: string; value: string; sub?: string }) {
+  return (
+    <div className="glass-card p-5 flex flex-col items-center text-center">
+      <div className={color}>{icon}</div>
+      <div className="text-2xl font-extrabold mt-3 tracking-tight">{value}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
+      <div className={`text-sm font-semibold mt-2 ${color}`}>{label}</div>
     </div>
   );
 }
