@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Mountain, Globe2, Sun, Snowflake, Moon, Compass } from "lucide-react";
-import { LocalTrip } from "@/lib/storage";
+import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
 interface Props {
