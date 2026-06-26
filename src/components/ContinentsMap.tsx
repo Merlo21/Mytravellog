@@ -64,6 +64,7 @@ type CountryFeat = {
 
 export function ContinentsMap({ trips }: Props) {
   const [countries, setCountries] = useState<CountryFeat[]>([]);
+  const [debug, setDebug] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -108,7 +109,9 @@ export function ContinentsMap({ trips }: Props) {
     return set;
   }, [trips, countries]);
 
+  // Detect countries whose polygons cross the antimeridian and capture the
   // (projected) split points so we can highlight them in debug mode.
+  const antimeridianInfo = useMemo(() => {
     const splits: { x: number; y: number; name: string }[] = [];
     const names = new Set<string>();
     for (const c of countries) {
@@ -139,14 +142,7 @@ export function ContinentsMap({ trips }: Props) {
     <div className="glass-card p-5 animate-fade-up">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-foreground">Mappa del mondo</h2>
-        <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={debug}
-            className="accent-primary"
-          />
-        </label>
-      </div>
+</div>
 
       <div className="w-full rounded-xl bg-white p-3">
         <svg
@@ -176,6 +172,147 @@ export function ContinentsMap({ trips }: Props) {
                 />
               );
             })}
+
+            {debug && (
+              <g>
+                <line x1={0} y1={0} x2={0} y2={H} stroke="#ef4444" strokeWidth={0.6} strokeDasharray="2,2" />
+                <line x1={W} y1={0} x2={W} y2={H} stroke="#ef4444" strokeWidth={0.6} strokeDasharray="2,2" />
+                {antimeridianInfo.splits.map((s, i) => (
+                  <circle key={i} cx={s.x} cy={s.y} r={1.4} fill="#ef4444" stroke="#ffffff" strokeWidth={0.3}>
+                    <title>{s.name}</title>
+                  </circle>
+                ))}
+              </g>
+            )}
+          </g>
+        </svg>
+      </div>
+
+      {debug && antimeridianInfo.names.length > 0 && (
+        <div className="mt-3 rounded-lg border border-red-300/40 bg-red-500/5 p-3 text-xs">
+          <div className="font-semibold text-red-500 mb-1">
+            Paesi che attraversano ±180° ({antimeridianInfo.names.length})
+          </div>
+          <div className="text-muted-foreground">{antimeridianInfo.names.join(", ")}</div>
+        </div>
+      )}
+
+      <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+        {CONTINENTS.map((c) => {
+          const v = visitedContinents.has(c);
+          return (
+            <div
+              key={c}
+              className={`flex items-center gap-2 ${v ? "text-primary font-semibold" : "text-muted-foreground"}`}
+            >
+              <span>{c}</span>
+              <span aria-hidden>{v ? "✓" : "✕"}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- Geometry helpers ---
+
+function geoToPath(geom: any): string {
+  if (!geom) return "";
+  if (geom.type === "Polygon") return polyToPath(geom.coordinates);
+  if (geom.type === "MultiPolygon")
+    return geom.coordinates.map((poly: any) => polyToPath(poly)).join(" ");
+  return "";
+}
+
+// Split a ring whenever consecutive points jump across the antimeridian
+// (longitude difference > 180°). Without this the equirectangular projection
+// draws a long horizontal line across the whole map for any country whose
+// polygon crosses the ±180° meridian (Russia, Antarctica, Fiji, Kiribati…).
+export function splitRingAtAntimeridian(ring: number[][]): number[][][] {
+  const segments: number[][][] = [];
+  let current: number[][] = [];
+  let prevLon: number | null = null;
+  for (const point of ring) {
+    const lon = point[0];
+    if (prevLon !== null && Math.abs(lon - prevLon) > 180) {
+      if (current.length) segments.push(current);
+      current = [];
+    }
+    current.push(point);
+    prevLon = lon;
+  }
+  if (current.length) segments.push(current);
+  return segments;
+}
+
+function polyToPath(rings: number[][][]): string {
+  return rings
+    .map((ring) => {
+      const segments = splitRingAtAntimeridian(ring);
+      return segments
+        .map((seg) => {
+          if (seg.length < 2) return "";
+          const pts = seg.map(([lon, lat]) => project(lon, lat));
+          return (
+            "M" +
+            pts
+              .map(([x, y], i) => `${i === 0 ? "" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+              .join(" ")
+          );
+        })
+        .filter(Boolean)
+        .join(" ");
+    })
+    .join(" ");
+}
+
+function polyCentroid(geom: any): [number, number] {
+  // Returns [lon, lat] approximate centroid
+  let coords: number[][] = [];
+  if (geom.type === "Polygon") coords = geom.coordinates[0];
+  else if (geom.type === "MultiPolygon") {
+    // pick the largest ring
+    let best: number[][] = [];
+    for (const poly of geom.coordinates) {
+      if (poly[0].length > best.length) best = poly[0];
+    }
+    coords = best;
+  }
+  if (!coords.length) return [0, 0];
+  let lon = 0, lat = 0;
+  for (const [x, y] of coords) { lon += x; lat += y; }
+  return [lon / coords.length, lat / coords.length];
+}
+
+function extractPolygons(geom: any): number[][][][] {
+  if (!geom) return [];
+  if (geom.type === "Polygon") return [geom.coordinates];
+  if (geom.type === "MultiPolygon") return geom.coordinates;
+  return [];
+}
+
+function pointInRing(lon: number, lat: number, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersect =
+      (yi > lat) !== (yj > lat) &&
+      lon < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInCountry(lon: number, lat: number, polygons: number[][][][]): boolean {
+  for (const poly of polygons) {
+    if (!poly.length) continue;
+    if (pointInRing(lon, lat, poly[0])) {
+      let inHole = false;
+      for (let h = 1; h < poly.length; h++) {
+        if (pointInRing(lon, lat, poly[h])) { inHole = true; break; }
+      }
       if (!inHole) return true;
     }
   }
