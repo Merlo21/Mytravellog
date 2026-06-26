@@ -307,7 +307,7 @@ export function WorldMap({
     });
     map.addLayer({
       id: "route-line", type: "line", source: "route-line",
-      paint: { "line-color":"#22d3ee", "line-width":2, "line-opacity":0.8, "line-dasharray":[3,2] },
+      paint: { "line-color":"#60a5fa", "line-width":2, "line-opacity":0.8, "line-dasharray":[3,2] },
     });
 
     // Home marker
@@ -323,7 +323,7 @@ export function WorldMap({
     ordered.forEach((t, i) => {
       const sel = t.id === selectedId;
       const el = document.createElement("div");
-      el.style.cssText = `width:${sel?30:24}px;height:${sel?30:24}px;border-radius:50%;background:${sel?"#5eead4":"#22d3ee"};border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:${sel?11:10}px;font-weight:700;color:#02060f;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:ui-sans-serif,system-ui,sans-serif`;
+      el.style.cssText = `width:${sel?30:24}px;height:${sel?30:24}px;border-radius:50%;background:${sel?"#5eead4":"#60a5fa"};border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:${sel?11:10}px;font-weight:700;color:#02060f;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:ui-sans-serif,system-ui,sans-serif`;
       el.textContent = String(i + 1);
 
       const flag = (c: string) => c.length === 2
