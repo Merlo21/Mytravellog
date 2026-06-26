@@ -44,9 +44,10 @@ function starToXY(ra: number, dec: number, ox: number, oy: number, W: number, H:
 interface Props {
   offsetX: number;
   offsetY: number;
+  mousePos?: {x:number;y:number} | null;
 }
 
-export function StarField({ offsetX, offsetY }: Props) {
+export function StarField({ offsetX, offsetY, mousePos }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredConst, setHoveredConst] = useState<string | null>(null);
@@ -113,6 +114,26 @@ export function StarField({ offsetX, offsetY }: Props) {
     ro.observe(canvas);
     return () => ro.disconnect();
   }, [offsetX, offsetY]);
+
+  useEffect(() => {
+    if (!mousePos || !containerRef.current) { if (!mousePos) setHoveredConst(null); return; }
+    const rect = containerRef.current.getBoundingClientRect();
+    const mx = mousePos.x - rect.left;
+    const my = mousePos.y - rect.top;
+    const W = rect.width, H = rect.height;
+    let closest: string | null = null;
+    let minDist = 80;
+    CONSTELLATIONS.forEach(({ name, stars }) => {
+      const pts = stars.filter(i => i < STARS.length)
+        .map(i => starToXY(STARS[i][0], STARS[i][1], offsetX, offsetY, W, H));
+      if (!pts.length) return;
+      const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+      const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+      const dist = Math.hypot(mx - cx, my - cy);
+      if (dist < minDist) { minDist = dist; closest = name; setLabelPos({ x: cx, y: cy - 18 }); }
+    });
+    setHoveredConst(closest);
+  }, [mousePos, offsetX, offsetY]);
 
   // Mouse/touch handler — find nearest constellation centroid
   const handlePointer = (e: React.MouseEvent | React.TouchEvent) => {
