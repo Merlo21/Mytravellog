@@ -76,8 +76,9 @@ function HomeInner() {
               </svg>
             </div>
             <div>
-              <h1 className="text-[19px] font-bold leading-none">Atlas</h1>
-              <p className="text-[9px] text-muted-foreground font-mono uppercase tracking-widest mt-0.5">Trip Tracker</p>
+              <h1 className="text-[20px] font-extrabold leading-none tracking-[0.2em]">
+                <span style={{color:"#22d3ee"}}>NAV</span><span style={{color:"#fbbf24"}}>·</span><span>TA</span>
+              </h1>
             </div>
           </div>
 
