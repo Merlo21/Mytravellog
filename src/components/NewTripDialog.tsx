@@ -231,7 +231,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       </button>
 
       {open && createPortal(
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.75)",backdropFilter:"blur(6px)"}}
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(6,14,30,0.55)",backdropFilter:"blur(16px)"}}
           onClick={e => { if (e.target === e.currentTarget) { setOpen(false); reset(); } }}>
           <div className="glass-card w-full max-w-lg mx-4 overflow-hidden"
             style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
