@@ -94,37 +94,41 @@ export function TravelHighlights({ trips }: Props) {
       <div className="glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
 
-        {/* Hero row */}
-        <div className="flex items-center justify-between gap-3 pb-5 border-b border-border mb-5 flex-wrap">
+        {/* Hero row — 3 stats same style */}
+        <div className="flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-secondary/50">
-              <Globe2 className="w-6 h-6 text-primary" strokeWidth={1.5}/>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(55,138,221,0.12)"}}>
+              <Globe2 className="w-5 h-5" style={{color:"#378ADD"}} strokeWidth={1.5}/>
             </div>
             <div>
               <div className="text-2xl font-bold font-mono">{formatDistanceKm(totalKm, distanceUnit)}</div>
               <div className="text-xs text-muted-foreground mt-0.5">chilometri percorsi in totale</div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 bg-secondary/40 border border-border">
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(99,153,34,0.12)"}}>
               <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M4.5 11 Q11 4.5 17.5 11 Q11 17.5 4.5 11Z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-                <path d="M11 4.5 V17.5" stroke="currentColor" strokeWidth="1.2"/>
-                <path d="M18 8 A8 8 0 0 0 18 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                <polyline points="16.5,6.5 18,8 19.5,6.5" fill="currentColor"/>
+                <circle cx="11" cy="11" r="6.5" stroke="#639922" strokeWidth="1.5"/>
+                <path d="M4.5 11 Q11 4.5 17.5 11 Q11 17.5 4.5 11Z" stroke="#639922" strokeWidth="1.2" fill="none"/>
+                <path d="M11 4.5 V17.5" stroke="#639922" strokeWidth="1.2"/>
+                <path d="M18 8 A8 8 0 0 0 18 14" stroke="#639922" strokeWidth="1.8" strokeLinecap="round"/>
+                <polyline points="16.5,6.5 18,8 19.5,6.5" fill="#639922"/>
               </svg>
-              <div>
-                <div className="text-sm font-bold font-mono">{aroundWorld.toFixed(2).replace(".",",")}×</div>
-                <div className="text-[10px] text-muted-foreground">Intorno al mondo</div>
-              </div>
             </div>
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 bg-secondary/40 border border-border">
-              <Moon className="w-5 h-5 text-muted-foreground" strokeWidth={1.5}/>
-              <div>
-                <div className="text-sm font-bold font-mono">{toMoon.toFixed(3).replace(".",",")}×</div>
-                <div className="text-[10px] text-muted-foreground">Alla luna</div>
-              </div>
+            <div>
+              <div className="text-2xl font-bold font-mono">{aroundWorld.toFixed(2).replace(".",",")}×</div>
+              <div className="text-xs text-muted-foreground mt-0.5">intorno al mondo</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(127,119,221,0.12)"}}>
+              <Moon className="w-5 h-5" style={{color:"#7F77DD"}} strokeWidth={1.5}/>
+            </div>
+            <div>
+              <div className="text-2xl font-bold font-mono">{toMoon.toFixed(3).replace(".",",")}×</div>
+              <div className="text-xs text-muted-foreground mt-0.5">alla luna</div>
             </div>
           </div>
         </div>
