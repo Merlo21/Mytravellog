@@ -474,21 +474,24 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                     </button>
                   ))}
                 </div>
-                <div style={{ position:"relative" }}>
+                <div style={{ position:"relative", display:"flex", justifyContent:"center" }}>
+                  <div style={{ position:"relative", width:180 }}>
                   <input style={{ background:"transparent", border:"1px dashed #1a2d4a", borderRadius:99,
                     padding:"6px 16px 6px 32px", fontSize:11, color:"rgba(255,255,255,0.35)",
                     width:"100%", outline:"none", boxSizing:"border-box", textAlign:"center",
                     cursor:"pointer" }}
                     value={wpQuery} onChange={e => setWpQuery(e.target.value)}
                     placeholder="Aggiungi tappa"
-                    onFocus={e => { e.target.style.borderColor="#60a5fa"; e.target.style.borderStyle="solid"; e.target.style.textAlign="left"; }}
-                    onBlur={e => { e.target.style.borderColor="#1a2d4a"; e.target.style.borderStyle="dashed"; e.target.style.textAlign="center"; }}/>
+                    onFocus={e => { e.target.style.borderColor="#60a5fa"; e.target.style.borderStyle="solid"; e.target.style.textAlign="left"; e.target.style.width="280px"; e.target.style.marginLeft="-50px"; }}
+                    onBlur={e => { e.target.style.borderColor="#1a2d4a"; e.target.style.borderStyle="dashed"; e.target.style.textAlign="center"; e.target.style.width="180px"; e.target.style.marginLeft="0"; }}/>
+                  </div>
                   {wpLoading
                     ? <Loader2 className="w-3.5 h-3.5 absolute text-muted-foreground animate-spin"
                         style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)" }}/>
                     : <Search className="w-3.5 h-3.5 text-muted-foreground"
                         style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", color:"rgba(255,255,255,0.3)" }}/>
                   }
+                  </div>
                   {wpResults.length > 0 && (
                     <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#0d1f3c",
                       border:"0.5px solid #1a2d4a", borderRadius:8, zIndex:10, overflow:"hidden", marginTop:4 }}>
