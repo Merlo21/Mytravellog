@@ -58,6 +58,16 @@ function RouteArcs({
   const cx = (i: number) => pad + i * step;
   const cy = 82;
 
+  // Only show SVG when there are cities added
+  if (waypoints.length === 0) return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"20px 0",
+        color:"rgba(255,255,255,0.25)", fontSize:12 }}>
+        Aggiungi almeno una città all'itinerario
+      </div>
+    </div>
+  );
+
   return (
     <div>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible", minWidth: W }}>
@@ -278,8 +288,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       background:"rgba(6,14,30,0.55)", backdropFilter:"blur(16px)" }}
       onClick={e => { if (e.target === e.currentTarget) { setOpen(false); reset(); } }}>
 
-      <div className="glass-card w-full max-w-lg mx-4"
-        style={{ maxHeight:"90vh", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div className="w-full max-w-lg mx-4"
+        style={{ maxHeight:"90vh", display:"flex", flexDirection:"column", overflow:"hidden", background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:14, boxShadow:"0 32px 80px rgba(0,0,0,0.5)" }}>
 
         {/* Header */}
         <div style={{ padding:"14px 20px", borderBottom:"0.5px solid #1a2d4a", display:"flex", alignItems:"center", gap:10 }}>
