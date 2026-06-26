@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { LocalTrip } from "@/lib/storage";
+import { Trip as LocalTrip } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CalendarDays, Route, Mountain, MapPin } from "lucide-react";
+const earthImg = "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=600&q=80";
+const forestImg = "https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=80";
 import { useSettings, formatDistanceKm, formatAltitudeM } from "@/lib/settings";
 
 // Total recognized sovereign countries (UN members + observers, commonly used as 195)
@@ -53,13 +55,13 @@ export function StatsSection({ trips }: Props) {
     <section className="mb-8 animate-fade-up">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <StatHero
-          image="https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=400&q=60"
+          image={earthImg}
           alt="Pianeta Terra dallo spazio"
           value={count.toString()}
           label="paesi"
         />
         <StatHero
-          image="https://images.unsplash.com/photo-1448375240586-882707db888b?w=400&q=60"
+          image={forestImg}
           alt="Strada nella foresta"
           value={`${percentLabel}%`}
           label="del mondo visto"
