@@ -1,394 +1,439 @@
 import { useEffect, useRef, useState } from "react";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
-import { fmtDistance, fmtAltitude, fmtTemp, useSettings } from "@/lib/settings";
+import { fmtDistance, useSettings } from "@/lib/settings";
 import { toast } from "sonner";
-import { Plus, Search, Loader2, MapPin, Home, Thermometer, Mountain, Route, Plane, Train, Car, Ship, Footprints, X } from "lucide-react";
-
-interface PrefilledCity {
-  name: string;
-  country: string;
-  country_code: string;
-  latitude: number;
-  longitude: number;
-}
+import { Plus, Search, Loader2, MapPin, X, Plane, Train, Car, Ship, Footprints } from "lucide-react";
 
 interface Props {
   onCreated: () => void;
   defaultHome?: { lat: number; lon: number; label: string } | null;
-  prefilledCity?: PrefilledCity | null;
+  prefilledCity?: { name: string; country: string; country_code: string; latitude: number; longitude: number } | null;
   triggerLabel?: string;
 }
 
+type Waypoint = { city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
+type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
+
+const TRANSPORT: { value: TransportMode; label: string; color: string; bg: string; icon: React.ReactNode }[] = [
+  { value: "plane", label: "Aereo",   color: "#378ADD", bg: "rgba(55,138,221,0.15)",  icon: <Plane className="w-3.5 h-3.5"/> },
+  { value: "train", label: "Treno",   color: "#BA7517", bg: "rgba(186,117,23,0.15)",  icon: <Train className="w-3.5 h-3.5"/> },
+  { value: "car",   label: "Auto",    color: "#639922", bg: "rgba(99,153,34,0.15)",   icon: <Car className="w-3.5 h-3.5"/> },
+  { value: "ship",  label: "Nave",    color: "#0F6E56", bg: "rgba(15,110,86,0.15)",   icon: <Ship className="w-3.5 h-3.5"/> },
+  { value: "walk",  label: "A piedi", color: "#D85A30", bg: "rgba(216,90,48,0.15)",   icon: <Footprints className="w-3.5 h-3.5"/> },
+];
+
+const RATING_LABELS: Record<number, string> = { 1: "Non memorabile", 2: "Nella media", 3: "Bello", 4: "Fantastico", 5: "Indimenticabile" };
+
+function daysBetween(a: string, b: string) {
+  if (!a || !b) return null;
+  const diff = new Date(b).getTime() - new Date(a).getTime();
+  const d = Math.round(diff / 86400000);
+  return d > 0 ? d : null;
+}
+
+function RouteArcs({ waypoints, home }: { waypoints: Waypoint[]; home: { label: string } | null }) {
+  const allStops = [
+    { label: home?.label ?? "Casa", flag: "🏠", isHome: true, transport: null as TransportMode | null },
+    ...waypoints.map(w => ({ label: w.city, flag: countryFlag(w.country_code), isHome: false, transport: w.transport_mode })),
+  ];
+
+  if (allStops.length < 2) return (
+    <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+      Aggiungi almeno una città
+    </div>
+  );
+
+  const W = 420, H = 130;
+  const n = allStops.length;
+  const pad = 50;
+  const step = n > 1 ? (W - pad * 2) / (n - 1) : 0;
+  const cx = (i: number) => pad + i * step;
+  const cy = 90;
+  const r = 20;
+
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible", minWidth: W }}>
+      <defs>
+        {TRANSPORT.map(t => (
+          <marker key={t.value} id={`arr-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill={t.color} opacity="0.8"/>
+          </marker>
+        ))}
+      </defs>
+
+      {allStops.map((stop, i) => {
+        if (i === 0) return null;
+        const prev = allStops[i - 1];
+        const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
+        const x1 = cx(i - 1), x2 = cx(i);
+        const mx = (x1 + x2) / 2;
+        const arcH = Math.min(60, Math.max(25, (x2 - x1) * 0.35));
+        return (
+          <g key={i}>
+            <path
+              d={`M ${x1} ${cy} Q ${mx} ${cy - arcH} ${x2} ${cy}`}
+              stroke={t.color} strokeWidth="1.8" strokeDasharray="5 3"
+              fill="none" opacity="0.6"
+              markerEnd={`url(#arr-${t.value})`}
+            />
+            <rect x={mx - 28} y={cy - arcH - 14} width="56" height="18" rx="9"
+              fill={t.bg} stroke={t.color} strokeWidth="0.5" strokeOpacity="0.6"/>
+            <text x={mx} y={cy - arcH - 2} fontSize="9.5" textAnchor="middle" fill={t.color}>
+              {t.label}
+            </text>
+          </g>
+        );
+      })}
+
+      {allStops.map((stop, i) => {
+        const x = cx(i);
+        const isLast = i === allStops.length - 1;
+        const lastT = isLast && allStops.length > 1
+          ? TRANSPORT.find(t => t.value === allStops[i].transport) ?? TRANSPORT[0]
+          : null;
+        const borderColor = stop.isHome ? "#fbbf24" : lastT ? lastT.color : "#60a5fa";
+        const bgColor = stop.isHome ? "rgba(251,191,36,0.1)" : lastT ? lastT.bg : "rgba(96,165,250,0.08)";
+        const nodeR = isLast ? r + 3 : r;
+        return (
+          <g key={i}>
+            <circle cx={x} cy={cy} r={nodeR} fill={bgColor} stroke={borderColor} strokeWidth={isLast ? 2 : 1.5}/>
+            <text x={x} y={cy + 5} fontSize={isLast ? 17 : 16} textAnchor="middle" dominantBaseline="middle">
+              {stop.flag}
+            </text>
+            <text x={x} y={cy + nodeR + 10} fontSize="9" textAnchor="middle"
+              fill={isLast ? borderColor : "rgba(255,255,255,0.45)"}
+              fontWeight={isLast ? "600" : "normal"}>
+              {stop.label.length > 8 ? stop.label.slice(0, 7) + "…" : stop.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLabel }: Props) {
-  const { distanceUnit, temperatureUnit } = useSettings();
   const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [dropPos, setDropPos] = useState<{top:number;right:number}|null>(null);
+  const { distanceUnit } = useSettings();
 
-  // Auto-open and pre-fill when a city is passed from the globe
-  useEffect(() => {
-    if (prefilledCity) {
-      setOpen(true);
-      setDest({
-        id: 0,
-        name: prefilledCity.name,
-        country: prefilledCity.country,
-        country_code: prefilledCity.country_code,
-        latitude: prefilledCity.latitude,
-        longitude: prefilledCity.longitude,
-      });
-      
-      setStep(2);
-      const today = new Date().toISOString().slice(0, 10);
-      Promise.all([
-        fetchElevation(prefilledCity.latitude, prefilledCity.longitude),
-        fetchTemperature(prefilledCity.latitude, prefilledCity.longitude, today),
-      ]).then(([alt, temp]) => {
-        setPreview((p) => ({ ...p, alt, temp }));
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefilledCity]);
-  const [step, setStep] = useState<1 | 2>(1);
+  // Form state
+  const [title, setTitle] = useState("");
+  const [dateStart, setDateStart] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dateEnd, setDateEnd] = useState("");
+  const [notes, setNotes] = useState("");
+  const [rating, setRating] = useState<number>(0);
+  const [hoverRating, setHoverRating] = useState<number>(0);
 
-  const [destQuery, setDestQuery] = useState("");
-  const [destResults, setDestResults] = useState<GeoResult[]>([]);
-  const [dest, setDest] = useState<GeoResult | null>(null);
-  const [searching, setSearching] = useState(false);
+  // Waypoints (the route)
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+  const [wpQuery, setWpQuery] = useState("");
+  const [wpResults, setWpResults] = useState<GeoResult[]>([]);
+  const [wpTransport, setWpTransport] = useState<TransportMode>("plane");
+  const [wpLoading, setWpLoading] = useState(false);
 
+  // Home
+  const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(defaultHome ?? null);
   const [homeQuery, setHomeQuery] = useState(defaultHome?.label ?? "");
   const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
-  const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(defaultHome ?? null);
 
-  const [title, setTitle] = useState("");
-  const [tripDate, setTripDate] = useState(new Date().toISOString().slice(0, 10));
-  const [notes, setNotes] = useState("");
-  const [transportMode, setTransportMode] = useState<"plane"|"train"|"car"|"ship"|"walk"|null>(null);
-  const [waypoints, setWaypoints] = useState<{city:string;country:string;transport_mode:"plane"|"train"|"car"|"ship"|"walk"}[]>([]);
-  const [wpSearch, setWpSearch] = useState("");
-  const [wpResults, setWpResults] = useState<any[]>([]);
-  const [wpTransport, setWpTransport] = useState<"plane"|"train"|"car"|"ship"|"walk">("plane");
   const [saving, setSaving] = useState(false);
-  const [preview, setPreview] = useState<{ temp: number | null; alt: number | null; dist: number | null }>({ temp: null, alt: null, dist: null });
 
-  // Sync homeQuery when defaultHome becomes available after first trip
   useEffect(() => {
-    if (defaultHome && !home) {
-      setHome(defaultHome);
-      setHomeQuery(defaultHome.label);
+    if (prefilledCity && open) {
+      setWaypoints([{
+        city: prefilledCity.name,
+        country: prefilledCity.country,
+        country_code: prefilledCity.country_code,
+        lat: prefilledCity.latitude,
+        lon: prefilledCity.longitude,
+        transport_mode: "plane",
+      }]);
     }
+  }, [prefilledCity, open]);
+
+  useEffect(() => {
+    if (defaultHome) { setHome(defaultHome); setHomeQuery(defaultHome.label); }
   }, [defaultHome]);
 
-  // Reset on close
-  useEffect(() => {
-    if (!open) {
-      setStep(1); setDest(null); setDestQuery(""); setDestResults([]);
-      setTitle(""); setNotes(""); setPreview({ temp: null, alt: null, dist: null });
-      if (defaultHome) { setHome(defaultHome); setHomeQuery(defaultHome.label); }
-    }
-  }, [open, defaultHome]);
-
-  // Destination autocomplete
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (destQuery.length < 2) { setDestResults([]); return; }
-      setSearching(true);
-      setDestResults(await searchPlaces(destQuery));
-      setSearching(false);
-    }, 300);
-    const searchWaypoint = async (q: string) => {
+  const searchWp = async (q: string) => {
+    setWpQuery(q);
     if (q.length < 2) { setWpResults([]); return; }
-    const res = await searchPlaces(q);
-    setWpResults(res.slice(0, 5));
+    setWpLoading(true);
+    const r = await searchPlaces(q);
+    setWpResults(r.slice(0, 5));
+    setWpLoading(false);
   };
 
-  const addWaypoint = (r: any) => {
-    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
-    setWpSearch(""); setWpResults([]);
+  const addWaypoint = (r: GeoResult) => {
+    setWaypoints(prev => [...prev, {
+      city: r.name, country: r.country, country_code: r.country_code ?? "",
+      lat: r.lat, lon: r.lon, transport_mode: wpTransport,
+    }]);
+    setWpQuery(""); setWpResults([]);
   };
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
 
-  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
-    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
-    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
-    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
-    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
-    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
-  ];
+  const updateWpTransport = (i: number, mode: TransportMode) =>
+    setWaypoints(prev => prev.map((w, idx) => idx === i ? { ...w, transport_mode: mode } : w));
 
-  return () => clearTimeout(t);
-  }, [destQuery]);
-
-  // Home autocomplete
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (homeQuery.length < 2 || home?.label === homeQuery) { setHomeResults([]); return; }
-      setHomeResults(await searchPlaces(homeQuery));
-    }, 300);
-    const searchWaypoint = async (q: string) => {
-    if (q.length < 2) { setWpResults([]); return; }
-    const res = await searchPlaces(q);
-    setWpResults(res.slice(0, 5));
+  const reset = () => {
+    setTitle(""); setDateStart(new Date().toISOString().slice(0, 10));
+    setDateEnd(""); setNotes(""); setRating(0); setWaypoints([]);
+    setWpQuery(""); setWpResults([]);
   };
 
-  const addWaypoint = (r: any) => {
-    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
-    setWpSearch(""); setWpResults([]);
-  };
-
-  const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
-
-  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
-    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
-    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
-    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
-    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
-    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
-  ];
-
-  return () => clearTimeout(t);
-  }, [homeQuery, home?.label]);
-
-  // Distance preview
-  useEffect(() => {
-    if (dest && home) setPreview((p) => ({ ...p, dist: distanceKm(home.lat, home.lon, dest.latitude, dest.longitude) }));
-  }, [home, dest]);
-
-  // Temperature re-fetch when date changes (step 2)
-  useEffect(() => {
-    if (step === 2 && dest) {
-      fetchTemperature(dest.latitude, dest.longitude, tripDate).then((temp) => setPreview((p) => ({ ...p, temp })));
-    }
-  }, [tripDate, step, dest]);
-
-  const pickDest = (p: GeoResult) => {
-    setDest(p); setDestResults([]);
-    setDestQuery(`${p.name}, ${p.country}`);
-    
-  };
-
-  const pickHome = (p: GeoResult) => {
-    const h = { lat: p.latitude, lon: p.longitude, label: `${p.name}, ${p.country}` };
-    setHome(h); setHomeResults([]); setHomeQuery(h.label);
-  };
-
-  const goStep2 = async () => {
-    if (!dest) return;
-    setStep(2);
-    const [alt, temp] = await Promise.all([
-      fetchElevation(dest.latitude, dest.longitude),
-      fetchTemperature(dest.latitude, dest.longitude, tripDate),
-    ]);
-    setPreview((p) => ({ ...p, alt, temp }));
-  };
-
-  const save = () => {
-    if (!dest || !home) { toast.error("Seleziona destinazione e punto di partenza"); return; }
+  const handleSave = async () => {
+    if (waypoints.length === 0) { toast.error("Aggiungi almeno una città all'itinerario"); return; }
     setSaving(true);
-    try {
-      addTrip({
-        title: title.trim() || dest.name,
-        country: dest.country,
-        city: dest.name,
-        trip_date: tripDate,
-        notes: notes.trim() || null,
-      transport_mode: transportMode,
-      waypoints,
-        latitude: dest.latitude,
-        longitude: dest.longitude,
-        home_latitude: home.lat,
-        home_longitude: home.lon,
-        home_label: home.label,
-        temperature_c: preview.temp,
-        altitude_m: preview.alt,
-        distance_from_home_km: preview.dist,
-        country_code: dest.country_code ?? "",
-      });
-      toast.success("Viaggio aggiunto ✈️");
-      setOpen(false);
-      onCreated();
-    } catch (e: any) {
-      toast.error(e.message ?? "Errore salvataggio");
-    } finally {
-      setSaving(false);
-    }
+    const dest = waypoints[waypoints.length - 1];
+    const dist = home ? distanceKm(home.lat, home.lon, dest.lat, dest.lon) : null;
+    const [alt, temp] = await Promise.all([
+      fetchElevation(dest.lat, dest.lon),
+      fetchTemperature(dest.lat, dest.lon),
+    ]);
+    addTrip({
+      title: title.trim() || dest.city,
+      country: dest.country,
+      city: dest.city,
+      trip_date: dateStart,
+      date_end: dateEnd || null,
+      notes: notes.trim() || null,
+      transport_mode: dest.transport_mode,
+      waypoints: waypoints.slice(0, -1).map(w => ({ city: w.city, country: w.country, transport_mode: w.transport_mode })),
+      latitude: dest.lat,
+      longitude: dest.lon,
+      home_latitude: home?.lat ?? null,
+      home_longitude: home?.lon ?? null,
+      distance_from_home_km: dist,
+      altitude_m: alt,
+      temperature_c: temp,
+      country_code: dest.country_code,
+      rating: rating || null,
+    });
+    toast.success("Viaggio salvato!");
+    setSaving(false);
+    setOpen(false);
+    reset();
+    onCreated();
   };
 
-  if (!open) {
-    const searchWaypoint = async (q: string) => {
-    if (q.length < 2) { setWpResults([]); return; }
-    const res = await searchPlaces(q);
-    setWpResults(res.slice(0, 5));
-  };
-
-  const addWaypoint = (r: any) => {
-    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
-    setWpSearch(""); setWpResults([]);
-  };
-
-  const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
-
-  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
-    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
-    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
-    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
-    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
-    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
-  ];
+  const days = daysBetween(dateStart, dateEnd);
 
   return (
-      <button ref={buttonRef} onClick={() => {
-        if (buttonRef.current) {
-          const r = buttonRef.current.getBoundingClientRect();
-          setDropPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
-        }
-        setOpen(true);
-      }}
+    <>
+      <button onClick={() => setOpen(true)}
         className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10"
-        style={{color:"#60a5fa", border:"1.5px solid #60a5fa"}}>
-        <Plus className="w-4 h-4" /> {triggerLabel || "Nuovo viaggio"}
+        style={{ color: "#60a5fa", border: "1.5px solid #60a5fa" }}>
+        <Plus className="w-4 h-4"/> {triggerLabel || "Nuovo viaggio"}
       </button>
-    );
-  }
 
-  const searchWaypoint = async (q: string) => {
-    if (q.length < 2) { setWpResults([]); return; }
-    const res = await searchPlaces(q);
-    setWpResults(res.slice(0, 5));
-  };
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={e => { if (e.target === e.currentTarget) { setOpen(false); reset(); } }}>
+          <div className="glass-card w-full max-w-lg mx-4 overflow-hidden"
+            style={{ maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
 
-  const addWaypoint = (r: any) => {
-    setWaypoints(prev => [...prev, { city: r.name, country: r.country, transport_mode: wpTransport }]);
-    setWpSearch(""); setWpResults([]);
-  };
-
-  const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
-
-  const TRANSPORT_OPTIONS: { value: "plane"|"train"|"car"|"ship"|"walk"; label: string; icon: JSX.Element }[] = [
-    { value: "plane", label: "Aereo",  icon: <Plane className="w-4 h-4"/> },
-    { value: "train", label: "Treno",  icon: <Train className="w-4 h-4"/> },
-    { value: "car",   label: "Auto",   icon: <Car className="w-4 h-4"/> },
-    { value: "ship",  label: "Nave",   icon: <Ship className="w-4 h-4"/> },
-    { value: "walk",  label: "A piedi",icon: <Footprints className="w-4 h-4"/> },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm" style={{paddingTop:"56px"}} onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-      <div className="glass-card w-full max-w-md p-6" style={{
-          position:"fixed",
-          top: dropPos?.top ?? "50%",
-          right: dropPos?.right ?? undefined,
-          left: dropPos ? undefined : "50%",
-          transform: dropPos ? undefined : "translate(-50%,-50%)",
-          maxHeight:"80vh",
-          overflowY:"auto",
-          zIndex:51,
-        }}>
-        <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4 sm:hidden"/>
-        <h2 className="text-xl font-bold mb-1">{step === 1 ? "Dove sei stato?" : "Dettagli del viaggio"}</h2>
-        <p className="text-sm text-muted-foreground mb-5">{step === 1 ? "Cerca la città visitata." : "Completa con partenza e dettagli."}</p>
-
-        {step === 1 && (
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input autoFocus className="input-base pl-10" value={destQuery}
-                onChange={(e) => { setDestQuery(e.target.value); setDest(null); }}
-                placeholder="Es. Tokyo, Reykjavik, Cusco..." />
-              {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(96,165,250,0.12)" }}>
+                <MapPin className="w-4 h-4" style={{ color: "#60a5fa" }}/>
+              </div>
+              <h2 className="text-base font-bold flex-1">Nuovo viaggio</h2>
+              <button onClick={() => { setOpen(false); reset(); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-secondary/60">
+                <X className="w-4 h-4 text-muted-foreground"/>
+              </button>
             </div>
-            {destResults.length > 0 && (
-              <div className="border border-border rounded-xl divide-y divide-border max-h-56 overflow-auto">
-                {destResults.map((p) => (
-                  <button key={`${p.id}-${p.latitude}`} onClick={() => pickDest(p)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-secondary/60 transition flex items-center gap-3">
-                    <span className="text-xl">{countryFlag(p.country_code)}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate text-sm">{p.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{p.admin1 ? `${p.admin1}, ` : ""}{p.country}</div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+
+              {/* Nome */}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Nome del viaggio</label>
+                <input className="input-field w-full" value={title} onChange={e => setTitle(e.target.value)}
+                  placeholder="Es. Viaggio di nozze, Tokyo 2024…"/>
+              </div>
+
+              {/* Periodo */}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Periodo</label>
+                <div className="flex items-stretch rounded-xl overflow-hidden border border-border">
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-secondary/20">
+                    <Plane className="w-3.5 h-3.5 text-primary flex-shrink-0" style={{transform:"rotate(-45deg)"}}/>
+                    <div>
+                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Partenza</div>
+                      <input type="date" className="bg-transparent text-sm font-medium outline-none w-full"
+                        value={dateStart} onChange={e => setDateStart(e.target.value)}/>
                     </div>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setOpen(false)} className="btn-ghost text-sm">Annulla</button>
-              <button onClick={goStep2} disabled={!dest} className="btn-primary text-sm flex items-center gap-2 disabled:opacity-40">
-                Avanti <MapPin className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && dest && (
-          <div className="space-y-4">
-            <div className="glass-card p-3 flex items-center gap-3">
-              <span className="text-2xl">{countryFlag(dest.country_code)}</span>
-              <div className="flex-1">
-                <div className="font-semibold text-sm">{dest.name}</div>
-                <div className="text-xs text-muted-foreground">{dest.country}</div>
-              </div>
-              <button onClick={() => setStep(1)} className="text-xs text-primary hover:underline">cambia</button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { icon: <Thermometer className="w-3.5 h-3.5" />, label: "Temp", value: fmtTemp(preview.temp, temperatureUnit) },
-                { icon: <Mountain className="w-3.5 h-3.5" />, label: "Altitudine", value: fmtAltitude(preview.alt, distanceUnit) },
-                { icon: <Route className="w-3.5 h-3.5" />, label: "Distanza", value: fmtDistance(preview.dist, distanceUnit) },
-              ].map(({ icon, label, value }) => (
-                <div key={label} className="rounded-xl border border-border bg-muted/30 p-2.5">
-                  <div className="flex items-center gap-1 text-muted-foreground text-xs mb-1">{icon} {label}</div>
-                  <div className="font-mono font-semibold text-sm">{value}</div>
+                  </div>
+                  <div className="w-px bg-border"/>
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-secondary/20">
+                    <Plane className="w-3.5 h-3.5 text-primary flex-shrink-0" style={{transform:"rotate(45deg) scaleX(-1)"}}/>
+                    <div>
+                      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Ritorno</div>
+                      <input type="date" className="bg-transparent text-sm font-medium outline-none w-full"
+                        value={dateEnd} onChange={e => setDateEnd(e.target.value)}/>
+                    </div>
+                  </div>
+                  {days && (
+                    <>
+                      <div className="w-px bg-border"/>
+                      <div className="px-3 py-2.5 flex items-center bg-secondary/20">
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Durata</div>
+                          <div className="text-sm text-muted-foreground">{days}g</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              ))}
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome del viaggio</label>
-              <input className="input-base" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Es. Weekend a Parigi, Viaggio di nozze…" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Data</label>
-                <input type="date" className="input-base" value={tripDate} onChange={(e) => setTripDate(e.target.value)} />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1"><Home className="w-3 h-3" /> Da dove?</label>
-                <input className="input-base" value={homeQuery} onChange={(e) => { setHomeQuery(e.target.value); setHome(null); }} placeholder="Casa / origine" />
+
+              {/* Casa */}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Punto di partenza</label>
+                <div className="relative">
+                  <input className="input-field w-full pl-8" value={homeQuery}
+                    onChange={async e => {
+                      setHomeQuery(e.target.value);
+                      if (e.target.value.length > 1) setHomeResults(await searchPlaces(e.target.value));
+                      else setHomeResults([]);
+                    }}
+                    placeholder="La tua città…"/>
+                  <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2"/>
+                  {homeResults.length > 0 && (
+                    <div className="absolute top-full mt-1 left-0 right-0 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                      {homeResults.map((r, i) => (
+                        <button key={i} type="button" onClick={() => { setHome({ lat: r.lat, lon: r.lon, label: r.name + ", " + r.country }); setHomeQuery(r.name + ", " + r.country); setHomeResults([]); }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-accent/10 flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0"/>
+                          {r.name}, {r.country}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Itinerario */}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">Itinerario</label>
+                <div className="rounded-xl border border-border bg-secondary/10 p-4">
+                  {/* Arc visualization */}
+                  <div className="overflow-x-auto mb-3">
+                    <RouteArcs waypoints={waypoints} home={home}/>
+                  </div>
+
+                  {/* Waypoints list with transport selector */}
+                  {waypoints.map((wp, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-2 text-sm">
+                      <span>{countryFlag(wp.country_code)}</span>
+                      <span className="flex-1 font-medium">{wp.city}</span>
+                      <div className="flex gap-1">
+                        {TRANSPORT.map(t => (
+                          <button key={t.value} type="button"
+                            onClick={() => updateWpTransport(i, t.value)}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors"
+                            style={{
+                              background: wp.transport_mode === t.value ? t.bg : "transparent",
+                              color: wp.transport_mode === t.value ? t.color : "rgba(255,255,255,0.2)",
+                              border: `0.5px solid ${wp.transport_mode === t.value ? t.color : "transparent"}`,
+                            }}>
+                            {t.icon}
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => removeWaypoint(i)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-secondary/60">
+                        <X className="w-3 h-3 text-muted-foreground"/>
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add city */}
+                  <div className="relative mt-1">
+                    <input className="input-field w-full pl-8 text-sm" value={wpQuery}
+                      onChange={e => searchWp(e.target.value)}
+                      placeholder="Aggiungi una città…"/>
+                    {wpLoading
+                      ? <Loader2 className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 animate-spin"/>
+                      : <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2"/>
+                    }
+                    {wpResults.length > 0 && (
+                      <div className="absolute top-full mt-1 left-0 right-0 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                        {wpResults.map((r, i) => (
+                          <button key={i} type="button" onClick={() => addWaypoint(r)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent/10 flex items-center gap-2">
+                            <span>{countryFlag(r.country_code ?? "")}</span>
+                            <span>{r.name}, {r.country}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Note + Stelle */}
+              <div className="flex gap-3 items-start">
+                <div className="flex-1">
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                    Note <span className="opacity-40 normal-case text-[9px]">(opzionale)</span>
+                  </label>
+                  <textarea className="input-field w-full resize-none text-sm" rows={3}
+                    value={notes} onChange={e => setNotes(e.target.value)}
+                    placeholder="Aggiungi una nota…"/>
+                </div>
+                <div className="flex-shrink-0">
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                    Valutazione <span className="opacity-40 normal-case text-[9px]">(opzionale)</span>
+                  </label>
+                  <div className="input-field flex items-center gap-1 px-3">
+                    {[1,2,3,4,5].map(i => (
+                      <button key={i} type="button"
+                        onMouseEnter={() => setHoverRating(i)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => setRating(rating === i ? 0 : i)}
+                        style={{
+                          fontSize: "20px",
+                          color: i <= (hoverRating || rating) ? "#fbbf24" : "rgba(255,255,255,0.15)",
+                          transition: "color 0.1s, transform 0.1s",
+                          transform: i <= (hoverRating || rating) ? "scale(1.1)" : "scale(1)",
+                          background: "none", border: "none", cursor: "pointer",
+                        }}>★</button>
+                    ))}
+                  </div>
+                  {(hoverRating || rating) > 0 && (
+                    <div className="text-[10px] text-center mt-1" style={{ color: "#fbbf24" }}>
+                      {RATING_LABELS[hoverRating || rating]}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-secondary/10">
+              <span className="text-[11px] text-muted-foreground">* Solo itinerario obbligatorio</span>
+              <div className="flex gap-2">
+                <button onClick={() => { setOpen(false); reset(); }}
+                  className="btn-ghost px-4 py-2 text-sm rounded-xl">Annulla</button>
+                <button onClick={handleSave} disabled={saving}
+                  className="btn-primary flex items-center gap-2 px-5 py-2 text-sm rounded-xl">
+                  {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
+                  Salva viaggio
+                </button>
               </div>
             </div>
 
-            {homeResults.length > 0 && (
-              <div className="border border-border rounded-xl divide-y divide-border max-h-36 overflow-auto -mt-2">
-                {homeResults.map((p) => (
-                  <button key={`${p.id}-${p.latitude}`} onClick={() => pickHome(p)}
-                    className="w-full text-left px-4 py-2 hover:bg-secondary/60 transition flex items-center gap-3 text-sm">
-                    <span>{countryFlag(p.country_code)}</span>
-                    <span>{p.name}, {p.country}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Note (opzionale)</label>
-              <textarea className="input-base resize-none" rows={2} value={notes}
-                onChange={(e) => setNotes(e.target.value)} placeholder="Cosa ricordi di questo posto?" />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setStep(1)} className="btn-ghost text-sm">Indietro</button>
-              <button onClick={save} disabled={saving || !home} className="btn-primary text-sm flex items-center gap-2 disabled:opacity-40">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salva viaggio"}
-              </button>
-            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
