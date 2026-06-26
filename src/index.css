@@ -1,9 +1,12 @@
+/* === NAV·TA exact background override === */
+html, body { background-color: #060e1e !important; }
+* { scrollbar-color: #0a1628 #060e1e; }
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html, body, [class*="bg-background"] { background-color: #060e1e !important; }
   .bg-background { background-color: #060e1e !important; }
 
   :root {
@@ -45,7 +48,6 @@
 }
 
 @layer base {
-  html, body, [class*="bg-background"] { background-color: #060e1e !important; }
   .bg-background { background-color: #060e1e !important; }
 
   * { @apply border-border; }
