@@ -29,7 +29,6 @@ import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
 import { NewTripDialog } from "@/components/NewTripDialog";
-import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, Plus, CheckCircle } from "lucide-react";
 
 function HomeInner() {
   const { distanceUnit, autoRotate } = useSettings();
