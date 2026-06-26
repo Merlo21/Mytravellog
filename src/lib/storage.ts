@@ -3,7 +3,9 @@ export type Trip = {
   title: string;
   country: string;
   city: string;
-  trip_date: string; // YYYY-MM-DD
+  trip_date: string; // YYYY-MM-DD (inizio)
+  date_end: string | null; // YYYY-MM-DD (fine)
+  rating: number | null; // 1-5 stelle
   notes: string | null;
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | null;
   waypoints: { city: string; country: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" }[];
