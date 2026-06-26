@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { feature } from "topojson-client";
-import { LocalTrip } from "@/lib/storage";
+import { Trip as LocalTrip } from "@/lib/storage";
 
 // Approximate continent bounding boxes (lat, lon)
 // Used to classify both trip markers AND country centroids
