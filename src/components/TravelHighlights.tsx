@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Compass } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Compass, Plane, Car } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
@@ -35,6 +35,13 @@ export function TravelHighlights({ trips }: Props) {
   );
   const aroundWorld = totalKm / EARTH_CIRCUMFERENCE_KM;
   const toMoon = totalKm / DISTANCE_TO_MOON_KM;
+
+  const byPlane = useMemo(
+    () => trips.filter(t => (t.distance_from_home_km ?? 0) > 500)
+      .reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0),
+    [trips]
+  );
+  const byRoad = totalKm - byPlane;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -93,6 +100,23 @@ export function TravelHighlights({ trips }: Props) {
               {toMoon.toFixed(1).replace(".", ",")} <span className="text-sm font-semibold">x</span>
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">alla luna</div>
+          </div>
+        </div>
+
+        <div className="border-t border-border mt-5 pt-5 grid grid-cols-2 gap-4 text-center">
+          <div className="flex flex-col items-center">
+            <Plane className="w-7 h-7 text-blue-400 mb-2" strokeWidth={1.8} />
+            <div className="text-xl font-bold text-blue-400">
+              {formatDistanceKm(byPlane, distanceUnit)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">In aereo <span className="opacity-60">(&gt;500km)</span></div>
+          </div>
+          <div className="flex flex-col items-center">
+            <Car className="w-7 h-7 text-emerald-400 mb-2" strokeWidth={1.8} />
+            <div className="text-xl font-bold text-emerald-400">
+              {formatDistanceKm(byRoad, distanceUnit)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">Su strada <span className="opacity-60">(&lt;500km)</span></div>
           </div>
         </div>
       </div>
