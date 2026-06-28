@@ -1026,8 +1026,6 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
 
           {/* Note + Stelle — stessa riga */}
           <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
