@@ -498,12 +498,12 @@ const NuovoViaggio = () => {
               onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
           </div>
 
-          {/* Periodo — Rettangolare, durata in alto, ripristinate icone/frecce */}
+          {/* Periodo — Corretto, senza la durata interna */}
           <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
             
             {/* Riga superiore: Titolo a sinistra, Durata a destra */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase" }}>
+              <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase", display:"block", margin: 0 }}>
                 Periodo
               </label>
               
