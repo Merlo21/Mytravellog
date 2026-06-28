@@ -4,22 +4,31 @@ export type DistanceUnit = "metric" | "imperial";
 export type TemperatureUnit = "celsius" | "fahrenheit";
 export type AutoRotate = "on" | "off";
 
+export type HomeCity = {
+  label: string;
+  lat: number;
+  lon: number;
+} | null;
+
 type Settings = {
   distanceUnit: DistanceUnit;
   temperatureUnit: TemperatureUnit;
   autoRotate: AutoRotate;
+  homeCity: HomeCity;
 };
 
 type Ctx = Settings & {
   setDistanceUnit: (v: DistanceUnit) => void;
   setTemperatureUnit: (v: TemperatureUnit) => void;
   setAutoRotate: (v: AutoRotate) => void;
+  setHomeCity: (v: HomeCity) => void;
 };
 
 const DEFAULTS: Settings = {
   distanceUnit: "metric",
   temperatureUnit: "celsius",
   autoRotate: "on",
+  homeCity: null,
 };
 
 const KEY = "atlas.settings.v1";
@@ -47,6 +56,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setDistanceUnit: (v) => setS((p) => ({ ...p, distanceUnit: v })),
     setTemperatureUnit: (v) => setS((p) => ({ ...p, temperatureUnit: v })),
     setAutoRotate: (v) => setS((p) => ({ ...p, autoRotate: v })),
+    setHomeCity: (v) => setS((p) => ({ ...p, homeCity: v })),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
