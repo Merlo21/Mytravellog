@@ -636,5 +636,3 @@ const NuovoViaggio = () => {
 };
 
 export default NuovoViaggio;
-
-```
