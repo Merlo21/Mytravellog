@@ -439,7 +439,7 @@ const NuovoViaggio = () => {
       </header>
 
       {/* Main layout: itinerario hero sinistra, form destra */}
-      <div style={{ flex:1, maxWidth:1200, margin:"0 auto", width:"100%",
+      <div style={{ maxWidth:1200, margin:"0 auto", width:"100%",
         padding:"32px 24px", display:"grid", gridTemplateColumns:"1fr 280px", gap:24, alignItems:"stretch" }}>
 
         {/* LEFT — Itinerario hero */}
