@@ -379,7 +379,9 @@ const NuovoViaggio = () => {
     if (waypoints.length === 0) { toast.error("Aggiungi almeno una città all'itinerario"); return; }
     setSaving(true);
     const dest = waypoints[waypoints.length - 1];
-    const dist = home ? distanceKm(home.lat, home.lon, dest.lat, dest.lon) : null;
+    const settHome = s.homeCity;
+    const distHome = settHome ?? home;
+    const dist = distHome ? distanceKm(distHome.lat, distHome.lon, dest.lat, dest.lon) : null;
     const [alt, temp] = await Promise.all([fetchElevation(dest.lat, dest.lon), fetchTemperature(dest.lat, dest.lon, dateStart)]);
     addTrip({
       title: title.trim() || dest.city,
