@@ -20,6 +20,7 @@ ReactDOM.createRoot(rootEl).render(
           <Route path="/" element={<Home />} />
           <Route path="/statistiche" element={<Stats />} />
           <Route path="/impostazioni" element={<SettingsPage />} />
+          <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
         </Routes>
         <Toaster richColors position="top-right" />
       </HashRouter>
