@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AppHeader } from "@/components/AppHeader";
 import { Trip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
@@ -9,10 +9,11 @@ import { TripTimelineChart } from "@/components/TripTimelineChart";
 
 const Stats = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
+  const location = useLocation();
 
   useEffect(() => {
     setTrips(loadTrips());
-  }, []);
+  }, [location]);
 
 
   return (
