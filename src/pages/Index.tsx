@@ -5,7 +5,6 @@ import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
-import { NewTripDialog } from "@/components/NewTripDialog";
 import { Compass, Globe, MapPin, Plane, PieChart, Settings, X, CheckCircle } from "lucide-react";
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
@@ -28,7 +27,6 @@ import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
-import { NewTripDialog } from "@/components/NewTripDialog";
 
 function HomeInner() {
   const { distanceUnit, autoRotate } = useSettings();
@@ -95,7 +93,11 @@ function HomeInner() {
             <Link to="/impostazioni" className="btn-ghost p-2" aria-label="Impostazioni">
               <Settings className="w-4 h-4 text-muted-foreground" />
             </Link>
-            <NewTripDialog onCreated={refresh} defaultHome={defaultHome} prefilledCity={pendingCity} />
+            <Link to="/nuovo-viaggio"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10"
+            style={{color:"#60a5fa", border:"1.5px solid #60a5fa"}}>
+            <Plus className="w-4 h-4"/> Nuovo viaggio
+          </Link>
           </div>
         </div>
       </header>
