@@ -4,7 +4,7 @@ import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag
 import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
-import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search, PieChart, Settings, Plus } from "lucide-react";
+import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search, PieChart, Settings } from "lucide-react";
 
 type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
 type Waypoint = { city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
@@ -365,12 +365,7 @@ const NuovoViaggio = () => {
             <Link to="/impostazioni" style={{ padding:"6px 8px", borderRadius:8, color:"rgba(255,255,255,0.4)", textDecoration:"none" }}>
               <Settings className="w-4 h-4"/>
             </Link>
-            <Link to="/nuovo-viaggio"
-              style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px",
-                borderRadius:10, fontSize:13, fontWeight:600, color:"#60a5fa",
-                border:"1.5px solid #60a5fa", textDecoration:"none" }}>
-              <Plus className="w-4 h-4"/> Nuovo viaggio
-            </Link>
+
           </div>
         </div>
       </header>
