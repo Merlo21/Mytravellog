@@ -438,49 +438,53 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                 ))}
               </div>
 
-              {/* Add city — pill centered */}
-              <div style={{ position:"relative" }}>
-                <div style={{ display:"flex", justifyContent:"center" }}>
-                  <input
-                    ref={wpInputRef}
-                    style={{ background:"transparent", border:"1.5px dashed #1a2d4a",
-                      borderRadius:99, padding:"5px 18px", fontSize:11,
-                      color:"rgba(255,255,255,0.4)", width:170, outline:"none",
-                      textAlign:"center", cursor:"pointer", boxSizing:"border-box" }}
-                    value={wpQuery}
-                    onChange={e => setWpQuery(e.target.value)}
-                    placeholder="⊕  Aggiungi tappa"
-                    onFocus={e => {
-                      e.target.style.borderColor="#60a5fa";
-                      e.target.style.borderStyle="solid";
-                      e.target.style.width="100%";
-                      e.target.style.textAlign="left";
-                      e.target.style.padding="5px 11px";
-                    }}
-                    onBlur={e => {
-                      e.target.style.borderColor="#1a2d4a";
-                      e.target.style.borderStyle="dashed";
-                      e.target.style.width="170px";
-                      e.target.style.textAlign="center";
-                      e.target.style.padding="5px 18px";
-                    }}
-                  />
-                </div>
-                {wpResults.length > 0 && (
-                  <div style={{ position:"absolute", top:"100%", left:0, right:0,
+              {/* Add city — pill with dropdown above */}
+              <div style={{ position:"relative", display:"flex", justifyContent:"center" }}>
+                {/* Dropdown above */}
+                {(wpQuery.length > 0 || wpResults.length > 0) && (
+                  <div style={{ position:"absolute", bottom:"calc(100% + 6px)", left:0, right:0,
                     background:"#0d1f3c", border:"0.5px solid #1a2d4a",
-                    borderRadius:8, zIndex:10, overflow:"hidden", marginTop:4 }}>
+                    borderRadius:8, overflow:"hidden", zIndex:20 }}>
+                    <div style={{ padding:"8px 10px", borderBottom:"0.5px solid #1a2d4a" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8,
+                        background:"rgba(0,0,0,0.2)", borderRadius:6, padding:"5px 10px" }}>
+                        {wpLoading
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+                          : <Search className="w-3.5 h-3.5" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+                        }
+                        <input autoFocus
+                          style={{ background:"transparent", border:"none", outline:"none",
+                            color:"#f0f4ff", fontSize:12, flex:1 }}
+                          value={wpQuery}
+                          onChange={e => setWpQuery(e.target.value)}
+                          placeholder="Cerca città…"/>
+                        <button type="button" onClick={() => { setWpQuery(""); setWpResults([]); }}
+                          style={{ background:"none", border:"none", cursor:"pointer",
+                            color:"rgba(255,255,255,0.3)", fontSize:14 }}>×</button>
+                      </div>
+                    </div>
                     {wpResults.map((r,i) => (
                       <button key={i} type="button" onClick={() => addWaypoint(r)}
                         style={{ width:"100%", textAlign:"left", padding:"8px 12px", fontSize:12,
                           color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
-                          display:"flex", alignItems:"center", gap:8 }}>
+                          display:"flex", alignItems:"center", gap:8,
+                          borderBottom:"0.5px solid #1a2d4a" }}>
                         <span>{countryFlag(r.country_code ?? "")}</span>
                         <span>{r.name}, {r.country}</span>
                       </button>
                     ))}
                   </div>
                 )}
+                {/* Pill */}
+                <button type="button"
+                  onClick={() => { setWpQuery(" "); setTimeout(() => setWpQuery(""), 10); }}
+                  style={{ display:"inline-flex", alignItems:"center", gap:5,
+                    fontSize:11, color:"rgba(255,255,255,0.4)",
+                    border:"1.5px dashed #1a2d4a", borderRadius:99,
+                    padding:"5px 16px", cursor:"pointer", background:"transparent",
+                    whiteSpace:"nowrap" }}>
+                  + Aggiungi tappa
+                </button>
               </div>
 
             </div>
