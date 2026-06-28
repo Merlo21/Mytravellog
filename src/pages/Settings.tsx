@@ -49,29 +49,7 @@ export default function Settings() {
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-20">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"#60a5fa"}}>
-              <svg width="26" height="26" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-                <circle cx="15" cy="15" r="11" stroke="#020d1a" strokeWidth="1.6"/>
-                <ellipse cx="15" cy="15" rx="11" ry="4.8" stroke="#020d1a" strokeWidth="1.2"/>
-                <ellipse cx="15" cy="15" rx="6.5" ry="11" stroke="#020d1a" strokeWidth="1.2"/>
-                <polygon points="15,5.5 13.5,13 15,11.5 16.5,13" fill="#ffffff"/>
-                <polygon points="15,24.5 13.5,17 15,18.5 16.5,17" fill="#ffffff" opacity="0.35"/>
-                <polygon points="24.5,15 17,13.5 18.5,15 17,16.5" fill="#fbbf24"/>
-                <polygon points="5.5,15 13,13.5 11.5,15 13,16.5" fill="#fbbf24" opacity="0.35"/>
-              </svg>
-            </div>
-            <h1 className="text-[20px] font-extrabold leading-none tracking-[0.2em]">
-              <span style={{color:"#60a5fa"}}>NAV</span><span style={{color:"#fbbf24"}}>·</span><span>TA</span>
-            </h1>
-          </div>
-          <Link to="/" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Indietro
-          </Link>
-        </div>
-      </header>
+      <AppHeader/>
 
       <div className="container mx-auto px-4 py-8 max-w-xl">
         <Group
