@@ -1,3 +1,8 @@
+Perfetto, compromesso eccellente! Spostando solo la durata in alto liberiamo quel blocco di pixel orizzontali che prima stringeva troppo i campi, permettendoci di rimettere l'icona dell'aereo e la freccia tratteggiata originale senza sacrificare la forma rettangolare ordinata.
+
+Ecco il codice completo aggiornato con questa specifica modifica:
+
+```tsx
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
@@ -498,11 +503,30 @@ const NuovoViaggio = () => {
               onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
           </div>
 
-          {/* Periodo — rettangolare come gli altri */}
+          {/* Periodo — Rettangolare, durata in alto, ripristinate icone/frecce */}
           <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
-            <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
-              textTransform:"uppercase", display:"block", marginBottom:10 }}>Periodo</label>
             
+            {/* Riga superiore: Titolo a sinistra, Durata a destra */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase" }}>
+                Periodo
+              </label>
+              
+              {days && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Durata</span>
+                  <div style={{ 
+                    background: "rgba(96, 165, 250, 0.15)", color: "#60a5fa", 
+                    fontWeight: 700, fontSize: 11, padding: "2px 8px", 
+                    borderRadius: 6, border: "1px solid rgba(96, 165, 250, 0.25)" 
+                  }}>
+                    {days}g
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Box degli Input Rettangolare */}
             <div 
               style={{ 
                 display:"flex", alignItems:"center", background:"#060e1e", 
@@ -513,17 +537,19 @@ const NuovoViaggio = () => {
               onMouseLeave={e => (e.currentTarget.style.borderColor="#1a2d4a")}
             >
               
+              {/* ICONA AEREO */}
+              <div style={{ display:"flex", alignItems:"center", paddingLeft:2, paddingRight:2, flexShrink:0 }}>
+                <Plane className="w-4 h-4" style={{ color:"#60a5fa", transform:"rotate(-45deg)" }}/>
+              </div>
+
               {/* PARTENZA */}
-              <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:0, paddingLeft:4 }}>
-                <Plane className="w-4 h-4" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(-45deg)" }}/>
-                <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0 }}>
-                  <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</span>
-                  <input type="date"
-                    style={{ background:"transparent", border:"none", outline:"none",
-                      color:"#f0f4ff", fontSize:12, fontWeight:600, width:"100%",
-                      colorScheme:"dark", padding:0, marginTop:1 }}
-                    value={dateStart} onChange={e => setDateStart(e.target.value)}/>
-                </div>
+              <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, marginLeft:4 }}>
+                <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</span>
+                <input type="date"
+                  style={{ background:"transparent", border:"none", outline:"none",
+                    color:"#f0f4ff", fontSize:12, fontWeight:600, width:"100%",
+                    colorScheme:"dark", padding:0, marginTop:1 }}
+                  value={dateStart} onChange={e => setDateStart(e.target.value)}/>
               </div>
               
               {/* CONNETTORE TRATTEGGIATO */}
@@ -542,33 +568,14 @@ const NuovoViaggio = () => {
               </div>
               
               {/* RITORNO */}
-              <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:0 }}>
-                <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0 }}>
-                  <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</span>
-                  <input type="date"
-                    style={{ background:"transparent", border:"none", outline:"none",
-                      color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.35)", fontSize:12, fontWeight:600, width:"100%",
-                      colorScheme:"dark", padding:0, marginTop:1 }}
-                    value={dateEnd} onChange={e => setDateEnd(e.target.value)}/>
-                </div>
+              <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, marginLeft:2 }}>
+                <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</span>
+                <input type="date"
+                  style={{ background:"transparent", border:"none", outline:"none",
+                    color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.35)", fontSize:12, fontWeight:600, width:"100%",
+                    colorScheme:"dark", padding:0, marginTop:1 }}
+                  value={dateEnd} onChange={e => setDateEnd(e.target.value)}/>
               </div>
-
-              {/* DURATA */}
-              {days && (
-                <>
-                  <div style={{ width:1, height:32, backgroundColor:"#1a2d4a", margin:"0 8px", flexShrink:0 }}/>
-                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", paddingRight:2, flexShrink:0 }}>
-                    <span style={{ fontSize:8, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Durata</span>
-                    <div style={{ 
-                      marginTop:2, background:"rgba(96, 165, 250, 0.15)", color:"#60a5fa", 
-                      fontWeight:700, fontSize:12, padding:"2px 8px", borderRadius:6, 
-                      border:"1px solid rgba(96, 165, 250, 0.25)", textAlign:"center", minWidth:28 
-                    }}>
-                      {days}g
-                    </div>
-                  </div>
-                </>
-              )}
 
             </div>
           </div>
@@ -634,3 +641,5 @@ const NuovoViaggio = () => {
 };
 
 export default NuovoViaggio;
+
+```
