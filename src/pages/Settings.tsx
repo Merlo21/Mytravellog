@@ -1,3 +1,4 @@
+import { AppHeader } from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate } from "@/lib/settings";
