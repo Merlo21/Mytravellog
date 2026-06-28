@@ -460,6 +460,7 @@ const NuovoViaggio = () => {
             </div>
           </div>
 
+          <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
           <RouteHero
             waypoints={waypoints} home={home}
             onEditHome={() => { setEditingHome(v => !v); setHomeQuery(home?.label ?? ""); }}
