@@ -11,9 +11,9 @@ export type Trip = {
   waypoints: { city: string; country: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" }[];
   latitude: number;
   longitude: number;
-  home_latitude: number;
-  home_longitude: number;
-  home_label: string;
+  home_latitude: number | null;
+  home_longitude: number | null;
+  home_label: string | null;
   temperature_c: number | null;
   altitude_m: number | null;
   distance_from_home_km: number | null;
