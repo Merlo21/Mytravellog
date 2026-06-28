@@ -498,7 +498,7 @@ const NuovoViaggio = () => {
               onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
           </div>
 
-          {/* Periodo — rielaborato con il nuovo design "a pillola" */}
+          {/* Periodo — rettangolare come gli altri */}
           <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
             <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
               textTransform:"uppercase", display:"block", marginBottom:10 }}>Periodo</label>
@@ -506,7 +506,7 @@ const NuovoViaggio = () => {
             <div 
               style={{ 
                 display:"flex", alignItems:"center", background:"#060e1e", 
-                border:"1px solid transparent", borderColor:"#1a2d4a", borderRadius:40, 
+                border:"1px solid transparent", borderColor:"#1a2d4a", borderRadius:8, 
                 padding:"8px 10px", transition:"border-color 0.2s ease" 
               }}
               onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(96, 165, 250, 0.4)")}
@@ -526,7 +526,7 @@ const NuovoViaggio = () => {
                 </div>
               </div>
               
-              {/* CONNETTORE TRATTEGGIATO CENTRALE */}
+              {/* CONNETTORE TRATTEGGIATO */}
               <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0 }}>
                 <div style={{ 
                   height:2, width:16, position:"relative",
@@ -553,7 +553,7 @@ const NuovoViaggio = () => {
                 </div>
               </div>
 
-              {/* DURATA (se presente) */}
+              {/* DURATA */}
               {days && (
                 <>
                   <div style={{ width:1, height:32, backgroundColor:"#1a2d4a", margin:"0 8px", flexShrink:0 }}/>
