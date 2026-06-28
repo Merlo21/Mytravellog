@@ -3,7 +3,7 @@ import { Trip, deleteTrip, formatTripDate } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
 import { fmtDistance, fmtAltitude, fmtTemp, useSettings } from "@/lib/settings";
 import { Thermometer, Mountain, Trash2, Pencil, Plane, Train, Car, Ship, Footprints, Route } from "lucide-react";
-import { EditTripDialog } from "./EditTripDialog";
+import { useNavigate } from "react-router-dom";
 import React from "react";
 
 interface Props {
@@ -38,7 +38,7 @@ function StarDisplay({ rating }: { rating: number | null }) {
 }
 
 export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Props) {
-  const [editOpen, setEditOpen] = useState(false);
+  const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { distanceUnit, temperatureUnit } = useSettings();
   const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_STYLE;
@@ -127,7 +127,7 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
 
           {/* Actions */}
           <div className="flex gap-1 flex-shrink-0">
-            <button onClick={e => { e.stopPropagation(); setEditOpen(true); }}
+            <button onClick={e => { e.stopPropagation(); navigate(`/modifica-viaggio/${trip.id}`); }}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-secondary/60">
               <Pencil className="w-3.5 h-3.5 text-muted-foreground"/>
             </button>
@@ -139,7 +139,6 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
         </div>
       </div>
 
-      <EditTripDialog trip={trip} open={editOpen} onOpenChange={setEditOpen} onSaved={() => { setEditOpen(false); onUpdated?.(); }}/>
     </>
   );
 }
