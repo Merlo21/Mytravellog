@@ -5,7 +5,6 @@ import { Trip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
 import { ContinentsMap } from "@/components/ContinentsMap";
 import { TravelHighlights } from "@/components/TravelHighlights";
-import { TripTimelineChart } from "@/components/TripTimelineChart";
 
 const Stats = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -22,7 +21,7 @@ const Stats = () => {
 
       <div className="container mx-auto px-6 py-8 space-y-8">
         <StatsSection trips={trips} />
-        <TripTimelineChart trips={trips} />
+        
         <ContinentsMap trips={trips} />
 
         <TravelHighlights trips={trips} />
