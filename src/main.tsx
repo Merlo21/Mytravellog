@@ -6,6 +6,7 @@ import { SettingsProvider } from "./lib/settings";
 import "./index.css";
 import Home from "./pages/Index";
 import Stats from "./pages/Stats";
+import NuovoViaggio from "./pages/NuovoViaggio";
 import SettingsPage from "./pages/Settings";
 
 const rootEl = document.getElementById("root")!;
