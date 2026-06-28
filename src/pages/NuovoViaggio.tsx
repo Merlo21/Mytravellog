@@ -376,7 +376,7 @@ const NuovoViaggio = () => {
     setSaving(true);
     const dest = waypoints[waypoints.length - 1];
     const dist = home ? distanceKm(home.lat, home.lon, dest.lat, dest.lon) : null;
-    const [alt, temp] = await Promise.all([fetchElevation(dest.lat, dest.lon), fetchTemperature(dest.lat, dest.lon)]);
+    const [alt, temp] = await Promise.all([fetchElevation(dest.lat, dest.lon), fetchTemperature(dest.lat, dest.lon, dateStart)]);
     addTrip({
       title: title.trim() || dest.city,
       country: dest.country, city: dest.city,
