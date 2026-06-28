@@ -1,7 +1,9 @@
 import { AppHeader } from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate } from "@/lib/settings";
+import { ArrowLeft, MapPin, Search, X } from "lucide-react";
+import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity } from "@/lib/settings";
+import { searchPlaces, GeoResult } from "@/lib/geo";
+import { useState, useEffect } from "react";
 
 function SegmentControl<T extends string>({
   value, onChange, options,
@@ -41,6 +43,66 @@ function Group({ icon, title, desc, children }: { icon: React.ReactNode; title: 
         </div>
       </div>
       {children}
+    </div>
+  );
+}
+
+
+function HomeCityPicker({ value, onChange }: { value: HomeCity; onChange: (v: HomeCity) => void }) {
+  const [query, setQuery] = useState(value?.label ?? "");
+  const [results, setResults] = useState<GeoResult[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (query.length < 2 || query === value?.label) { setResults([]); return; }
+      setLoading(true);
+      setResults(await searchPlaces(query));
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  return (
+    <div className="relative mt-2">
+      <div className="flex items-center gap-2 bg-secondary/20 border border-border rounded-xl px-3 py-2.5">
+        <Search className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
+        <input
+          className="bg-transparent flex-1 text-sm outline-none placeholder:text-muted-foreground"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Cerca la tua città…"
+        />
+        {value && (
+          <button type="button" onClick={() => { onChange(null); setQuery(""); }}
+            className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4"/>
+          </button>
+        )}
+      </div>
+      {value && query === value.label && (
+        <div className="mt-1.5 flex items-center gap-2 text-sm text-primary">
+          <MapPin className="w-3.5 h-3.5"/>
+          <span className="font-medium">{value.label}</span>
+          <span className="text-muted-foreground text-xs">({value.lat.toFixed(2)}, {value.lon.toFixed(2)})</span>
+        </div>
+      )}
+      {results.length > 0 && (
+        <div className="absolute top-full mt-1 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+          {results.map((r, i) => (
+            <button key={i} type="button"
+              onClick={() => {
+                onChange({ label: `${r.name}, ${r.country}`, lat: r.latitude, lon: r.longitude });
+                setQuery(`${r.name}, ${r.country}`);
+                setResults([]);
+              }}
+              className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent/10 flex items-center gap-2 border-b border-border last:border-0">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0"/>
+              {r.name}, {r.country}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -106,6 +168,14 @@ export default function Settings() {
             ]}
           />
         </Group>
+        <Group
+          icon={<MapPin width="18" height="18"/>}
+          title="Città di residenza"
+          desc="Usata per calcolare le distanze e precompilare il punto di partenza"
+        >
+          <HomeCityPicker value={s.homeCity} onChange={s.setHomeCity}/>
+        </Group>
+
       </div>
     </main>
   );
