@@ -1,3 +1,4 @@
+import { AppHeader } from "@/components/AppHeader";
 import { useEffect, useMemo, useState, Component, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { loadTrips, Trip } from "@/lib/storage";
