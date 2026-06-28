@@ -68,10 +68,10 @@ function RouteHero({
   const showArcs = waypoints.length > 0;
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", justifyContent:"center" }}>
 
       {/* SVG itinerario */}
-      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", overflowX:"auto", padding:"0 8px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", overflowX:"auto", padding:"24px 24px 0" }}>
         {showArcs ? (
           <div style={{ position:"relative" }}>
             <svg width={W} height={130} viewBox={`0 0 ${W} 130`}
@@ -199,7 +199,7 @@ function RouteHero({
       )}
 
       {/* Mezzo selector */}
-      <div style={{ padding:"0 16px 8px", display:"flex", gap:6, flexWrap:"wrap" }}>
+      <div style={{ padding:"16px 24px 8px", display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center" }}>
         {TRANSPORT.map(t => (
           <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
             style={{ fontSize:11, padding:"4px 10px", borderRadius:99, cursor:"pointer",
@@ -212,7 +212,7 @@ function RouteHero({
       </div>
 
       {/* Add tappa pill */}
-      <div style={{ padding:"0 16px 16px", position:"relative", display:"flex", justifyContent:"center" }}>
+      <div style={{ padding:"8px 24px 24px", position:"relative", display:"flex", justifyContent:"center" }}>
         {wpOpen && (
           <div style={{ position:"absolute", bottom:"calc(100% + 4px)", left:16, right:16,
             background:"#0d1f3c", border:"0.5px solid #1a2d4a",
