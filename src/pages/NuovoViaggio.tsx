@@ -498,37 +498,57 @@ const NuovoViaggio = () => {
               onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
           </div>
 
-          {/* Periodo — unica cella con Partenza / Ritorno / Durata */}
+          {/* Periodo — rielaborato con il nuovo design "a pillola" */}
           <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
             <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
-              textTransform:"uppercase", display:"block", marginBottom:6 }}>Periodo</label>
-            <div style={{ display:"flex", alignItems:"stretch", background:"#060e1e",
-              border:"0.5px solid #1a2d4a", borderRadius:8, overflow:"hidden" }}>
+              textTransform:"uppercase", display:"block", marginBottom:10 }}>Periodo</label>
+            
+            <div 
+              style={{ 
+                display:"flex", alignItems:"center", background:"#060e1e", 
+                border:"1px solid transparent", borderColor:"#1a2d4a", borderRadius:40, 
+                padding:"8px 10px", transition:"border-color 0.2s ease" 
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor="rgba(96, 165, 250, 0.4)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor="#1a2d4a")}
+            >
               
               {/* PARTENZA */}
-              <div style={{ flex:1, padding:"8px 10px", display:"flex", alignItems:"center", gap:6, minWidth: 0 }}>
-                <Plane className="w-3.5 h-3.5" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(-45deg)" }}/>
-                <div style={{ flex:1, minWidth: 0 }}>
-                  <div style={{ fontSize:8, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Partenza</div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:0, paddingLeft:4 }}>
+                <Plane className="w-4 h-4" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(-45deg)" }}/>
+                <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0 }}>
+                  <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</span>
                   <input type="date"
                     style={{ background:"transparent", border:"none", outline:"none",
-                      color:"#f0f4ff", fontSize:12, fontWeight:500, width:"100%",
-                      colorScheme:"dark", padding: 0 }}
+                      color:"#f0f4ff", fontSize:12, fontWeight:600, width:"100%",
+                      colorScheme:"dark", padding:0, marginTop:1 }}
                     value={dateStart} onChange={e => setDateStart(e.target.value)}/>
                 </div>
               </div>
               
-              <div style={{ width:"0.5px", background:"#1a2d4a", flexShrink:0 }}/>
+              {/* CONNETTORE TRATTEGGIATO CENTRALE */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0 }}>
+                <div style={{ 
+                  height:2, width:16, position:"relative",
+                  backgroundImage: "linear-gradient(to right, rgba(255, 255, 255, 0.15) 20%, rgba(255,255,255,0) 0%)",
+                  backgroundPosition: "bottom", backgroundSize: "6px 2px", backgroundRepeat: "repeat-x"
+                }}>
+                  <div style={{ 
+                    position:"absolute", right:-4, top:-3, width:0, height:0, 
+                    borderTop:"4px solid transparent", borderBottom:"4px solid transparent", 
+                    borderLeft:"6px solid rgba(255, 255, 255, 0.15)" 
+                  }}/>
+                </div>
+              </div>
               
               {/* RITORNO */}
-              <div style={{ flex:1, padding:"8px 10px", display:"flex", alignItems:"center", gap:6, minWidth: 0 }}>
-                <Plane className="w-3.5 h-3.5" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(45deg) scaleX(-1)" }}/>
-                <div style={{ flex:1, minWidth: 0 }}>
-                  <div style={{ fontSize:8, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Ritorno</div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0 }}>
+                  <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</span>
                   <input type="date"
                     style={{ background:"transparent", border:"none", outline:"none",
-                      color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.35)", fontSize:12, fontWeight:500, width:"100%",
-                      colorScheme:"dark", padding: 0 }}
+                      color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.35)", fontSize:12, fontWeight:600, width:"100%",
+                      colorScheme:"dark", padding:0, marginTop:1 }}
                     value={dateEnd} onChange={e => setDateEnd(e.target.value)}/>
                 </div>
               </div>
@@ -536,15 +556,20 @@ const NuovoViaggio = () => {
               {/* DURATA (se presente) */}
               {days && (
                 <>
-                  <div style={{ width:"0.5px", background:"#1a2d4a", flexShrink:0 }}/>
-                  <div style={{ padding:"8px 10px", display:"flex", alignItems:"center", flexShrink:0 }}>
-                    <div>
-                      <div style={{ fontSize:8, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Durata</div>
-                      <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", fontWeight:500 }}>{days}g</div>
+                  <div style={{ width:1, height:32, backgroundColor:"#1a2d4a", margin:"0 8px", flexShrink:0 }}/>
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", paddingRight:2, flexShrink:0 }}>
+                    <span style={{ fontSize:8, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Durata</span>
+                    <div style={{ 
+                      marginTop:2, background:"rgba(96, 165, 250, 0.15)", color:"#60a5fa", 
+                      fontWeight:700, fontSize:12, padding:"2px 8px", borderRadius:6, 
+                      border:"1px solid rgba(96, 165, 250, 0.25)", textAlign:"center", minWidth:28 
+                    }}>
+                      {days}g
                     </div>
                   </div>
                 </>
               )}
+
             </div>
           </div>
 
