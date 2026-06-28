@@ -323,7 +323,8 @@ function RouteHero({
 
 const NuovoViaggio = () => {
   const navigate = useNavigate();
-  const { distanceUnit } = useSettings();
+  const s = useSettings();
+  const { distanceUnit } = s;
 
   const [title, setTitle] = useState("");
   const [dateStart, setDateStart] = useState(() => new Date().toISOString().slice(0, 10));
@@ -337,9 +338,12 @@ const NuovoViaggio = () => {
   const [wpLoading, setWpLoading] = useState(false);
   const [wpOpen, setWpOpen] = useState(false);
   const [wpTransport, setWpTransport] = useState<TransportMode>("plane");
-  const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(null);
+  const homeCity = s.homeCity;
+  const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(
+    homeCity ? { lat: homeCity.lat, lon: homeCity.lon, label: homeCity.label } : null
+  );
   const [editingHome, setEditingHome] = useState(false);
-  const [homeQuery, setHomeQuery] = useState("");
+  const [homeQuery, setHomeQuery] = useState(homeCity?.label ?? "");
   const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
   const [saving, setSaving] = useState(false);
 
