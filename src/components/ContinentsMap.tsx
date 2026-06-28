@@ -161,11 +161,18 @@ export function ContinentsMap({ trips }: Props) {
           <g clipPath="url(#map-clip)">
             {countries.map((c) => {
               const isVisited = visitedCountryIds.has(c.id);
+              const countryContinent = classifyContinent(c.centroid[1], c.centroid[0]);
+              const continentVisited = countryContinent ? visitedContinents.has(countryContinent) : false;
+              const fill = isVisited
+                ? "#0ea5e9"
+                : continentVisited
+                  ? "rgba(96,165,250,0.18)"
+                  : "#e5e7eb";
               return (
                 <path
                   key={c.id}
                   d={c.path}
-                  fill={isVisited ? "#0ea5e9" : "#e5e7eb"}
+                  fill={fill}
                   stroke="#ffffff"
                   strokeWidth={0.5}
                   strokeLinejoin="round"
