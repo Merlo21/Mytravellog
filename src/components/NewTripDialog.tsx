@@ -237,6 +237,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   const [wpQuery, setWpQuery] = useState("");
   const [wpResults, setWpResults] = useState<GeoResult[]>([]);
   const [wpLoading, setWpLoading] = useState(false);
+  const [wpOpen, setWpOpen] = useState(false);
   const [wpTransport, setWpTransport] = useState<TransportMode>("plane");
   const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(defaultHome ?? null);
   const [editingHome, setEditingHome] = useState(false);
@@ -283,7 +284,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       city: r.name, country: r.country, country_code: r.country_code ?? "",
       lat: r.lat, lon: r.lon, transport_mode: wpTransport,
     }]);
-    setWpQuery(""); setWpResults([]);
+    setWpQuery(""); setWpResults([]); setWpOpen(false);
   };
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
@@ -291,7 +292,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   const reset = () => {
     setTitle(""); setDateStart(new Date().toISOString().slice(0, 10));
     setDateEnd(""); setNotes(""); setRating(0); setHoverRating(0);
-    setWaypoints([]); setWpQuery(""); setWpResults([]);
+    setWaypoints([]); setWpQuery(""); setWpResults([]); setWpOpen(false);
     setEditingHome(false);
   };
 
@@ -441,7 +442,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
               {/* Add city — pill with dropdown above */}
               <div style={{ position:"relative", display:"flex", justifyContent:"center" }}>
                 {/* Dropdown above */}
-                {(wpQuery.length > 0 || wpResults.length > 0) && (
+                {wpOpen && (
                   <div style={{ position:"absolute", bottom:"calc(100% + 6px)", left:0, right:0,
                     background:"#0d1f3c", border:"0.5px solid #1a2d4a",
                     borderRadius:8, overflow:"hidden", zIndex:20 }}>
@@ -460,7 +461,8 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                           placeholder="Cerca città…"/>
                         <button type="button" onClick={() => { setWpQuery(""); setWpResults([]); }}
                           style={{ background:"none", border:"none", cursor:"pointer",
-                            color:"rgba(255,255,255,0.3)", fontSize:14 }}>×</button>
+                            color:"rgba(255,255,255,0.3)", fontSize:14 }}
+                          onClick={() => { setWpQuery(""); setWpResults([]); setWpOpen(false); }}>×</button>
                       </div>
                     </div>
                     {wpResults.map((r,i) => (
@@ -477,7 +479,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                 )}
                 {/* Pill */}
                 <button type="button"
-                  onClick={() => { setWpQuery(" "); setTimeout(() => setWpQuery(""), 10); }}
+                  onClick={() => setWpOpen(true)}
                   style={{ display:"inline-flex", alignItems:"center", gap:5,
                     fontSize:11, color:"rgba(255,255,255,0.4)",
                     border:"1.5px dashed #1a2d4a", borderRadius:99,
