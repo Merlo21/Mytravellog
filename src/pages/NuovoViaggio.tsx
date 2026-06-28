@@ -52,6 +52,18 @@ function RouteHero({
   wpLoading: boolean;
   onAddWaypoint: (r: GeoResult) => void;
 }) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerW, setContainerW] = React.useState(600);
+  const [activeArc, setActiveArc] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const obs = new ResizeObserver(entries => {
+      setContainerW(entries[0].contentRect.width);
+    });
+    if (containerRef.current) obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
+
   const homeLabel = home?.label?.split(",")[0] ?? "Casa";
   const stops = [
     { label: homeLabel, flag: "🏠", isHome: true, transport: null as TransportMode | null },
@@ -59,90 +71,78 @@ function RouteHero({
   ];
 
   const n = stops.length;
-  // Dynamic sizing based on number of stops
-  const nodeR = n <= 3 ? 26 : n <= 5 ? 22 : 18;
-  const minStepW = nodeR * 2 + 80;
-  const W = Math.max(500, n > 1 ? (n - 1) * minStepW + nodeR * 2 + 60 : 500);
-  const H = 140;
-  const pad = nodeR + 30;
+  const W = containerW - 40;
+  const H = 160;
+  const nodeR = Math.min(32, Math.max(20, W / (n * 3.5)));
+  const pad = nodeR + 20;
   const step = n > 1 ? (W - pad * 2) / (n - 1) : 0;
-  const cx = (i: number) => pad + i * step;
-  const cy = 85;
+  const cx = (i: number) => pad + 20 + i * step;
+  const cy = 90;
 
   const showArcs = waypoints.length > 0;
 
-  // Transport popup state per arc
-  const [activeArc, setActiveArc] = React.useState<number | null>(null);
-
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", justifyContent:"center" }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
 
-      {/* SVG itinerario */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
-        overflowX:"auto", padding:"24px 24px 0" }}>
+      {/* SVG — full width */}
+      <div ref={containerRef} style={{ flex:1, padding:"20px 0 0", position:"relative" }}>
         {showArcs ? (
-          <div style={{ position:"relative" }}>
-            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-              style={{ display:"block", overflow:"visible", minWidth:Math.min(W, 520) }}>
+          <div style={{ position:"relative", width:"100%" }}>
+            <svg width="100%" height={H} viewBox={`0 0 ${W + 40} ${H}`}
+              style={{ display:"block", overflow:"visible" }}>
               <defs>
                 {TRANSPORT.map(t => (
-                  <marker key={t.value} id={`hero-arr-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <marker key={t.value} id={`h2-arr-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
                     <path d="M0,0 L6,3 L0,6 Z" fill={t.color} opacity="0.8"/>
                   </marker>
                 ))}
               </defs>
 
-              {/* Arcs with clickable transport labels */}
+              {/* Arcs */}
               {stops.map((stop, i) => {
                 if (i === 0) return null;
                 const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
                 const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
-                const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
-                const labelY = cy - arcH - 4;
+                const arcH = Math.min(65, Math.max(28, (x2-x1)*0.38));
                 return (
                   <g key={i}>
                     <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
                       stroke={t.color} strokeWidth="2" strokeDasharray="5 3"
-                      fill="none" opacity="0.7" markerEnd={`url(#hero-arr-${t.value})`}/>
-                    {/* Clickable transport label on arc */}
+                      fill="none" opacity="0.7" markerEnd={`url(#h2-arr-${t.value})`}/>
+                    {/* Transport pill on arc — clickable */}
                     <g style={{cursor:"pointer"}} onClick={() => setActiveArc(activeArc === i ? null : i)}>
-                      <rect x={mx-30} y={labelY-10} width="60" height="20" rx="10"
+                      <rect x={mx-32} y={cy-arcH-14} width="64" height="20" rx="10"
                         fill={t.bg} stroke={t.color} strokeWidth="1" strokeOpacity="0.8"/>
-                      <text x={mx} y={labelY+4} fontSize="10" textAnchor="middle" fill={t.color}>{t.label}</text>
+                      <text x={mx} y={cy-arcH-1} fontSize="10.5" textAnchor="middle" fill={t.color}>{t.label}</text>
                     </g>
-                    {/* Transport picker popup */}
+                    {/* Transport picker — small popup on arc */}
                     {activeArc === i && (
-                      <g>
-                        <rect x={mx-75} y={labelY-70} width="150" height="56" rx="8"
+                      <g onClick={e => e.stopPropagation()}>
+                        <rect x={mx-80} y={cy-arcH-68} width="160" height="46" rx="8"
                           fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
+                        <text x={mx} y={cy-arcH-52} fontSize="8" textAnchor="middle" fill="rgba(255,255,255,0.35)">
+                          Cambia mezzo
+                        </text>
                         {TRANSPORT.map((opt, j) => {
-                          const cols = 5;
                           const bx = mx - 60 + j * 30;
-                          const by = labelY - 52;
+                          const by = cy - arcH - 38;
                           return (
                             <g key={opt.value} style={{cursor:"pointer"}}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // update waypoint transport
-                                const wpIdx = i - 1;
-                                waypoints[wpIdx].transport_mode = opt.value;
-                                onRemoveWaypoint(-1); // trigger re-render via dummy
+                              onClick={() => {
+                                waypoints[i-1].transport_mode = opt.value;
+                                onRemoveWaypoint(-99);
                                 setActiveArc(null);
                               }}>
-                              <rect x={bx-11} y={by-11} width="22" height="22" rx="6"
-                                fill={stop.transport === opt.value ? opt.bg : "transparent"}
+                              <rect x={bx-12} y={by-12} width="24" height="24" rx="6"
+                                fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.03)"}
                                 stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"}
                                 strokeWidth="0.5"/>
-                              <text x={bx} y={by+5} fontSize="11" textAnchor="middle" fill={opt.color}
-                                opacity={stop.transport === opt.value ? 1 : 0.5}>
+                              <text x={bx} y={by+5} fontSize="12" textAnchor="middle">
                                 {opt.value === "plane" ? "✈" : opt.value === "train" ? "🚂" : opt.value === "car" ? "🚗" : opt.value === "ship" ? "⛵" : "🚶"}
                               </text>
                             </g>
                           );
                         })}
-                        <text x={mx} y={labelY-12} fontSize="8.5" textAnchor="middle" fill="rgba(255,255,255,0.4)">
-                          Cambia mezzo
-                        </text>
                       </g>
                     )}
                   </g>
@@ -175,7 +175,7 @@ function RouteHero({
                           fill={isLast ? borderColor : "rgba(255,255,255,0.3)"}>×</text>
                       </g>
                     )}
-                    <text x={x} y={cy+r+13} fontSize="9" textAnchor="middle"
+                    <text x={x} y={cy+r+13} fontSize="9.5" textAnchor="middle"
                       fill={isLast ? borderColor : "rgba(255,255,255,0.4)"}
                       fontWeight={isLast ? "600" : "normal"}>
                       {stop.label.length > 9 ? stop.label.slice(0,8)+"…" : stop.label}
@@ -184,51 +184,62 @@ function RouteHero({
                 );
               })}
             </svg>
+
             {/* HTML emoji overlays */}
-            <div style={{ position:"absolute", top:0, left:0, width:"100%", pointerEvents:"none" }}>
+            <div style={{ position:"absolute", top:20, left:0, width:"100%", pointerEvents:"none" }}>
               {stops.map((stop, i) => {
                 const x = cx(i);
                 const isLast = i === stops.length-1 && stops.length > 1;
                 const r = isLast ? nodeR + 4 : nodeR;
                 return (
                   <div key={i} style={{
-                    position:"absolute", left:x - r*0.55, top:cy - r*0.55,
-                    width:r*1.1, height:r*1.1, display:"flex", alignItems:"center",
-                    justifyContent:"center", fontSize:isLast ? r*0.75 : r*0.65,
-                    lineHeight:1, userSelect:"none"
+                    position:"absolute",
+                    left: x / (W + 40) * 100 + "%",
+                    top: cy - r * 0.55,
+                    width: r * 1.1, height: r * 1.1,
+                    transform: "translateX(-50%)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize: r * 0.72, lineHeight:1, userSelect:"none"
                   }}>{stop.flag}</div>
                 );
               })}
             </div>
           </div>
         ) : (
-          /* Empty state */
-          <div style={{ position:"relative", width:520 }}>
-            <svg width="520" height="110" viewBox="0 0 520 110"
+          /* Empty state — full width */
+          <div style={{ position:"relative", width:"100%", height:H }}>
+            <svg width="100%" height={H} viewBox={`0 0 ${W+40} ${H}`}
               style={{ display:"block", overflow:"visible" }}>
-              <path d="M 55 78 Q 175 20 290 78" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
-              <path d="M 290 78 Q 400 20 470 78" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
-              <circle cx="55" cy="78" r="22" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <circle cx="67" cy="59" r="9" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
-              <text x="67" y="63" fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
-              <text x="55" y="106" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">{homeLabel.slice(0,9)}</text>
-              <circle cx="290" cy="78" r="22" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x="290" y="83" fontSize="18" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.12)">+</text>
-              <text x="290" y="106" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.15)">tappa</text>
-              <circle cx="470" cy="78" r="25" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x="470" y="83" fontSize="20" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.12)">+</text>
-              <text x="470" y="108" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.15)">destinazione</text>
+              {/* Ghost arcs */}
+              <path d={`M 60 80 Q ${(W+40)*0.35} 20 ${(W+40)*0.5} 80`}
+                stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
+              <path d={`M ${(W+40)*0.5} 80 Q ${(W+40)*0.72} 20 ${W-20} 80`}
+                stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
+              {/* Casa */}
+              <circle cx="60" cy="80" r="26" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2"/>
+              <circle cx="74" cy="60" r="9" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
+              <text x="74" y="64" fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
+              <text x="60" y="113" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">{homeLabel.slice(0,9)}</text>
+              {/* Ghost 1 */}
+              <circle cx={(W+40)*0.5} cy="80" r="24" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
+              <text x={(W+40)*0.5} y="85" fontSize="20" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.1)">+</text>
+              <text x={(W+40)*0.5} y="112" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.12)">tappa</text>
+              {/* Ghost 2 */}
+              <circle cx={W-20} cy="80" r="28" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
+              <text x={W-20} y="85" fontSize="22" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.1)">+</text>
+              <text x={W-20} y="116" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.12)">destinazione</text>
             </svg>
-            <div style={{ position:"absolute", top:56, left:33, width:44, height:44,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:20, cursor:"pointer" }} onClick={onEditHome}>🏠</div>
+            {/* Casa emoji */}
+            <div style={{ position:"absolute", top:54, left:36,
+              width:48, height:48, display:"flex", alignItems:"center",
+              justifyContent:"center", fontSize:22, cursor:"pointer" }} onClick={onEditHome}>🏠</div>
           </div>
         )}
       </div>
 
       {/* Home edit field */}
       {editingHome && (
-        <div style={{ margin:"8px 24px", background:"#0d1f3c", border:"0.5px solid #fbbf24",
+        <div style={{ margin:"0 20px 8px", background:"#0d1f3c", border:"0.5px solid #fbbf24",
           borderRadius:8, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, position:"relative" }}>
           <span style={{ fontSize:14, color:"#fbbf24" }}>🏠</span>
           <input autoFocus style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:13, flex:1 }}
@@ -250,58 +261,59 @@ function RouteHero({
         </div>
       )}
 
-      {/* Aggiungi tappa pill — no transport selector, it's on the arc */}
-      <div style={{ padding:"16px 24px 24px", position:"relative", display:"flex", justifyContent:"center" }}>
-        {wpOpen && (
-          <div style={{ position:"absolute", bottom:"calc(100% + 4px)", left:24, right:24,
-            background:"#0d1f3c", border:"0.5px solid #1a2d4a",
-            borderRadius:10, overflow:"hidden", zIndex:20, boxShadow:"0 -8px 24px rgba(0,0,0,0.3)" }}>
-            <div style={{ padding:"10px 14px", borderBottom:"0.5px solid #1a2d4a" }}>
-              <div style={{ marginBottom:8 }}>
-                <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1px", textTransform:"uppercase", marginBottom:6 }}>
-                  Mezzo per questo tratto
-                </div>
-                <div style={{ display:"flex", gap:5 }}>
-                  {TRANSPORT.map(t => (
-                    <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
-                      style={{ fontSize:10, padding:"3px 8px", borderRadius:99, cursor:"pointer",
-                        background: wpTransport === t.value ? t.bg : "transparent",
-                        color: wpTransport === t.value ? t.color : "rgba(255,255,255,0.25)",
-                        border: `0.5px solid ${wpTransport === t.value ? t.color : "#1a2d4a"}` }}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8,
-                background:"rgba(0,0,0,0.2)", borderRadius:8, padding:"8px 12px" }}>
-                {wpLoading
-                  ? <Loader2 className="w-4 h-4 animate-spin" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
-                  : <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
-                }
-                <input autoFocus style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:13, flex:1 }}
-                  value={wpQuery} onChange={e => setWpQuery(e.target.value)} placeholder="Cerca città…"/>
-                <button type="button" onClick={() => { setWpQuery(""); setWpOpen(false); }}
-                  style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)", fontSize:18 }}>×</button>
-              </div>
+      {/* Aggiungi tappa — inline search, no overlay */}
+      <div style={{ padding:"8px 20px 20px" }}>
+        {wpOpen ? (
+          <div style={{ background:"#0a1e38", border:"0.5px solid #1a2d4a", borderRadius:10, overflow:"hidden" }}>
+            {/* Mezzo */}
+            <div style={{ padding:"10px 14px 8px", borderBottom:"0.5px solid #1a2d4a",
+              display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+              <span style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1px",
+                textTransform:"uppercase", marginRight:4 }}>Mezzo</span>
+              {TRANSPORT.map(t => (
+                <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
+                  style={{ fontSize:10, padding:"3px 8px", borderRadius:99, cursor:"pointer",
+                    background: wpTransport === t.value ? t.bg : "transparent",
+                    color: wpTransport === t.value ? t.color : "rgba(255,255,255,0.25)",
+                    border: `0.5px solid ${wpTransport === t.value ? t.color : "#1a2d4a"}` }}>
+                  {t.label}
+                </button>
+              ))}
             </div>
+            {/* Search */}
+            <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:8 }}>
+              {wpLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+                : <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+              }
+              <input autoFocus style={{ background:"transparent", border:"none", outline:"none",
+                color:"#f0f4ff", fontSize:13, flex:1 }}
+                value={wpQuery} onChange={e => setWpQuery(e.target.value)} placeholder="Cerca città…"/>
+              <button type="button" onClick={() => { setWpQuery(""); setWpOpen(false); }}
+                style={{ background:"none", border:"none", cursor:"pointer",
+                  color:"rgba(255,255,255,0.3)", fontSize:18 }}>×</button>
+            </div>
+            {/* Results */}
             {wpResults.map((r,i) => (
               <button key={i} type="button" onClick={() => onAddWaypoint(r)}
                 style={{ width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13,
                   color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
-                  display:"flex", alignItems:"center", gap:10, borderBottom:"0.5px solid #1a2d4a" }}>
+                  display:"flex", alignItems:"center", gap:10, borderTop:"0.5px solid #1a2d4a" }}>
                 <span style={{fontSize:16}}>{countryFlag(r.country_code ?? "")}</span>
                 <span>{r.name}, {r.country}</span>
               </button>
             ))}
           </div>
+        ) : (
+          <div style={{ display:"flex", justifyContent:"center" }}>
+            <button type="button" onClick={() => setWpOpen(true)}
+              style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12,
+                color:"rgba(255,255,255,0.4)", border:"1.5px dashed #1a2d4a",
+                borderRadius:99, padding:"6px 20px", cursor:"pointer", background:"transparent" }}>
+              + Aggiungi tappa
+            </button>
+          </div>
         )}
-        <button type="button" onClick={() => setWpOpen(true)}
-          style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12,
-            color:"rgba(255,255,255,0.4)", border:"1.5px dashed #1a2d4a",
-            borderRadius:99, padding:"6px 20px", cursor:"pointer", background:"transparent" }}>
-          + Aggiungi tappa
-        </button>
       </div>
     </div>
   );
