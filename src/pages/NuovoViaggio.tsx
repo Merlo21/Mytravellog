@@ -479,6 +479,7 @@ const NuovoViaggio = () => {
             wpResults={wpResults} wpLoading={wpLoading}
             onAddWaypoint={addWaypoint}
           />
+          </div>
         </div>
 
         {/* RIGHT — Form compatto */}
