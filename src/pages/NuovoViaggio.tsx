@@ -58,24 +58,32 @@ function RouteHero({
     ...waypoints.map(w => ({ label: w.city, flag: countryFlag(w.country_code), isHome: false, transport: w.transport_mode })),
   ];
 
-  const W = 520;
   const n = stops.length;
-  const pad = 50;
+  // Dynamic sizing based on number of stops
+  const nodeR = n <= 3 ? 26 : n <= 5 ? 22 : 18;
+  const minStepW = nodeR * 2 + 80;
+  const W = Math.max(500, n > 1 ? (n - 1) * minStepW + nodeR * 2 + 60 : 500);
+  const H = 140;
+  const pad = nodeR + 30;
   const step = n > 1 ? (W - pad * 2) / (n - 1) : 0;
   const cx = (i: number) => pad + i * step;
-  const cy = 90;
+  const cy = 85;
 
   const showArcs = waypoints.length > 0;
+
+  // Transport popup state per arc
+  const [activeArc, setActiveArc] = React.useState<number | null>(null);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", justifyContent:"center" }}>
 
       {/* SVG itinerario */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", overflowX:"auto", padding:"24px 24px 0" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center",
+        overflowX:"auto", padding:"24px 24px 0" }}>
         {showArcs ? (
           <div style={{ position:"relative" }}>
-            <svg width={W} height={130} viewBox={`0 0 ${W} 130`}
-              style={{ display:"block", overflow:"visible", minWidth:W }}>
+            <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+              style={{ display:"block", overflow:"visible", minWidth:Math.min(W, 520) }}>
               <defs>
                 {TRANSPORT.map(t => (
                   <marker key={t.value} id={`hero-arr-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -83,29 +91,72 @@ function RouteHero({
                   </marker>
                 ))}
               </defs>
+
+              {/* Arcs with clickable transport labels */}
               {stops.map((stop, i) => {
                 if (i === 0) return null;
                 const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
                 const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
-                const arcH = Math.min(68, Math.max(28, (x2-x1)*0.4));
+                const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
+                const labelY = cy - arcH - 4;
                 return (
                   <g key={i}>
                     <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
                       stroke={t.color} strokeWidth="2" strokeDasharray="5 3"
                       fill="none" opacity="0.7" markerEnd={`url(#hero-arr-${t.value})`}/>
-                    <rect x={mx-33} y={cy-arcH-15} width="66" height="19" rx="9"
-                      fill={t.bg} stroke={t.color} strokeWidth="0.5" strokeOpacity="0.7"/>
-                    <text x={mx} y={cy-arcH-3} fontSize="10.5" textAnchor="middle" fill={t.color}>{t.label}</text>
+                    {/* Clickable transport label on arc */}
+                    <g style={{cursor:"pointer"}} onClick={() => setActiveArc(activeArc === i ? null : i)}>
+                      <rect x={mx-30} y={labelY-10} width="60" height="20" rx="10"
+                        fill={t.bg} stroke={t.color} strokeWidth="1" strokeOpacity="0.8"/>
+                      <text x={mx} y={labelY+4} fontSize="10" textAnchor="middle" fill={t.color}>{t.label}</text>
+                    </g>
+                    {/* Transport picker popup */}
+                    {activeArc === i && (
+                      <g>
+                        <rect x={mx-75} y={labelY-70} width="150" height="56" rx="8"
+                          fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
+                        {TRANSPORT.map((opt, j) => {
+                          const cols = 5;
+                          const bx = mx - 60 + j * 30;
+                          const by = labelY - 52;
+                          return (
+                            <g key={opt.value} style={{cursor:"pointer"}}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // update waypoint transport
+                                const wpIdx = i - 1;
+                                waypoints[wpIdx].transport_mode = opt.value;
+                                onRemoveWaypoint(-1); // trigger re-render via dummy
+                                setActiveArc(null);
+                              }}>
+                              <rect x={bx-11} y={by-11} width="22" height="22" rx="6"
+                                fill={stop.transport === opt.value ? opt.bg : "transparent"}
+                                stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"}
+                                strokeWidth="0.5"/>
+                              <text x={bx} y={by+5} fontSize="11" textAnchor="middle" fill={opt.color}
+                                opacity={stop.transport === opt.value ? 1 : 0.5}>
+                                {opt.value === "plane" ? "✈" : opt.value === "train" ? "🚂" : opt.value === "car" ? "🚗" : opt.value === "ship" ? "⛵" : "🚶"}
+                              </text>
+                            </g>
+                          );
+                        })}
+                        <text x={mx} y={labelY-12} fontSize="8.5" textAnchor="middle" fill="rgba(255,255,255,0.4)">
+                          Cambia mezzo
+                        </text>
+                      </g>
+                    )}
                   </g>
                 );
               })}
+
+              {/* Nodes */}
               {stops.map((stop, i) => {
                 const x = cx(i);
                 const isLast = i === stops.length-1 && stops.length > 1;
                 const lastT = isLast ? TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0] : null;
                 const borderColor = stop.isHome ? "#fbbf24" : lastT ? lastT.color : "#60a5fa";
                 const bgFill = stop.isHome ? "rgba(251,191,36,0.1)" : lastT ? lastT.bg : "rgba(96,165,250,0.08)";
-                const r = isLast ? 26 : 22;
+                const r = isLast ? nodeR + 4 : nodeR;
                 return (
                   <g key={i}>
                     <circle cx={x} cy={cy} r={r} fill={bgFill} stroke={borderColor}
@@ -138,11 +189,12 @@ function RouteHero({
               {stops.map((stop, i) => {
                 const x = cx(i);
                 const isLast = i === stops.length-1 && stops.length > 1;
+                const r = isLast ? nodeR + 4 : nodeR;
                 return (
                   <div key={i} style={{
-                    position:"absolute", left:x-14, top:cy-14,
-                    width:28, height:28, display:"flex", alignItems:"center",
-                    justifyContent:"center", fontSize:isLast ? 20 : 17,
+                    position:"absolute", left:x - r*0.55, top:cy - r*0.55,
+                    width:r*1.1, height:r*1.1, display:"flex", alignItems:"center",
+                    justifyContent:"center", fontSize:isLast ? r*0.75 : r*0.65,
                     lineHeight:1, userSelect:"none"
                   }}>{stop.flag}</div>
                 );
@@ -176,7 +228,7 @@ function RouteHero({
 
       {/* Home edit field */}
       {editingHome && (
-        <div style={{ margin:"0 16px 8px", background:"#0d1f3c", border:"0.5px solid #fbbf24",
+        <div style={{ margin:"8px 24px", background:"#0d1f3c", border:"0.5px solid #fbbf24",
           borderRadius:8, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, position:"relative" }}>
           <span style={{ fontSize:14, color:"#fbbf24" }}>🏠</span>
           <input autoFocus style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:13, flex:1 }}
@@ -198,26 +250,29 @@ function RouteHero({
         </div>
       )}
 
-      {/* Mezzo selector */}
-      <div style={{ padding:"16px 24px 8px", display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center" }}>
-        {TRANSPORT.map(t => (
-          <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
-            style={{ fontSize:11, padding:"4px 10px", borderRadius:99, cursor:"pointer",
-              background: wpTransport === t.value ? t.bg : "transparent",
-              color: wpTransport === t.value ? t.color : "rgba(255,255,255,0.25)",
-              border: `0.5px solid ${wpTransport === t.value ? t.color : "#1a2d4a"}` }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Add tappa pill */}
-      <div style={{ padding:"8px 24px 24px", position:"relative", display:"flex", justifyContent:"center" }}>
+      {/* Aggiungi tappa pill — no transport selector, it's on the arc */}
+      <div style={{ padding:"16px 24px 24px", position:"relative", display:"flex", justifyContent:"center" }}>
         {wpOpen && (
-          <div style={{ position:"absolute", bottom:"calc(100% + 4px)", left:16, right:16,
+          <div style={{ position:"absolute", bottom:"calc(100% + 4px)", left:24, right:24,
             background:"#0d1f3c", border:"0.5px solid #1a2d4a",
             borderRadius:10, overflow:"hidden", zIndex:20, boxShadow:"0 -8px 24px rgba(0,0,0,0.3)" }}>
             <div style={{ padding:"10px 14px", borderBottom:"0.5px solid #1a2d4a" }}>
+              <div style={{ marginBottom:8 }}>
+                <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1px", textTransform:"uppercase", marginBottom:6 }}>
+                  Mezzo per questo tratto
+                </div>
+                <div style={{ display:"flex", gap:5 }}>
+                  {TRANSPORT.map(t => (
+                    <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
+                      style={{ fontSize:10, padding:"3px 8px", borderRadius:99, cursor:"pointer",
+                        background: wpTransport === t.value ? t.bg : "transparent",
+                        color: wpTransport === t.value ? t.color : "rgba(255,255,255,0.25)",
+                        border: `0.5px solid ${wpTransport === t.value ? t.color : "#1a2d4a"}` }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div style={{ display:"flex", alignItems:"center", gap:8,
                 background:"rgba(0,0,0,0.2)", borderRadius:8, padding:"8px 12px" }}>
                 {wpLoading
@@ -251,6 +306,7 @@ function RouteHero({
     </div>
   );
 }
+
 
 const NuovoViaggio = () => {
   const navigate = useNavigate();
