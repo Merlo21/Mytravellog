@@ -364,7 +364,7 @@ const NuovoViaggio = () => {
   const addWaypoint = (r: GeoResult) => {
     setWaypoints(prev => [...prev, {
       city: r.name, country: r.country, country_code: r.country_code ?? "",
-      lat: r.lat, lon: r.lon, transport_mode: wpTransport,
+      lat: r.latitude, lon: r.longitude, transport_mode: wpTransport,
     }]);
     setWpQuery(""); setWpResults([]); setWpOpen(false);
   };
@@ -431,7 +431,7 @@ const NuovoViaggio = () => {
             homeQuery={homeQuery} setHomeQuery={setHomeQuery}
             homeResults={homeResults}
             onSelectHome={r => {
-              setHome({ lat:r.lat, lon:r.lon, label:`${r.name}, ${r.country}` });
+              setHome({ lat:r.latitude, lon:r.longitude, label:`${r.name}, ${r.country}` });
               setHomeQuery(`${r.name}, ${r.country}`);
               setHomeResults([]); setEditingHome(false);
             }}
