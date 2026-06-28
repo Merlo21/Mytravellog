@@ -7,6 +7,7 @@ import "./index.css";
 import Home from "./pages/Index";
 import Stats from "./pages/Stats";
 import NuovoViaggio from "./pages/NuovoViaggio";
+import ModificaViaggio from "./pages/ModificaViaggio";
 import SettingsPage from "./pages/Settings";
 
 const rootEl = document.getElementById("root")!;
@@ -21,6 +22,7 @@ ReactDOM.createRoot(rootEl).render(
           <Route path="/statistiche" element={<Stats />} />
           <Route path="/impostazioni" element={<SettingsPage />} />
           <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
+          <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
         </Routes>
         <Toaster richColors position="top-right" />
       </HashRouter>
