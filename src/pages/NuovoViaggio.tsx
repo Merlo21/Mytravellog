@@ -1,8 +1,3 @@
-Perfetto, compromesso eccellente! Spostando solo la durata in alto liberiamo quel blocco di pixel orizzontali che prima stringeva troppo i campi, permettendoci di rimettere l'icona dell'aereo e la freccia tratteggiata originale senza sacrificare la forma rettangolare ordinata.
-
-Ecco il codice completo aggiornato con questa specifica modifica:
-
-```tsx
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
