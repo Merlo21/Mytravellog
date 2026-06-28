@@ -398,7 +398,7 @@ const ModificaViaggio = () => {
     const dist = home ? distanceKm(home.lat, home.lon, dest.lat, dest.lon) : null;
     const [alt, temp] = await Promise.all([
       dest.lat ? fetchElevation(dest.lat, dest.lon) : Promise.resolve(trip?.altitude_m ?? null),
-      dest.lat ? fetchTemperature(dest.lat, dest.lon) : Promise.resolve(trip?.temperature_c ?? null),
+      dest.lat ? fetchTemperature(dest.lat, dest.lon, dateStart) : Promise.resolve(trip?.temperature_c ?? null),
     ]);
     updateTrip(id, {
       title: title.trim() || dest.city,
