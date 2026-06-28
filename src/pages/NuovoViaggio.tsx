@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
+import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
-import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search, PieChart, Settings } from "lucide-react";
+import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
 
 type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
 type Waypoint = { city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
@@ -398,45 +399,7 @@ const NuovoViaggio = () => {
   return (
     <div style={{ minHeight:"100vh", background:"#060e1e", display:"flex", flexDirection:"column" }}>
       {/* Header */}
-      <header style={{ borderBottom:"0.5px solid #1a2d4a", background:"rgba(6,14,30,0.8)",
-        backdropFilter:"blur(20px)", position:"sticky", top:0, zIndex:10 }}>
-        <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 24px", height:56,
-          display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:36, height:36, borderRadius:10, background:"#60a5fa",
-              display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-              <svg width="22" height="22" viewBox="0 0 30 30" fill="none">
-                <circle cx="15" cy="15" r="11" stroke="#020d1a" strokeWidth="1.6"/>
-                <ellipse cx="15" cy="15" rx="11" ry="4.8" stroke="#020d1a" strokeWidth="1.2"/>
-                <ellipse cx="15" cy="15" rx="6.5" ry="11" stroke="#020d1a" strokeWidth="1.2"/>
-                <polygon points="15,5.5 13.5,13 15,11.5 16.5,13" fill="#ffffff"/>
-                <polygon points="15,24.5 13.5,17 15,18.5 16.5,17" fill="#ffffff" opacity="0.35"/>
-                <polygon points="24.5,15 17,13.5 18.5,15 17,16.5" fill="#fbbf24"/>
-                <polygon points="5.5,15 13,13.5 11.5,15 13,16.5" fill="#fbbf24" opacity="0.35"/>
-              </svg>
-            </div>
-            <span style={{ fontSize:18, fontWeight:800, letterSpacing:"0.2em" }}>
-              <span style={{color:"#60a5fa"}}>NAV</span><span style={{color:"#fbbf24"}}>·</span><span style={{color:"#fff"}}>TA</span>
-            </span>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-            <Link to="/" style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
-              borderRadius:8, fontSize:13, color:"rgba(255,255,255,0.5)",
-              textDecoration:"none" }}>
-              <Plane className="w-4 h-4" style={{color:"#60a5fa"}}/> I tuoi viaggi
-            </Link>
-            <Link to="/statistiche" style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px",
-              borderRadius:8, fontSize:13, color:"rgba(255,255,255,0.5)", textDecoration:"none" }}>
-              <PieChart className="w-4 h-4" style={{color:"#60a5fa"}}/> Statistiche
-            </Link>
-            <div style={{ width:"1px", height:20, background:"#1a2d4a", margin:"0 4px" }}/>
-            <Link to="/impostazioni" style={{ padding:"6px 8px", borderRadius:8, color:"rgba(255,255,255,0.4)", textDecoration:"none" }}>
-              <Settings className="w-4 h-4"/>
-            </Link>
-
-          </div>
-        </div>
-      </header>
+      <AppHeader/>
 
       {/* Main layout: itinerario hero sinistra, form destra */}
       <div style={{ maxWidth:1200, margin:"0 auto", width:"100%",
