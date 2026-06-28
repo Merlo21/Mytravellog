@@ -444,7 +444,7 @@ const NuovoViaggio = () => {
 
         {/* LEFT — Itinerario hero */}
         <div style={{ flex:1.6, background:"#0a1628", border:"0.5px solid #1a2d4a",
-          borderRadius:14, overflow:"hidden", minHeight:480, display:"flex", flexDirection:"column" }}>
+          borderRadius:14, overflow:"hidden", display:"flex", flexDirection:"column", alignSelf:"stretch" }}>
 
           <div style={{ padding:"18px 20px", borderBottom:"0.5px solid #1a2d4a",
             display:"flex", alignItems:"center", gap:10 }}>
@@ -496,33 +496,46 @@ const NuovoViaggio = () => {
               onBlur={e => (e.target.style.borderColor="#1a2d4a")}/>
           </div>
 
-          {/* Periodo */}
+          {/* Periodo — unica cella con Partenza / Ritorno / Durata */}
           <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
             <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
               textTransform:"uppercase", display:"block", marginBottom:6 }}>Periodo</label>
-            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#060e1e",
-                border:"0.5px solid #1a2d4a", borderRadius:8, padding:"8px 12px" }}>
+            <div style={{ display:"flex", alignItems:"stretch", background:"#060e1e",
+              border:"0.5px solid #1a2d4a", borderRadius:8, overflow:"hidden" }}>
+              <div style={{ flex:1, padding:"9px 12px", display:"flex", alignItems:"center", gap:8 }}>
                 <Plane className="w-3.5 h-3.5" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(-45deg)" }}/>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:8, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</div>
-                  <input type="date" style={{ background:"transparent", border:"none", outline:"none",
-                    color:"#f0f4ff", fontSize:12, fontWeight:500, width:"100%" }}
+                  <div style={{ fontSize:8, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Partenza</div>
+                  <input type="date"
+                    style={{ background:"transparent", border:"none", outline:"none",
+                      color:"#f0f4ff", fontSize:12, fontWeight:500, width:"100%",
+                      colorScheme:"dark" }}
                     value={dateStart} onChange={e => setDateStart(e.target.value)}/>
                 </div>
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#060e1e",
-                border:"0.5px solid #1a2d4a", borderRadius:8, padding:"8px 12px" }}>
+              <div style={{ width:"0.5px", background:"#1a2d4a" }}/>
+              <div style={{ flex:1, padding:"9px 12px", display:"flex", alignItems:"center", gap:8 }}>
                 <Plane className="w-3.5 h-3.5" style={{ color:"#60a5fa", flexShrink:0, transform:"rotate(45deg) scaleX(-1)" }}/>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:8, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:1 }}>
-                    Ritorno {days ? `· ${days}g` : ""}
-                  </div>
-                  <input type="date" style={{ background:"transparent", border:"none", outline:"none",
-                    color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.3)", fontSize:12, fontWeight:500, width:"100%" }}
+                  <div style={{ fontSize:8, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Ritorno</div>
+                  <input type="date"
+                    style={{ background:"transparent", border:"none", outline:"none",
+                      color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.35)", fontSize:12, fontWeight:500, width:"100%",
+                      colorScheme:"dark" }}
                     value={dateEnd} onChange={e => setDateEnd(e.target.value)}/>
                 </div>
               </div>
+              {days && (
+                <>
+                  <div style={{ width:"0.5px", background:"#1a2d4a" }}/>
+                  <div style={{ padding:"9px 12px", display:"flex", alignItems:"center", flexShrink:0 }}>
+                    <div>
+                      <div style={{ fontSize:8, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Durata</div>
+                      <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", fontWeight:500 }}>{days}g</div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
