@@ -85,7 +85,13 @@ export function StatsSection({ trips }: Props) {
                 onClick={() => setSelectedKey(c.key)}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/40 border border-border hover:border-primary/40 hover:bg-muted/60 transition-colors cursor-pointer"
               >
-                <span className="text-base leading-none">{countryFlag(c.code)}</span>
+                <img
+                  src={`https://flagcdn.com/w20/${(c.code || "").toLowerCase()}.png`}
+                  width="20" height="14"
+                  alt={c.name}
+                  style={{ borderRadius:2, objectFit:"cover", flexShrink:0 }}
+                  onError={e => { (e.target as HTMLImageElement).style.display="none"; }}
+                />
                 <span className="text-sm font-medium">{c.name}</span>
                 <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
                   {c.visits}
