@@ -440,11 +440,11 @@ const NuovoViaggio = () => {
 
       {/* Main layout: itinerario hero sinistra, form destra */}
       <div style={{ flex:1, maxWidth:1200, margin:"0 auto", width:"100%",
-        padding:"32px 24px", display:"flex", gap:24, alignItems:"flex-start" }}>
+        padding:"32px 24px", display:"flex", gap:24, alignItems:"stretch" }}>
 
         {/* LEFT — Itinerario hero */}
         <div style={{ flex:1.6, background:"#0a1628", border:"0.5px solid #1a2d4a",
-          borderRadius:14, overflow:"hidden", display:"flex", flexDirection:"column", alignSelf:"stretch" }}>
+          borderRadius:14, overflow:"hidden", display:"flex", flexDirection:"column" }}>
 
           <div style={{ padding:"18px 20px", borderBottom:"0.5px solid #1a2d4a",
             display:"flex", alignItems:"center", gap:10 }}>
@@ -481,7 +481,7 @@ const NuovoViaggio = () => {
         </div>
 
         {/* RIGHT — Form compatto */}
-        <div style={{ width:280, flexShrink:0, display:"flex", flexDirection:"column", gap:12 }}>
+        <div style={{ width:280, flexShrink:0, display:"flex", flexDirection:"column", gap:12, alignSelf:"flex-start" }}>
 
           {/* Nome */}
           <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
