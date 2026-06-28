@@ -486,7 +486,7 @@ const NuovoViaggio = () => {
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
 
           {/* Nome */}
-          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
+          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
             <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
               textTransform:"uppercase", display:"block", marginBottom:6 }}>Nome del viaggio</label>
             <input style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
@@ -499,7 +499,7 @@ const NuovoViaggio = () => {
           </div>
 
           {/* Periodo — Corretto, senza la durata interna */}
-          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
+          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
             
             {/* Riga superiore: Titolo a sinistra, Durata a destra */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -576,7 +576,7 @@ const NuovoViaggio = () => {
           </div>
 
           {/* Note */}
-          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
+          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
             <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
               textTransform:"uppercase", display:"block", marginBottom:6 }}>
               Note <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
@@ -591,7 +591,7 @@ const NuovoViaggio = () => {
           </div>
 
           {/* Valutazione */}
-          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12, padding:"14px 16px" }}>
+          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
             <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
               textTransform:"uppercase", display:"block", marginBottom:8 }}>
               Valutazione <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
