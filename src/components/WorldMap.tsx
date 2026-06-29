@@ -138,12 +138,13 @@ export function WorldMap({
   const onSelectCityRef = useRef(onSelectCity);
   const onSelectTripRef = useRef(onSelectTrip);
   const cityMarkerRefs = useRef<{marker:any;el:HTMLElement;city:CityInfo}[]>([]);
-  const orderedRef = useRef<typeof ordered>([]);
-  const selectedIdRef = useRef<string | null>(null);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
   useEffect(() => { orderedRef.current = ordered; }, [ordered]);
   useEffect(() => { selectedIdRef.current = selectedId ?? null; }, [selectedId]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
+
+  const orderedRef = useRef<Trip[]>([]);
+  const selectedIdRef = useRef<string | null>(null);
 
   const ordered = useMemo(() =>
     [...trips]
