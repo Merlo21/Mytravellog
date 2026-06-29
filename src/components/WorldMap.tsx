@@ -142,7 +142,9 @@ export function WorldMap({
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
   const ordered = useMemo(() =>
-    [...trips].sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
+    [...trips]
+      .filter(t => t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude))
+      .sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
 
   // ── Init MapLibre ──────────────────────────────────────────────────────────
   useEffect(() => {
