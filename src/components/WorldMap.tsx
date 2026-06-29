@@ -134,6 +134,7 @@ export function WorldMap({
   const popupsRef     = useRef<any[]>([]);
   const rotTimerRef   = useRef<number | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const playingRef    = useRef(false);
   const onSelectCityRef = useRef(onSelectCity);
   const onSelectTripRef = useRef(onSelectTrip);
@@ -469,26 +470,15 @@ export function WorldMap({
   }
 
 
-  // Rebuild on trips/selection change — poll until map is ready
+  // Rebuild markers when map is ready AND trips change
   useEffect(() => {
-    if (!ordered.length) return;
-    let attempts = 0;
-    const tryAdd = () => {
-      const map = mapRef.current;
-      if (!map) return;
-      attempts++;
-      if (map.isStyleLoaded()) {
-        import("maplibre-gl").then(ml => {
-          const maplibregl = (ml as any).default || ml;
-          addTripsToMap(map, maplibregl);
-        });
-      } else if (attempts < 20) {
-        setTimeout(tryAdd, 500);
-      }
-    };
-    tryAdd();
+    if (!mapReady || !mapRef.current) return;
+    import("maplibre-gl").then(ml => {
+      const maplibregl = (ml as any).default || ml;
+      addTripsToMap(mapRef.current, maplibregl);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ordered, selectedId]);
+  }, [mapReady, ordered, selectedId]);
 
   // Focus selected trip
   useEffect(() => {
