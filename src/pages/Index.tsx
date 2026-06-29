@@ -134,7 +134,7 @@ function HomeInner() {
               {/* Header */}
               <div style={{ padding:"16px 20px 12px", borderBottom:"0.5px solid #1a2d4a", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <div>
-                  <div style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>I tuoi viaggi</div>
+                  <div style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>I miei viaggi</div>
                   <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:2 }}>{trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}</div>
                 </div>
                 <button onClick={() => setSidebarOpen(false)}
