@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 export type GeoResult = {
   id: number;
   name: string;
