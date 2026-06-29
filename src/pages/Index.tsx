@@ -39,7 +39,7 @@ function HomeInner() {
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
   // Clean up legacy visited cities data
-  React.useEffect(() => { localStorage.removeItem("atlas.visited.v1"); }, []);
+  useEffect(() => { localStorage.removeItem("atlas.visited.v1"); }, []);
   const refresh = () => setTrips(loadTrips());
   useEffect(() => { refresh(); }, []);
 
