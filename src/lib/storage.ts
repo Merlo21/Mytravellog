@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 export type Trip = {
   id: string;
   title: string;
