@@ -28,6 +28,90 @@ function daysBetween(a: string, b: string) {
   return d > 0 ? d : null;
 }
 
+
+function ContinuousFlyer({ stops, cx, cy, W, TRANSPORT_ICONS }: {
+  stops: { label: string; isHome: boolean; transport: string | null }[];
+  cx: (i: number) => number;
+  cy: number;
+  W: number;
+  TRANSPORT_ICONS: Record<string, string>;
+}) {
+  const [progress, setProgress] = React.useState(0);
+  const animRef = React.useRef<number>();
+  const startRef = React.useRef<number>();
+  const DURATION = 5000; // ms per full journey
+
+  React.useEffect(() => {
+    const animate = (ts: number) => {
+      if (!startRef.current) startRef.current = ts;
+      const elapsed = (ts - startRef.current) % DURATION;
+      setProgress(elapsed / DURATION);
+      animRef.current = requestAnimationFrame(animate);
+    };
+    animRef.current = requestAnimationFrame(animate);
+    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  }, []);
+
+  const arcs = stops.map((stop, i) => {
+    if (i === 0) return null;
+    const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
+    const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
+    return { x1, x2, mx, arcH, transport: stop.transport };
+  }).filter(Boolean) as { x1:number; x2:number; mx:number; arcH:number; transport:string|null }[];
+
+  if (arcs.length === 0) return null;
+
+  // Total arcs, distribute progress evenly
+  const n = arcs.length;
+  const arcIdx = Math.min(Math.floor(progress * n), n - 1);
+  const arcProgress = (progress * n) - arcIdx;
+  const arc = arcs[arcIdx];
+  const t = arc.transport ?? "plane";
+
+  // Bezier point: B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+  const bt = arcProgress;
+  const x = Math.pow(1-bt,2)*arc.x1 + 2*(1-bt)*bt*arc.mx + Math.pow(bt,2)*arc.x2;
+  const y = Math.pow(1-bt,2)*cy     + 2*(1-bt)*bt*(cy-arc.arcH) + Math.pow(bt,2)*cy;
+
+  // Tangent angle for rotation
+  const dx = 2*(1-bt)*(arc.mx-arc.x1) + 2*bt*(arc.x2-arc.mx);
+  const dy = 2*(1-bt)*((cy-arc.arcH)-cy) + 2*bt*(cy-(cy-arc.arcH));
+  const angle = Math.atan2(dy, dx) * (180/Math.PI);
+
+  const color = (() => {
+    const found = [
+      {v:"plane",c:"#378ADD"},{v:"train",c:"#BA7517"},{v:"car",c:"#639922"},
+      {v:"ship",c:"#0F6E56"},{v:"walk",c:"#D85A30"}
+    ].find(x => x.v === t);
+    return found?.c ?? "#378ADD";
+  })();
+
+  const pct = ((x / (W + 40)) * 100);
+
+  return (
+    <div style={{
+      position: "absolute",
+      top: 0, left: 0,
+      width: "100%",
+      height: "100%",
+      pointerEvents: "none",
+    }}>
+      <div style={{
+        position: "absolute",
+        left: `${pct}%`,
+        top: y,
+        transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+        fontSize: 26,
+        filter: `drop-shadow(0 0 5px ${color}) drop-shadow(0 0 12px ${color}) drop-shadow(0 0 24px ${color}80)`,
+        lineHeight: 1,
+        transition: "none",
+      }}>
+        {TRANSPORT_ICONS[t] ?? "✈"}
+      </div>
+    </div>
+  );
+}
+
 function RouteHero({
   waypoints, home, onEditHome, editingHome,
   homeQuery, setHomeQuery, homeResults, onSelectHome, onRemoveWaypoint,
@@ -96,34 +180,6 @@ function RouteHero({
       <div ref={containerRef} style={{ flex:1, padding:"20px 0 0", position:"relative" }}>
         {showArcs ? (
           <div style={{ position:"relative", width:"100%" }}>
-            {/* Inject CSS animations for each arc */}
-            <style>{`
-              ${stops.map((stop, i) => {
-                if (i === 0) return '';
-                const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
-                const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
-                const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
-                const path = `M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`;
-                return `
-                  @keyframes fly-arc-${i} {
-                    0%   { offset-distance: 5%; }
-                    100% { offset-distance: 90%; }
-                  }
-                  .fly-arc-${i} {
-                    position: absolute; top: 0; left: 0;
-                    offset-path: path("${path}");
-                    offset-rotate: auto;
-                    animation: fly-arc-${i} 4s cubic-bezier(0.4,0,0.6,1) infinite;
-                    font-size: 24px;
-                    filter: drop-shadow(0 0 5px ${t.color}) drop-shadow(0 0 12px ${t.color}) drop-shadow(0 0 24px ${t.color}80);
-                    pointer-events: none;
-                    transform-origin: center;
-                    line-height: 1;
-                  }
-                `;
-              }).join('')}
-            `}</style>
-
             <svg width="100%" height={H} viewBox={`0 0 ${W + 40} ${H}`}
               style={{ display:"block", overflow:"visible" }}>
               <defs>
@@ -250,16 +306,8 @@ function RouteHero({
               })}
             </div>
 
-            {/* Animated transport icons flying along arcs */}
-            {stops.map((stop, i) => {
-              if (i === 0) return null;
-              const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
-              return (
-                <div key={i} className={`fly-arc-${i}`}>
-                  {TRANSPORT_ICONS[t.value] ?? "✈"}
-                </div>
-              );
-            })}
+            {/* Single continuous animation across all arcs */}
+            <ContinuousFlyer stops={stops} cx={cx} cy={cy} W={W} TRANSPORT_ICONS={TRANSPORT_ICONS}/>
           </div>
         ) : (
           /* Empty state */
