@@ -138,7 +138,11 @@ export function WorldMap({
   const onSelectCityRef = useRef(onSelectCity);
   const onSelectTripRef = useRef(onSelectTrip);
   const cityMarkerRefs = useRef<{marker:any;el:HTMLElement;city:CityInfo}[]>([]);
+  const orderedRef = useRef<typeof ordered>([]);
+  const selectedIdRef = useRef<string | null>(null);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
+  useEffect(() => { orderedRef.current = ordered; }, [ordered]);
+  useEffect(() => { selectedIdRef.current = selectedId ?? null; }, [selectedId]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
   const ordered = useMemo(() =>
@@ -207,7 +211,7 @@ export function WorldMap({
         } catch(_) {}
 
         // Add trip sources
-        addTripsToMap(map, maplibregl, ordered, selectedId);
+        addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
 
         // City labels as markers
         updateCityLabels(map, maplibregl);
@@ -510,17 +514,15 @@ export function WorldMap({
     import("maplibre-gl").then(ml => {
       const maplibregl = (ml as any).default || ml;
       if (map.isStyleLoaded()) {
-        addTripsToMap(map, maplibregl, ordered, selectedId);
+        addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
       } else {
-        // Wait for style to load then add markers
         const onLoad = () => {
-          addTripsToMap(map, maplibregl, ordered, selectedId);
+          addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
           map.off("style.load", onLoad);
         };
         map.on("style.load", onLoad);
-        // Also retry after short delay as fallback
         setTimeout(() => {
-          if (map.isStyleLoaded()) addTripsToMap(map, maplibregl, ordered, selectedId);
+          if (map.isStyleLoaded()) addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
         }, 1500);
       }
     });
