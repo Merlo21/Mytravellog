@@ -301,7 +301,7 @@ export function WorldMap({
       if (map.getSource(id)) map.removeSource(id);
     });
 
-    if (!ordered.length) return;
+    if (!trips.length) return;
 
     // Per-trip dashed lines — pink for single, colored by transport for multi-tappa
     const TRANSPORT_COLORS: Record<string, string> = {
