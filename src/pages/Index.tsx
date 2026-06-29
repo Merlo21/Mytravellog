@@ -38,7 +38,7 @@ function HomeInner() {
   const [search, setSearch] = useState("");
 
   // Toggle body class to hide MapLibre controls when sidebar is open
-  React.useEffect(() => {
+  useEffect(() => {
     if (sidebarOpen) document.body.classList.add("sidebar-open");
     else document.body.classList.remove("sidebar-open");
     return () => document.body.classList.remove("sidebar-open");
