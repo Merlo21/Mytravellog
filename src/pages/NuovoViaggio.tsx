@@ -213,19 +213,19 @@ function RouteHero({
                     {/* Transport picker popup */}
                     {activeArc === i && (
                       <g onClick={e => e.stopPropagation()}>
-                        <rect x={mx-80} y={cy-arcH-72} width="160" height="50" rx="8"
+                        <rect x={mx-95} y={cy-arcH-84} width="190" height="60" rx="10"
                           fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
-                        <text x={mx} y={cy-arcH-54} fontSize="8" textAnchor="middle" fill="rgba(255,255,255,0.35)">Cambia mezzo</text>
+                        <text x={mx} y={cy-arcH-64} fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">Cambia mezzo</text>
                         {TRANSPORT.map((opt, j) => {
-                          const bx = mx - 60 + j * 30;
-                          const by = cy - arcH - 38;
+                          const bx = mx - 72 + j * 36;
+                          const by = cy - arcH - 44;
                           return (
                             <g key={opt.value} style={{cursor:"pointer"}}
                               onClick={() => { waypoints[i-1].transport_mode = opt.value; onRemoveWaypoint(-99); setActiveArc(null); }}>
-                              <rect x={bx-12} y={by-12} width="24" height="24" rx="6"
-                                fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.03)"}
-                                stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"} strokeWidth="0.5"/>
-                              <text x={bx} y={by+5} fontSize="13" textAnchor="middle">
+                              <rect x={bx-15} y={by-15} width="30" height="30" rx="8"
+                                fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.05)"}
+                                stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"} strokeWidth="1"/>
+                              <text x={bx} y={by+7} fontSize="18" textAnchor="middle">
                                 {TRANSPORT_ICONS[opt.value]}
                               </text>
                             </g>
