@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useMemo, useRef, useState } from "react";
 import { feature } from "topojson-client";
 import { Trip as LocalTrip } from "@/lib/storage";
