@@ -321,10 +321,17 @@ export function WorldMap({
       const lineColor = hasWp
         ? (TRANSPORT_COLORS_MAP[t.transport_mode ?? "plane"] ?? "#60a5fa")
         : "#f472b6";
+      // Build full coords: home → waypoints (with coords) → destination
+      const coords: [number,number][] = [
+        [t.home_longitude!, t.home_latitude!],
+        ...(t.waypoints ?? [])
+          .filter((w: any) => w.lat && w.lon && !isNaN(w.lat) && !isNaN(w.lon))
+          .map((w: any) => [w.lon, w.lat] as [number,number]),
+        [t.longitude, t.latitude],
+      ];
       map.addSource(lineId, {
         type: "geojson",
-        data: { type:"Feature", geometry:{ type:"LineString",
-          coordinates: [[t.home_longitude, t.home_latitude], [t.longitude, t.latitude]] } },
+        data: { type:"Feature", geometry:{ type:"LineString", coordinates: coords } },
       });
       map.addLayer({
         id: lineId, type: "line", source: lineId,
