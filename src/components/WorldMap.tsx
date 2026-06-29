@@ -207,7 +207,7 @@ export function WorldMap({
         } catch(_) {}
 
         // Add trip sources
-        addTripsToMap(map, maplibregl);
+        addTripsToMap(map, maplibregl, ordered, selectedId);
 
         // City labels as markers
         updateCityLabels(map, maplibregl);
@@ -282,7 +282,7 @@ export function WorldMap({
   }, [autoRotateSetting]);
 
   // ── Add trips ──────────────────────────────────────────────────────────────
-  function addTripsToMap(map: any, maplibregl: any) {
+  function addTripsToMap(map: any, maplibregl: any, trips: typeof ordered = ordered, selId: string | null = selectedId) {
     // Clean old markers
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
@@ -307,10 +307,10 @@ export function WorldMap({
     const TRANSPORT_COLORS: Record<string, string> = {
       plane: "#378ADD", train: "#BA7517", car: "#639922", ship: "#0F6E56", walk: "#D85A30"
     };
-    ordered.forEach((t) => {
+    trips.forEach((t) => {
       if (!t.home_latitude || !t.home_longitude || !t.latitude || !t.longitude) return;
       const hasWp = t.waypoints && t.waypoints.length > 0;
-      const sel = t.id === selectedId;
+      const sel = t.id === selId;
       const lineId = `route-${t.id}`;
       // Remove old layers for this trip
       if (map.getLayer(lineId)) map.removeLayer(lineId);
@@ -372,8 +372,8 @@ export function WorldMap({
     );
 
     // Trip markers
-    ordered.forEach((t, i) => {
-      const sel = t.id === selectedId;
+    trips.forEach((t, i) => {
+      const sel = t.id === selId;
       const el = document.createElement("div");
       const hasWaypoints = t.waypoints && t.waypoints.length > 0;
       const baseColor = sel ? "#5eead4" : hasWaypoints ? "#60a5fa" : "#f472b6";
@@ -514,13 +514,13 @@ export function WorldMap({
       } else {
         // Wait for style to load then add markers
         const onLoad = () => {
-          addTripsToMap(map, maplibregl);
+          addTripsToMap(map, maplibregl, ordered, selectedId);
           map.off("style.load", onLoad);
         };
         map.on("style.load", onLoad);
         // Also retry after short delay as fallback
         setTimeout(() => {
-          if (map.isStyleLoaded()) addTripsToMap(map, maplibregl);
+          if (map.isStyleLoaded()) addTripsToMap(map, maplibregl, ordered, selectedId);
         }, 1500);
       }
     });
