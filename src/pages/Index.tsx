@@ -1,7 +1,7 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { AppHeader } from "@/components/AppHeader";
 import { useEffect, useMemo, useState, Component, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
@@ -24,12 +24,13 @@ class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> 
 }
 
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
 
 function HomeInner() {
+  const navigate = useNavigate();
   const { distanceUnit, autoRotate, homeCity } = useSettings();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -37,7 +38,6 @@ function HomeInner() {
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
-  const [pendingCity, setPendingCity] = useState<CityInfo | null>(null);
   const refresh = () => setTrips(loadTrips());
   useEffect(() => { refresh(); }, []);
 
@@ -136,15 +136,18 @@ function HomeInner() {
             </div>
             {/* Actions */}
             <div className="p-3 flex flex-col gap-2">
-              <div onClick={() => setSelectedCity(null)}>
-                <NewTripDialog
-                  onCreated={refresh}
-                  defaultHome={defaultHome}
-                  prefilledCity={selectedCity}
-                  triggerLabel={`✈ Aggiungi come viaggio`}
-                  triggerClassName="w-full btn-primary py-3 text-sm font-semibold flex items-center justify-center gap-2"
-                />
-              </div>
+              <button
+                className="w-full btn-primary py-3 text-sm font-semibold flex items-center justify-center gap-2"
+                onClick={() => {
+                  if (selectedCity) {
+                    sessionStorage.setItem("navta.prefill.city", JSON.stringify(selectedCity));
+                  }
+                  setSelectedCity(null);
+                  navigate("/nuovo-viaggio");
+                }}
+              >
+                ✈ Aggiungi come viaggio
+              </button>
               <button
                 onClick={() => {
                   // Mark as visited without adding to trips
@@ -166,16 +169,7 @@ function HomeInner() {
         </div>
       )}
 
-      {pendingCity && (
-        <div style={{display:'none'}}>
-          <NewTripDialog
-            onCreated={() => { refresh(); setPendingCity(null); }}
-            defaultHome={defaultHome}
-            prefilledCity={pendingCity}
-            triggerLabel="open"
-          />
-        </div>
-      )}
+
 
       {/* Sidebar */}
       {sidebarOpen && (
