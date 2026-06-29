@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { Compass, Globe, MapPin, Plane, PieChart, Plus, Settings, X } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
@@ -35,6 +35,7 @@ function HomeInner() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
@@ -163,6 +164,7 @@ function HomeInner() {
         <div className="fixed inset-0 z-30 flex">
           <div className="flex-1 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
           <div className="w-full max-w-sm bg-background border-l border-border flex flex-col animate-fade-up">
+            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
                 <h2 className="font-bold">I tuoi viaggi</h2>
@@ -172,16 +174,65 @@ function HomeInner() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {trips.length === 0
-                ? <p className="text-sm text-muted-foreground text-center py-8">Nessun viaggio ancora.</p>
-                : trips.map((t) => (
-                  <TripCard key={t.id} trip={t}
-                    selected={selectedId === t.id}
-                    onClick={() => { setSelectedId(t.id); setSidebarOpen(false); }}
-                    onDeleted={refresh} onUpdated={refresh} />
-                ))
-              }
+
+            {/* Search */}
+            <div className="px-4 py-3 border-b border-border">
+              <div className="flex items-center gap-2 bg-secondary/30 rounded-xl px-3 py-2">
+                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
+                <input
+                  className="bg-transparent flex-1 text-sm outline-none placeholder:text-muted-foreground"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Cerca città, paese…"
+                />
+                {search && (
+                  <button onClick={() => setSearch("")} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5"/>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Trips grouped by year */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {(() => {
+                const filtered = trips.filter(t =>
+                  !search || [t.title, t.city, t.country].some(s =>
+                    s?.toLowerCase().includes(search.toLowerCase())
+                  )
+                );
+                if (filtered.length === 0) return (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {search ? "Nessun risultato." : "Nessun viaggio ancora."}
+                  </p>
+                );
+                // Group by year
+                const byYear = filtered.reduce((acc, t) => {
+                  const year = t.trip_date ? new Date(t.trip_date).getFullYear().toString() : "—";
+                  if (!acc[year]) acc[year] = [];
+                  acc[year].push(t);
+                  return acc;
+                }, {} as Record<string, typeof trips>);
+                const years = Object.keys(byYear).sort((a, b) => b.localeCompare(a));
+                return years.map(year => (
+                  <div key={year} className="mb-4">
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                      <span className="text-xs font-bold tracking-widest uppercase"
+                        style={{color:"rgba(255,255,255,0.25)"}}>{year}</span>
+                      <div className="flex-1 h-px bg-border"/>
+                      <span className="text-xs text-muted-foreground">{byYear[year].length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {byYear[year].map(t => (
+                        <TripCard key={t.id} trip={t}
+                          selected={selectedId === t.id}
+                          onClick={() => { setSelectedId(t.id); setSidebarOpen(false); }}
+                          onDeleted={refresh} onUpdated={refresh}/>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         </div>
