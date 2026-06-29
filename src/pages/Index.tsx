@@ -166,7 +166,7 @@ function HomeInner() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
                 <h2 className="font-bold">I tuoi viaggi</h2>
-                <p className="text-xs text-muted-foreground">{trips.length} totali</p>
+                <p className="text-xs text-muted-foreground">{trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}</p>
               </div>
               <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg hover:bg-secondary transition-colors">
                 <X className="w-4 h-4" />
