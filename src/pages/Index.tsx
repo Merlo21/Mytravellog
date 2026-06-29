@@ -233,7 +233,7 @@ function HomeInner() {
                       {byYear[year].map(t => (
                         <TripCard key={t.id} trip={t}
                           selected={selectedId === t.id}
-                          onClick={() => { setSelectedId(t.id); setSidebarOpen(false); }}
+                          onClick={() => { setSelectedId(t.id); }}
                           onDeleted={refresh} onUpdated={refresh}/>
                       ))}
                     </div>
