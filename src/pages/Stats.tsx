@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AppHeader } from "@/components/AppHeader";
