@@ -44,6 +44,9 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
   const { distanceUnit, temperatureUnit } = useSettings();
   const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_STYLE;
   const flag = countryFlag(trip.country_code ?? "");
+  const days = trip.date_end && trip.date_end !== trip.trip_date
+    ? Math.round((new Date(trip.date_end).getTime() - new Date(trip.trip_date).getTime()) / 86400000)
+    : null;
 
   const handleDelete = () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
@@ -92,7 +95,7 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
               <StarDisplay rating={trip.rating ?? null} />
             </div>
 
-            {/* Date */}
+            {/* Date + durata */}
             <div className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
               <span>{formatTripDate(trip.trip_date)}</span>
               {trip.date_end && trip.date_end !== trip.trip_date && (
@@ -100,6 +103,9 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
                   <span style={{color:"rgba(255,255,255,0.2)"}}>→</span>
                   <span>{formatTripDate(trip.date_end)}</span>
                 </>
+              )}
+              {days && days > 0 && (
+                <span style={{color: ts.color, fontWeight:600, marginLeft:2}}>· {days}g</span>
               )}
             </div>
 
