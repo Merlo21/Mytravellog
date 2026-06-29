@@ -58,42 +58,77 @@ function RouteHero({
   const [activeArc, setActiveArc] = React.useState<number | null>(null);
 
   React.useEffect(() => {
-    const obs = new ResizeObserver(entries => {
-      setContainerW(entries[0].contentRect.width);
-    });
+    const obs = new ResizeObserver(entries => setContainerW(entries[0].contentRect.width));
     if (containerRef.current) obs.observe(containerRef.current);
     return () => obs.disconnect();
   }, []);
 
   const homeLabel = home?.label?.split(",")[0] ?? "Casa";
   const stops = [
-    { label: homeLabel, flag: "🏠", isHome: true, transport: null as TransportMode | null },
-    ...waypoints.map(w => ({ label: w.city, flag: countryFlag(w.country_code), isHome: false, transport: w.transport_mode })),
+    { label: homeLabel, flag: null, countryCode: null, isHome: true, transport: null as TransportMode | null },
+    ...waypoints.map(w => ({ label: w.city, flag: null, countryCode: w.country_code, isHome: false, transport: w.transport_mode })),
   ];
+
+  const TRANSPORT_ICONS: Record<string, string> = {
+    plane: "✈", train: "🚂", car: "🚗", ship: "⛵", walk: "🚶"
+  };
 
   const n = stops.length;
   const W = containerW - 40;
   const H = 160;
-  const nodeR = Math.min(32, Math.max(20, W / (n * 3.5)));
-  const pad = nodeR + 20;
+  const nodeR = Math.min(34, Math.max(22, W / (n * 3.5)));
+  const pad = nodeR + 24;
   const step = n > 1 ? (W - pad * 2) / (n - 1) : 0;
   const cx = (i: number) => pad + 20 + i * step;
-  const cy = 90;
-
+  const cy = 95;
   const showArcs = waypoints.length > 0;
+
+  // Build SVG path string for each arc (for CSS offset-path animation)
+  const arcPaths = stops.map((stop, i) => {
+    if (i === 0) return null;
+    const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
+    const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
+    return `M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`;
+  }).filter(Boolean);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
-
-      {/* SVG — full width */}
       <div ref={containerRef} style={{ flex:1, padding:"20px 0 0", position:"relative" }}>
         {showArcs ? (
           <div style={{ position:"relative", width:"100%" }}>
+            {/* Inject CSS animations for each arc */}
+            <style>{`
+              ${stops.map((stop, i) => {
+                if (i === 0) return '';
+                const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
+                const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
+                const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
+                const path = `M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`;
+                return `
+                  @keyframes fly-arc-${i} {
+                    0%   { offset-distance: 5%; }
+                    100% { offset-distance: 90%; }
+                  }
+                  .fly-arc-${i} {
+                    position: absolute; top: 0; left: 0;
+                    offset-path: path("${path}");
+                    offset-rotate: auto;
+                    animation: fly-arc-${i} 4s cubic-bezier(0.4,0,0.6,1) infinite;
+                    font-size: 24px;
+                    filter: drop-shadow(0 0 5px ${t.color}) drop-shadow(0 0 12px ${t.color}) drop-shadow(0 0 24px ${t.color}80);
+                    pointer-events: none;
+                    transform-origin: center;
+                    line-height: 1;
+                  }
+                `;
+              }).join('')}
+            `}</style>
+
             <svg width="100%" height={H} viewBox={`0 0 ${W + 40} ${H}`}
               style={{ display:"block", overflow:"visible" }}>
               <defs>
                 {TRANSPORT.map(t => (
-                  <marker key={t.value} id={`h2-arr-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <marker key={t.value} id={`nv-arr-${t.value}`} markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
                     <path d="M0,0 L6,3 L0,6 Z" fill={t.color} opacity="0.8"/>
                   </marker>
                 ))}
@@ -104,42 +139,38 @@ function RouteHero({
                 if (i === 0) return null;
                 const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
                 const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
-                const arcH = Math.min(65, Math.max(28, (x2-x1)*0.38));
+                const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
                 return (
                   <g key={i}>
+                    {/* Glow */}
+                    <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
+                      stroke={t.color} strokeWidth="8" fill="none" opacity="0.06"/>
+                    {/* Arc */}
                     <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
                       stroke={t.color} strokeWidth="2" strokeDasharray="5 3"
-                      fill="none" opacity="0.7" markerEnd={`url(#h2-arr-${t.value})`}/>
-                    {/* Transport pill on arc — clickable */}
-                    <g style={{cursor:"pointer"}} onClick={() => setActiveArc(activeArc === i ? null : i)}>
-                      <rect x={mx-32} y={cy-arcH-14} width="64" height="20" rx="10"
-                        fill={t.bg} stroke={t.color} strokeWidth="1" strokeOpacity="0.8"/>
-                      <text x={mx} y={cy-arcH-1} fontSize="10.5" textAnchor="middle" fill={t.color}>{t.label}</text>
-                    </g>
-                    {/* Transport picker — small popup on arc */}
+                      fill="none" opacity="0.6" markerEnd={`url(#nv-arr-${t.value})`}/>
+                    {/* Clickable arc for transport change */}
+                    <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
+                      stroke="transparent" strokeWidth="20" fill="none"
+                      style={{cursor:"pointer"}}
+                      onClick={() => setActiveArc(activeArc === i ? null : i)}/>
+                    {/* Transport picker popup */}
                     {activeArc === i && (
                       <g onClick={e => e.stopPropagation()}>
-                        <rect x={mx-80} y={cy-arcH-68} width="160" height="46" rx="8"
+                        <rect x={mx-80} y={cy-arcH-72} width="160" height="50" rx="8"
                           fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
-                        <text x={mx} y={cy-arcH-52} fontSize="8" textAnchor="middle" fill="rgba(255,255,255,0.35)">
-                          Cambia mezzo
-                        </text>
+                        <text x={mx} y={cy-arcH-54} fontSize="8" textAnchor="middle" fill="rgba(255,255,255,0.35)">Cambia mezzo</text>
                         {TRANSPORT.map((opt, j) => {
                           const bx = mx - 60 + j * 30;
                           const by = cy - arcH - 38;
                           return (
                             <g key={opt.value} style={{cursor:"pointer"}}
-                              onClick={() => {
-                                waypoints[i-1].transport_mode = opt.value;
-                                onRemoveWaypoint(-99);
-                                setActiveArc(null);
-                              }}>
+                              onClick={() => { waypoints[i-1].transport_mode = opt.value; onRemoveWaypoint(-99); setActiveArc(null); }}>
                               <rect x={bx-12} y={by-12} width="24" height="24" rx="6"
                                 fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.03)"}
-                                stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"}
-                                strokeWidth="0.5"/>
-                              <text x={bx} y={by+5} fontSize="12" textAnchor="middle">
-                                {opt.value === "plane" ? "✈" : opt.value === "train" ? "🚂" : opt.value === "car" ? "🚗" : opt.value === "ship" ? "⛵" : "🚶"}
+                                stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"} strokeWidth="0.5"/>
+                              <text x={bx} y={by+5} fontSize="13" textAnchor="middle">
+                                {TRANSPORT_ICONS[opt.value]}
                               </text>
                             </g>
                           );
@@ -157,26 +188,26 @@ function RouteHero({
                 const lastT = isLast ? TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0] : null;
                 const borderColor = stop.isHome ? "#fbbf24" : lastT ? lastT.color : "#60a5fa";
                 const bgFill = stop.isHome ? "rgba(251,191,36,0.1)" : lastT ? lastT.bg : "rgba(96,165,250,0.08)";
-                const r = isLast ? nodeR + 4 : nodeR;
+                const r = isLast ? nodeR + 5 : nodeR;
                 return (
                   <g key={i}>
                     <circle cx={x} cy={cy} r={r} fill={bgFill} stroke={borderColor}
                       strokeWidth={isLast ? 2.5 : 1.5} strokeDasharray={stop.isHome ? "3 2" : "none"}/>
                     {stop.isHome && (
                       <g style={{cursor:"pointer"}} onClick={onEditHome}>
-                        <circle cx={x+r-4} cy={cy-r+4} r="9" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
+                        <circle cx={x+r-4} cy={cy-r+4} r="10" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1.5"/>
                         <text x={x+r-4} y={cy-r+8} fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
                       </g>
                     )}
                     {!stop.isHome && (
                       <g style={{cursor:"pointer"}} onClick={() => onRemoveWaypoint(i-1)}>
-                        <circle cx={x+r-2} cy={cy-r+2} r="8" fill="#060e1e"
-                          stroke={isLast ? borderColor : "#1a2d4a"} strokeWidth="1"/>
-                        <text x={x+r-2} y={cy-r+6} fontSize="10" textAnchor="middle"
-                          fill={isLast ? borderColor : "rgba(255,255,255,0.3)"}>×</text>
+                        <circle cx={x+r-3} cy={cy-r+3} r="9" fill="#060e1e"
+                          stroke={isLast ? borderColor : "#1a2d4a"} strokeWidth="1.5"/>
+                        <text x={x+r-3} y={cy-r+7} fontSize="10" textAnchor="middle"
+                          fill={isLast ? borderColor : "rgba(255,255,255,0.4)"}>×</text>
                       </g>
                     )}
-                    <text x={x} y={cy+r+13} fontSize="9.5" textAnchor="middle"
+                    <text x={x} y={cy+r+14} fontSize="9.5" textAnchor="middle"
                       fill={isLast ? borderColor : "rgba(255,255,255,0.4)"}
                       fontWeight={isLast ? "600" : "normal"}>
                       {stop.label.length > 9 ? stop.label.slice(0,8)+"…" : stop.label}
@@ -186,87 +217,105 @@ function RouteHero({
               })}
             </svg>
 
-            {/* HTML emoji overlays */}
-            <div style={{ position:"absolute", top:20, left:0, width:"100%", pointerEvents:"none" }}>
+            {/* HTML overlays: home emoji + flag CDN images */}
+            <div style={{ position:"absolute", top:0, left:0, width:"100%", pointerEvents:"none" }}>
               {stops.map((stop, i) => {
                 const x = cx(i);
                 const isLast = i === stops.length-1 && stops.length > 1;
-                const r = isLast ? nodeR + 4 : nodeR;
+                const r = isLast ? nodeR + 5 : nodeR;
+                const size = r * 1.3;
                 return (
                   <div key={i} style={{
                     position:"absolute",
-                    left: x / (W + 40) * 100 + "%",
-                    top: cy - r * 0.55,
-                    width: r * 1.1, height: r * 1.1,
+                    left: (x / (W+40)) * 100 + "%",
+                    top: cy - r * 0.6,
                     transform: "translateX(-50%)",
+                    width: size, height: size,
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize: r * 0.72, lineHeight:1, userSelect:"none"
-                  }}>{stop.flag}</div>
+                    overflow: "hidden",
+                    borderRadius: "50%",
+                  }}>
+                    {stop.isHome
+                      ? <span style={{ fontSize: r * 0.75, lineHeight:1 }}>🏠</span>
+                      : stop.countryCode
+                        ? <img
+                            src={`https://flagcdn.com/w80/${stop.countryCode.toLowerCase()}.png`}
+                            style={{ width:"100%", height:"100%", objectFit:"cover" }}
+                            onError={e => { (e.target as HTMLImageElement).style.display="none"; }}
+                          />
+                        : <span style={{ fontSize: r * 0.65, lineHeight:1 }}>🌍</span>
+                    }
+                  </div>
                 );
               })}
             </div>
+
+            {/* Animated transport icons flying along arcs */}
+            {stops.map((stop, i) => {
+              if (i === 0) return null;
+              const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
+              return (
+                <div key={i} className={`fly-arc-${i}`}>
+                  {TRANSPORT_ICONS[t.value] ?? "✈"}
+                </div>
+              );
+            })}
           </div>
         ) : (
-          /* Empty state — full width */
+          /* Empty state */
           <div style={{ position:"relative", width:"100%", height:H }}>
             <svg width="100%" height={H} viewBox={`0 0 ${W+40} ${H}`}
               style={{ display:"block", overflow:"visible" }}>
-              {/* Ghost arcs */}
               <path d={`M 60 80 Q ${(W+40)*0.35} 20 ${(W+40)*0.5} 80`}
                 stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
               <path d={`M ${(W+40)*0.5} 80 Q ${(W+40)*0.72} 20 ${W-20} 80`}
                 stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
-              {/* Casa */}
               <circle cx="60" cy="80" r="26" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2"/>
               <circle cx="74" cy="60" r="9" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
               <text x="74" y="64" fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
               <text x="60" y="113" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">{homeLabel.slice(0,9)}</text>
-              {/* Ghost 1 */}
               <circle cx={(W+40)*0.5} cy="80" r="24" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
               <text x={(W+40)*0.5} y="85" fontSize="20" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.1)">+</text>
               <text x={(W+40)*0.5} y="112" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.12)">tappa</text>
-              {/* Ghost 2 */}
               <circle cx={W-20} cy="80" r="28" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
               <text x={W-20} y="85" fontSize="22" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.1)">+</text>
               <text x={W-20} y="116" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.12)">destinazione</text>
             </svg>
-            {/* Casa emoji */}
-            <div style={{ position:"absolute", top:54, left:36,
-              width:48, height:48, display:"flex", alignItems:"center",
-              justifyContent:"center", fontSize:22, cursor:"pointer" }} onClick={onEditHome}>🏠</div>
+            <div style={{ position:"absolute", top:54, left:36, width:48, height:48,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:22, cursor:"pointer" }} onClick={onEditHome}>🏠</div>
+          </div>
+        )}
+
+        {/* Home edit field */}
+        {editingHome && (
+          <div style={{ margin:"0 20px 8px", background:"#0d1f3c", border:"0.5px solid #fbbf24",
+            borderRadius:8, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, position:"relative" }}>
+            <span style={{ fontSize:14, color:"#fbbf24" }}>🏠</span>
+            <input autoFocus style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:13, flex:1 }}
+              value={homeQuery} onChange={e => setHomeQuery(e.target.value)} placeholder="La tua città…"/>
+            <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+            {homeResults.length > 0 && (
+              <div style={{ position:"absolute", bottom:"100%", left:0, right:0, background:"#0d1f3c",
+                border:"0.5px solid #1a2d4a", borderRadius:8, zIndex:10, overflow:"hidden", marginBottom:4 }}>
+                {homeResults.map((r,i) => (
+                  <button key={i} type="button" onClick={() => onSelectHome(r)}
+                    style={{ width:"100%", textAlign:"left", padding:"9px 14px", fontSize:13,
+                      color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
+                      display:"flex", alignItems:"center", gap:8, borderBottom:"0.5px solid #1a2d4a" }}>
+                    <MapPin className="w-3.5 h-3.5" style={{ color:"rgba(255,255,255,0.3)" }}/>{r.name}, {r.country}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Home edit field */}
-      {editingHome && (
-        <div style={{ margin:"0 20px 8px", background:"#0d1f3c", border:"0.5px solid #fbbf24",
-          borderRadius:8, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, position:"relative" }}>
-          <span style={{ fontSize:14, color:"#fbbf24" }}>🏠</span>
-          <input autoFocus style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:13, flex:1 }}
-            value={homeQuery} onChange={e => setHomeQuery(e.target.value)} placeholder="La tua città…"/>
-          <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
-          {homeResults.length > 0 && (
-            <div style={{ position:"absolute", bottom:"100%", left:0, right:0, background:"#0d1f3c",
-              border:"0.5px solid #1a2d4a", borderRadius:8, zIndex:10, overflow:"hidden", marginBottom:4 }}>
-              {homeResults.map((r,i) => (
-                <button key={i} type="button" onClick={() => onSelectHome(r)}
-                  style={{ width:"100%", textAlign:"left", padding:"9px 14px", fontSize:13,
-                    color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
-                    display:"flex", alignItems:"center", gap:8, borderBottom:"0.5px solid #1a2d4a" }}>
-                  <MapPin className="w-3.5 h-3.5" style={{ color:"rgba(255,255,255,0.3)" }}/>{r.name}, {r.country}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Aggiungi tappa — inline search, no overlay */}
+      {/* Aggiungi tappa */}
       <div style={{ padding:"8px 20px 20px" }}>
         {wpOpen ? (
           <div style={{ background:"#0a1e38", border:"0.5px solid #1a2d4a", borderRadius:10, overflow:"hidden" }}>
-            {/* Mezzo */}
             <div style={{ padding:"10px 14px 8px", borderBottom:"0.5px solid #1a2d4a",
               display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
               <span style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1px",
@@ -277,11 +326,10 @@ function RouteHero({
                     background: wpTransport === t.value ? t.bg : "transparent",
                     color: wpTransport === t.value ? t.color : "rgba(255,255,255,0.25)",
                     border: `0.5px solid ${wpTransport === t.value ? t.color : "#1a2d4a"}` }}>
-                  {t.label}
+                  {TRANSPORT_ICONS[t.value]} {t.label}
                 </button>
               ))}
             </div>
-            {/* Search */}
             <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:8 }}>
               {wpLoading
                 ? <Loader2 className="w-4 h-4 animate-spin" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
@@ -291,16 +339,16 @@ function RouteHero({
                 color:"#f0f4ff", fontSize:13, flex:1 }}
                 value={wpQuery} onChange={e => setWpQuery(e.target.value)} placeholder="Cerca città…"/>
               <button type="button" onClick={() => { setWpQuery(""); setWpOpen(false); }}
-                style={{ background:"none", border:"none", cursor:"pointer",
-                  color:"rgba(255,255,255,0.3)", fontSize:18 }}>×</button>
+                style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)", fontSize:18 }}>×</button>
             </div>
-            {/* Results */}
             {wpResults.map((r,i) => (
               <button key={i} type="button" onClick={() => onAddWaypoint(r)}
                 style={{ width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13,
                   color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
                   display:"flex", alignItems:"center", gap:10, borderTop:"0.5px solid #1a2d4a" }}>
-                <span style={{fontSize:16}}>{countryFlag(r.country_code ?? "")}</span>
+                <img src={`https://flagcdn.com/w20/${(r.country_code || "").toLowerCase()}.png`}
+                  width="20" style={{ borderRadius:2, flexShrink:0 }}
+                  onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/>
                 <span>{r.name}, {r.country}</span>
               </button>
             ))}
