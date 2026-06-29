@@ -205,8 +205,8 @@ export function WorldMap({
           });
         } catch(_) {}
 
-        // Add trip sources
-        addTripsToMap(map, maplibregl);
+        // Signal map ready — useEffect will add markers
+        setMapReady(true);
 
         // City labels as markers
         updateCityLabels(map, maplibregl);
