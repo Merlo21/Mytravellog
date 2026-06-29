@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { useState } from "react";
 import { Trip, deleteTrip, formatTripDate } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
