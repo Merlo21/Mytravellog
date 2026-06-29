@@ -383,9 +383,9 @@ export function WorldMap({
       map.addLayer({
         id, type: "circle", source: id,
         paint: {
-          "circle-radius": ["case", ["get", "selected"], 7, 5],
-          "circle-color": ["case", ["get", "selected"], selColor, color],
-          "circle-stroke-width": ["case", ["get", "selected"], 2.5, 1.5],
+          "circle-radius": 5,
+          "circle-color": color,
+          "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
           "circle-opacity": 1,
           "circle-stroke-opacity": 0.9,
