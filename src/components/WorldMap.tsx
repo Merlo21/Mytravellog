@@ -367,7 +367,7 @@ export function WorldMap({
     homeEl.style.cssText = "width:16px;height:16px;border-radius:50%;background:#fbbf24;border:2.5px solid #fff;box-shadow:0 0 8px rgba(251,191,36,0.6);cursor:pointer";
     markersRef.current.push(
       new maplibregl.Marker({ element: homeEl })
-        .setLngLat([home.home_longitude, home.home_latitude])
+        .setLngLat([trips[0].home_longitude!, trips[0].home_latitude!])
         .addTo(map)
     );
 
@@ -510,7 +510,7 @@ export function WorldMap({
     import("maplibre-gl").then(ml => {
       const maplibregl = (ml as any).default || ml;
       if (map.isStyleLoaded()) {
-        addTripsToMap(map, maplibregl);
+        addTripsToMap(map, maplibregl, ordered, selectedId);
       } else {
         // Wait for style to load then add markers
         const onLoad = () => {
