@@ -299,7 +299,7 @@ export function WorldMap({
         if (map.getSource(id)) map.removeSource(id);
       });
     } catch(_) {}
-    ["route-line","route-points","trips-single","trips-multi"].forEach(id => {
+    ["route-line","route-points","trips-single","trips-multi","trips-waypoints"].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
@@ -406,6 +406,43 @@ export function WorldMap({
 
     addCircleLayer("trips-single", singleFeatures, "#f472b6", "#5eead4");
     addCircleLayer("trips-multi",  multiFeatures,  "#60a5fa", "#5eead4");
+
+    // Waypoint intermediate stop markers (smaller dots, colored by transport)
+    const waypointFeatures = ordered.flatMap((t: any) =>
+      (t.waypoints ?? [])
+        .filter((w: any) => w.lat && w.lon && !isNaN(w.lat) && !isNaN(w.lon))
+        .map((w: any) => ({
+          type: "Feature",
+          properties: { transport: w.transport_mode ?? "plane" },
+          geometry: { type: "Point", coordinates: [w.lon, w.lat] }
+        }))
+    );
+    if (map.getLayer("trips-waypoints")) map.removeLayer("trips-waypoints");
+    if (map.getSource("trips-waypoints")) map.removeSource("trips-waypoints");
+    if (waypointFeatures.length) {
+      map.addSource("trips-waypoints", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: waypointFeatures }
+      });
+      map.addLayer({
+        id: "trips-waypoints", type: "circle", source: "trips-waypoints",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": [
+            "match", ["get", "transport"],
+            "plane", "#378ADD",
+            "train", "#BA7517",
+            "car",   "#639922",
+            "ship",  "#0F6E56",
+            "walk",  "#D85A30",
+            "#60a5fa"
+          ],
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.9,
+        }
+      });
+    }
   }
 
   // ── City labels ────────────────────────────────────────────────────────────
