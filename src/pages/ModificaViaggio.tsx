@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
-import { addTrip, updateTrip, loadTrips } from "@/lib/storage";
+import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
