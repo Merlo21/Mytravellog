@@ -287,7 +287,7 @@ export function WorldMap({
   }, [autoRotateSetting]);
 
   // ── Add trips ──────────────────────────────────────────────────────────────
-  function addTripsToMap(map: any, maplibregl: any, trips: typeof ordered = ordered, selId: string | null = selectedId) {
+  function addTripsToMap(map: any, maplibregl: any, trips: Trip[], selId: string | null) {
     // Clean old markers
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
