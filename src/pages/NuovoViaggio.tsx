@@ -29,49 +29,13 @@ function daysBetween(a: string, b: string) {
 }
 
 
-// SVG icons for transport modes — minimalist, colored
+// Lucide transport icons — same as statistics section
 const TRANSPORT_SVG: Record<string, (color: string, size?: number) => React.ReactElement> = {
-  plane: (c, s=24) => (
-    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
-      <path d="M6 20 L18 14 L28 8 L30 10 L22 16 L32 20 L30 22 L20 20 L16 28 L13 28 L16 22 L8 22Z" fill={c} opacity="0.9"/>
-    </svg>
-  ),
-  train: (c, s=24) => (
-    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
-      <rect x="12" y="8" width="16" height="20" rx="3" stroke={c} strokeWidth="2"/>
-      <line x1="12" y1="16" x2="28" y2="16" stroke={c} strokeWidth="1.5"/>
-      <line x1="20" y1="8" x2="20" y2="16" stroke={c} strokeWidth="1.5"/>
-      <circle cx="15" cy="31" r="2.5" fill={c}/>
-      <circle cx="25" cy="31" r="2.5" fill={c}/>
-      <line x1="10" y1="28" x2="30" y2="28" stroke={c} strokeWidth="1.5"/>
-    </svg>
-  ),
-  car: (c, s=24) => (
-    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
-      <path d="M8 22 L12 15 L28 15 L32 22 L32 28 L8 28Z" stroke={c} strokeWidth="2" fill="none"/>
-      <path d="M14 15 L16 10 L24 10 L26 15" stroke={c} strokeWidth="1.5" fill="none"/>
-      <circle cx="13" cy="28" r="3" fill={c}/>
-      <circle cx="27" cy="28" r="3" fill={c}/>
-      <line x1="8" y1="22" x2="32" y2="22" stroke={c} strokeWidth="1.5"/>
-    </svg>
-  ),
-  ship: (c, s=24) => (
-    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
-      <path d="M8 26 L12 18 L20 16 L28 18 L32 26Z" stroke={c} strokeWidth="2" fill="none"/>
-      <line x1="20" y1="16" x2="20" y2="10" stroke={c} strokeWidth="1.5"/>
-      <path d="M20 10 L26 14" stroke={c} strokeWidth="1.5"/>
-      <path d="M6 30 Q13 27 20 30 Q27 33 34 30" stroke={c} strokeWidth="1.5" fill="none"/>
-    </svg>
-  ),
-  walk: (c, s=24) => (
-    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
-      <circle cx="20" cy="9" r="3" fill={c}/>
-      <path d="M20 12 L18 20 L14 26" stroke={c} strokeWidth="2" strokeLinecap="round"/>
-      <path d="M18 20 L24 24 L26 30" stroke={c} strokeWidth="2" strokeLinecap="round"/>
-      <path d="M20 12 L22 17 L27 19" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M18 20 L13 22" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  ),
+  plane: (c, s=24) => <Plane width={s} height={s} stroke={c} strokeWidth={1.5}/>,
+  train: (c, s=24) => <Train width={s} height={s} stroke={c} strokeWidth={1.5}/>,
+  car:   (c, s=24) => <Car   width={s} height={s} stroke={c} strokeWidth={1.5}/>,
+  ship:  (c, s=24) => <Ship  width={s} height={s} stroke={c} strokeWidth={1.5}/>,
+  walk:  (c, s=24) => <Footprints width={s} height={s} stroke={c} strokeWidth={1.5}/>,
 };
 
 
