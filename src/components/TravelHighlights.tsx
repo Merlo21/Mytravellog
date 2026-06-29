@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { useMemo } from "react";
 import React from "react";
 import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints } from "lucide-react";
