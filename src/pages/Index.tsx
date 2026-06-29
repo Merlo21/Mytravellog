@@ -1,7 +1,8 @@
 import { AppHeader } from "@/components/AppHeader";
 import { useEffect, useMemo, useState, Component, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { loadTrips, Trip } from "@/lib/storage";
+import { loadTrips, updateTrip, Trip } from "@/lib/storage";
+import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
@@ -23,7 +24,8 @@ class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> 
 
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { loadTrips, Trip } from "@/lib/storage";
+import { loadTrips, updateTrip, Trip } from "@/lib/storage";
+import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
@@ -39,8 +41,25 @@ function HomeInner() {
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
   const [pendingCity, setPendingCity] = useState<CityInfo | null>(null);
 
+  const { homeCity } = useSettings();
   const refresh = () => setTrips(loadTrips());
   useEffect(() => { refresh(); }, []);
+
+  // Ricalcola distanze per viaggi senza distance_from_home_km quando homeCity è impostata
+  useEffect(() => {
+    if (!homeCity) return;
+    const trips = loadTrips();
+    let changed = false;
+    trips.forEach(t => {
+      if (t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude) &&
+          (t.distance_from_home_km == null || t.distance_from_home_km === 0)) {
+        const dist = distanceKm(homeCity.lat, homeCity.lon, t.latitude, t.longitude);
+        updateTrip(t.id, { distance_from_home_km: dist });
+        changed = true;
+      }
+    });
+    if (changed) refresh();
+  }, [homeCity]);
 
   const stats = useMemo(() => {
     const countries = new Set(trips.map((t) => t.country_code || t.country));
