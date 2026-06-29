@@ -324,8 +324,7 @@ export function WorldMap({
     ordered.forEach((t, i) => {
       const sel = t.id === selectedId;
       const el = document.createElement("div");
-      el.style.cssText = `width:${sel?30:24}px;height:${sel?30:24}px;border-radius:50%;background:${sel?"#5eead4":"#60a5fa"};border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:${sel?11:10}px;font-weight:700;color:#02060f;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:ui-sans-serif,system-ui,sans-serif`;
-      el.textContent = String(i + 1);
+      el.style.cssText = `width:${sel?18:12}px;height:${sel?18:12}px;border-radius:50%;background:${sel?"#5eead4":"#60a5fa"};border:${sel?"2.5px solid #fff":"1.5px solid rgba(255,255,255,0.6)"};cursor:pointer;box-shadow:${sel?"0 0 0 4px rgba(94,234,212,0.3),0 2px 8px rgba(0,0,0,0.5)":"0 2px 6px rgba(0,0,0,0.4)"};transition:all 0.2s`;
 
       const flag = (c: string) => c.length === 2
         ? String.fromCodePoint(...c.toUpperCase().split("").map(ch => 0x1f1e6 + ch.charCodeAt(0) - 65))
