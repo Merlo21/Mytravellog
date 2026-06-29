@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { AppHeader } from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft, MapPin, Search, X } from "lucide-react";
