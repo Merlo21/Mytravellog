@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useRef, useState } from "react";
 
 const STARS: [number, number, number][] = [
