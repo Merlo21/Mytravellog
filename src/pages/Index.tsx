@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { Compass, Globe, MapPin, Plane, PieChart, Plus, Settings, X, CheckCircle } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart, Plus, Settings, X } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
@@ -38,6 +38,8 @@ function HomeInner() {
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
+  // Clean up legacy visited cities data
+  React.useEffect(() => { localStorage.removeItem("atlas.visited.v1"); }, []);
   const refresh = () => setTrips(loadTrips());
   useEffect(() => { refresh(); }, []);
 
@@ -148,22 +150,7 @@ function HomeInner() {
               >
                 ✈ Aggiungi come viaggio
               </button>
-              <button
-                onClick={() => {
-                  // Mark as visited without adding to trips
-                  const visited = JSON.parse(localStorage.getItem("atlas.visited.v1") || "[]");
-                  const already = visited.find((v: any) => v.name === selectedCity!.name && v.country === selectedCity!.country);
-                  if (!already) {
-                    visited.push({ name: selectedCity!.name, country: selectedCity!.country, country_code: selectedCity!.country_code, latitude: selectedCity!.latitude, longitude: selectedCity!.longitude, visited_at: new Date().toISOString() });
-                    localStorage.setItem("atlas.visited.v1", JSON.stringify(visited));
-                  }
-                  setSelectedCity(null);
-                }}
-                className="w-full py-3 text-sm font-semibold flex items-center justify-center gap-2 rounded-xl border border-border hover:bg-secondary transition-colors text-foreground"
-              >
-                <CheckCircle className="w-4 h-4 text-green-400" />
-                Segna come visitata
-              </button>
+
             </div>
           </div>
         </div>
