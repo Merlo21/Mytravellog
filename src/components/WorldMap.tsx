@@ -288,7 +288,13 @@ export function WorldMap({
     popupsRef.current = [];
 
     // Remove old layers/sources
-    ["route-line","route-points", ...ordered.map(t => `route-${t.id}`)].forEach(id => {
+    // Clean all route layers including segments
+    const layerIds = map.getStyle()?.layers?.map((l: any) => l.id) ?? [];
+    layerIds.filter((id: string) => id.startsWith("route-")).forEach((id: string) => {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    });
+    ["route-line","route-points"].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
@@ -304,23 +310,54 @@ export function WorldMap({
       const hasWp = t.waypoints && t.waypoints.length > 0;
       const sel = t.id === selectedId;
       const lineId = `route-${t.id}`;
+      // Remove old layers for this trip
       if (map.getLayer(lineId)) map.removeLayer(lineId);
       if (map.getSource(lineId)) map.removeSource(lineId);
-      // Single: only show when selected; Multi: always show
-      if (!hasWp && !sel) return;
-      const color = hasWp
-        ? (TRANSPORT_COLORS[t.transport_mode ?? "plane"] ?? "#60a5fa")
-        : "#f472b6";
-      map.addSource(lineId, {
-        type: "geojson",
-        data: { type:"Feature", geometry:{ type:"LineString",
-          coordinates: [[t.home_longitude!, t.home_latitude!], [t.longitude, t.latitude]] } },
-      });
-      map.addLayer({
-        id: lineId, type: "line", source: lineId,
-        paint: { "line-color": color, "line-width": sel ? 2.5 : 1.8,
-          "line-opacity": sel ? 0.9 : 0.5, "line-dasharray": [4, 3] },
-      });
+
+      if (!hasWp) {
+        // Single destination — show line only when selected
+        if (!sel) return;
+        map.addSource(lineId, {
+          type: "geojson",
+          data: { type:"Feature", geometry:{ type:"LineString",
+            coordinates: [[t.home_longitude!, t.home_latitude!], [t.longitude, t.latitude]] } },
+        });
+        map.addLayer({
+          id: lineId, type: "line", source: lineId,
+          paint: { "line-color": "#f472b6", "line-width": 1.8,
+            "line-opacity": 0.7, "line-dasharray": [4, 3] },
+        });
+      } else {
+        // Multi-tappa — build segments with coords from waypoints
+        // Build full point list: home → waypoints (with coords) → destination
+        const allPoints: { coord: [number,number]; transport: string }[] = [
+          { coord: [t.home_longitude!, t.home_latitude!], transport: t.waypoints![0]?.transport_mode ?? t.transport_mode ?? "plane" },
+          ...t.waypoints!
+            .filter((w: any) => w.lat && w.lon)
+            .map((w: any) => ({ coord: [w.lon, w.lat] as [number,number], transport: w.transport_mode ?? "plane" })),
+          { coord: [t.longitude, t.latitude], transport: t.transport_mode ?? "plane" },
+        ];
+
+        // Draw one segment per pair of points, colored by transport
+        allPoints.forEach((pt, idx) => {
+          if (idx === 0) return;
+          const prev = allPoints[idx - 1];
+          const segId = `${lineId}-seg-${idx}`;
+          if (map.getLayer(segId)) map.removeLayer(segId);
+          if (map.getSource(segId)) map.removeSource(segId);
+          const color = TRANSPORT_COLORS[pt.transport] ?? "#60a5fa";
+          map.addSource(segId, {
+            type: "geojson",
+            data: { type:"Feature", geometry:{ type:"LineString",
+              coordinates: [prev.coord, pt.coord] } },
+          });
+          map.addLayer({
+            id: segId, type: "line", source: segId,
+            paint: { "line-color": color, "line-width": sel ? 2.5 : 1.8,
+              "line-opacity": sel ? 0.9 : 0.55, "line-dasharray": [4, 3] },
+          });
+        });
+      }
     });
 
     // Home marker
