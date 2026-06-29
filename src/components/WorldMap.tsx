@@ -299,7 +299,7 @@ export function WorldMap({
         if (map.getSource(id)) map.removeSource(id);
       });
     } catch(_) {}
-    ["route-line","route-points","trips-single","trips-multi","trips-waypoints"].forEach(id => {
+    ["route-line","route-points","trips-single","trips-multi","trips-waypoints","trips-labels"].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
@@ -406,6 +406,55 @@ export function WorldMap({
 
     addCircleLayer("trips-single", singleFeatures, "#f472b6", "#5eead4");
     addCircleLayer("trips-multi",  multiFeatures,  "#60a5fa", "#5eead4");
+
+    // City name labels for selected trip stops
+    if (map.getLayer("trips-labels")) map.removeLayer("trips-labels");
+    if (map.getSource("trips-labels")) map.removeSource("trips-labels");
+    const selectedTrip = ordered.find((t: any) => t.id === selectedId);
+    if (selectedTrip) {
+      const labelFeatures: any[] = [
+        // Home label
+        ...(selectedTrip.home_latitude && selectedTrip.home_longitude ? [{
+          type: "Feature",
+          properties: { name: selectedTrip.home_label?.split(",")[0] ?? "Casa" },
+          geometry: { type: "Point", coordinates: [selectedTrip.home_longitude, selectedTrip.home_latitude] }
+        }] : []),
+        // Waypoint labels
+        ...(selectedTrip.waypoints ?? [])
+          .filter((w: any) => w.lat && w.lon)
+          .map((w: any) => ({
+            type: "Feature",
+            properties: { name: w.city },
+            geometry: { type: "Point", coordinates: [w.lon, w.lat] }
+          })),
+        // Destination label
+        {
+          type: "Feature",
+          properties: { name: selectedTrip.city },
+          geometry: { type: "Point", coordinates: [selectedTrip.longitude, selectedTrip.latitude] }
+        }
+      ];
+      map.addSource("trips-labels", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: labelFeatures }
+      });
+      map.addLayer({
+        id: "trips-labels", type: "symbol", source: "trips-labels",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": 13,
+          "text-anchor": "top",
+          "text-offset": [0, 0.8],
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "rgba(0,0,0,0.9)",
+          "text-halo-width": 2,
+        }
+      });
+    }
 
     // Waypoint intermediate stop markers (smaller dots, colored by transport)
     const waypointFeatures = ordered.flatMap((t: any) =>
