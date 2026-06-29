@@ -351,7 +351,7 @@ export function WorldMap({
       .filter((t: any) => !t.waypoints?.length)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selId },
+        properties: { id: t.id, selected: t.id === selectedId },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
@@ -360,7 +360,7 @@ export function WorldMap({
       .filter((t: any) => t.waypoints?.length > 0)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selId },
+        properties: { id: t.id, selected: t.id === selectedId },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
