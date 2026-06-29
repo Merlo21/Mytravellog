@@ -139,17 +139,10 @@ export function WorldMap({
   const onSelectTripRef = useRef(onSelectTrip);
   const cityMarkerRefs = useRef<{marker:any;el:HTMLElement;city:CityInfo}[]>([]);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
-  useEffect(() => { orderedRef.current = ordered; }, [ordered]);
-  useEffect(() => { selectedIdRef.current = selectedId ?? null; }, [selectedId]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
-  const orderedRef = useRef<Trip[]>([]);
-  const selectedIdRef = useRef<string | null>(null);
-
   const ordered = useMemo(() =>
-    [...trips]
-      .filter(t => t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude))
-      .sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
+    [...trips].sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
 
   // ── Init MapLibre ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -212,7 +205,7 @@ export function WorldMap({
         } catch(_) {}
 
         // Add trip sources
-        addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
+        addTripsToMap(map, maplibregl);
 
         // City labels as markers
         updateCityLabels(map, maplibregl);
@@ -287,7 +280,7 @@ export function WorldMap({
   }, [autoRotateSetting]);
 
   // ── Add trips ──────────────────────────────────────────────────────────────
-  function addTripsToMap(map: any, maplibregl: any, trips: Trip[], selId: string | null) {
+  function addTripsToMap(map: any, maplibregl: any) {
     // Clean old markers
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
@@ -295,76 +288,46 @@ export function WorldMap({
     popupsRef.current = [];
 
     // Remove old layers/sources
-    // Clean all route layers including segments
-    const layerIds = map.getStyle()?.layers?.map((l: any) => l.id) ?? [];
-    layerIds.filter((id: string) => id.startsWith("route-")).forEach((id: string) => {
-      if (map.getLayer(id)) map.removeLayer(id);
-      if (map.getSource(id)) map.removeSource(id);
-    });
+    // Remove all route layers
+    try {
+      const allLayers = map.getStyle()?.layers?.map((l: any) => l.id) ?? [];
+      allLayers.filter((id: string) => id.startsWith("route-")).forEach((id: string) => {
+        if (map.getLayer(id)) map.removeLayer(id);
+        if (map.getSource(id)) map.removeSource(id);
+      });
+    } catch(_) {}
     ["route-line","route-points"].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
 
-    if (!trips.length) return;
+    if (!ordered.length) return;
 
-    // Per-trip dashed lines — pink for single, colored by transport for multi-tappa
-    const TRANSPORT_COLORS: Record<string, string> = {
+    // Per-trip lines: pink for single, colored by transport for multi-tappa
+    const TRANSPORT_COLORS_MAP: Record<string, string> = {
       plane: "#378ADD", train: "#BA7517", car: "#639922", ship: "#0F6E56", walk: "#D85A30"
     };
-    trips.forEach((t) => {
+    ordered.forEach((t) => {
       if (!t.home_latitude || !t.home_longitude || !t.latitude || !t.longitude) return;
       const hasWp = t.waypoints && t.waypoints.length > 0;
-      const sel = t.id === selId;
-      const lineId = `route-${t.id}`;
-      // Remove old layers for this trip
+      const sel = t.id === selectedId;
+      const lineId = "route-" + t.id;
       if (map.getLayer(lineId)) map.removeLayer(lineId);
       if (map.getSource(lineId)) map.removeSource(lineId);
-
-      if (!hasWp) {
-        // Single destination — show line only when selected
-        if (!sel) return;
-        map.addSource(lineId, {
-          type: "geojson",
-          data: { type:"Feature", geometry:{ type:"LineString",
-            coordinates: [[t.home_longitude!, t.home_latitude!], [t.longitude, t.latitude]] } },
-        });
-        map.addLayer({
-          id: lineId, type: "line", source: lineId,
-          paint: { "line-color": "#f472b6", "line-width": 1.8,
-            "line-opacity": 0.7, "line-dasharray": [4, 3] },
-        });
-      } else {
-        // Multi-tappa — build segments with coords from waypoints
-        // Build full point list: home → waypoints (with coords) → destination
-        const allPoints: { coord: [number,number]; transport: string }[] = [
-          { coord: [t.home_longitude!, t.home_latitude!], transport: t.waypoints![0]?.transport_mode ?? t.transport_mode ?? "plane" },
-          ...t.waypoints!
-            .filter((w: any) => w.lat && w.lon)
-            .map((w: any) => ({ coord: [w.lon, w.lat] as [number,number], transport: w.transport_mode ?? "plane" })),
-          { coord: [t.longitude, t.latitude], transport: t.transport_mode ?? "plane" },
-        ];
-
-        // Draw one segment per pair of points, colored by transport
-        allPoints.forEach((pt, idx) => {
-          if (idx === 0) return;
-          const prev = allPoints[idx - 1];
-          const segId = `${lineId}-seg-${idx}`;
-          if (map.getLayer(segId)) map.removeLayer(segId);
-          if (map.getSource(segId)) map.removeSource(segId);
-          const color = TRANSPORT_COLORS[pt.transport] ?? "#60a5fa";
-          map.addSource(segId, {
-            type: "geojson",
-            data: { type:"Feature", geometry:{ type:"LineString",
-              coordinates: [prev.coord, pt.coord] } },
-          });
-          map.addLayer({
-            id: segId, type: "line", source: segId,
-            paint: { "line-color": color, "line-width": sel ? 2.5 : 1.8,
-              "line-opacity": sel ? 0.9 : 0.55, "line-dasharray": [4, 3] },
-          });
-        });
-      }
+      if (!hasWp && !sel) return;
+      const lineColor = hasWp
+        ? (TRANSPORT_COLORS_MAP[t.transport_mode ?? "plane"] ?? "#60a5fa")
+        : "#f472b6";
+      map.addSource(lineId, {
+        type: "geojson",
+        data: { type:"Feature", geometry:{ type:"LineString",
+          coordinates: [[t.home_longitude, t.home_latitude], [t.longitude, t.latitude]] } },
+      });
+      map.addLayer({
+        id: lineId, type: "line", source: lineId,
+        paint: { "line-color": lineColor, "line-width": sel ? 2.5 : 1.8,
+          "line-opacity": sel ? 0.9 : 0.55, "line-dasharray": [4, 3] },
+      });
     });
 
     // Home marker
@@ -372,23 +335,21 @@ export function WorldMap({
     homeEl.style.cssText = "width:16px;height:16px;border-radius:50%;background:#fbbf24;border:2.5px solid #fff;box-shadow:0 0 8px rgba(251,191,36,0.6);cursor:pointer";
     markersRef.current.push(
       new maplibregl.Marker({ element: homeEl })
-        .setLngLat([trips[0].home_longitude!, trips[0].home_latitude!])
+        .setLngLat([home.home_longitude, home.home_latitude])
         .addTo(map)
     );
 
     // Trip markers
-    trips.forEach((t, i) => {
-      const sel = t.id === selId;
+    ordered.forEach((t, i) => {
+      const sel = t.id === selectedId;
       const el = document.createElement("div");
       const hasWaypoints = t.waypoints && t.waypoints.length > 0;
       const baseColor = sel ? "#5eead4" : hasWaypoints ? "#60a5fa" : "#f472b6";
       const glowColor = sel ? "rgba(94,234,212,0.3)" : hasWaypoints ? "rgba(96,165,250,0.3)" : "rgba(244,114,182,0.3)";
-      const size = sel ? 18 : 12;
-      const border = sel ? "2.5px solid #fff" : "1.5px solid rgba(255,255,255,0.6)";
-      const shadow = sel
-        ? "0 0 0 4px " + glowColor + ",0 2px 8px rgba(0,0,0,0.5)"
-        : "0 2px 6px rgba(0,0,0,0.4)";
-      el.style.cssText = "width:" + size + "px;height:" + size + "px;border-radius:50%;background:" + baseColor + ";border:" + border + ";cursor:pointer;box-shadow:" + shadow + ";transition:all 0.2s";
+      const markerSize = sel ? 18 : 12;
+      const markerBorder = sel ? "2.5px solid #fff" : "1.5px solid rgba(255,255,255,0.6)";
+      const markerShadow = sel ? ("0 0 0 4px " + glowColor + ",0 2px 8px rgba(0,0,0,0.5)") : "0 2px 6px rgba(0,0,0,0.4)";
+      el.style.cssText = "width:" + markerSize + "px;height:" + markerSize + "px;border-radius:50%;background:" + baseColor + ";border:" + markerBorder + ";cursor:pointer;box-shadow:" + markerShadow + ";transition:all 0.2s";
 
       const flag = (c: string) => c.length === 2
         ? String.fromCodePoint(...c.toUpperCase().split("").map(ch => 0x1f1e6 + ch.charCodeAt(0) - 65))
@@ -511,21 +472,10 @@ export function WorldMap({
   // Rebuild on trips/selection change
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !map.isStyleLoaded()) return;
     import("maplibre-gl").then(ml => {
       const maplibregl = (ml as any).default || ml;
-      if (map.isStyleLoaded()) {
-        addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
-      } else {
-        const onLoad = () => {
-          addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
-          map.off("style.load", onLoad);
-        };
-        map.on("style.load", onLoad);
-        setTimeout(() => {
-          if (map.isStyleLoaded()) addTripsToMap(map, maplibregl, orderedRef.current, selectedIdRef.current);
-        }, 1500);
-      }
+      addTripsToMap(map, maplibregl);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordered, selectedId]);
