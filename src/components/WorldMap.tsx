@@ -310,10 +310,6 @@ export function WorldMap({
         // Multi-tappa trip — draw segments between waypoints
         const allPoints: [number, number][] = [
           [t.home_longitude!, t.home_latitude!],
-          ...t.waypoints!.map((w: any) => {
-            // waypoints don't have coords — use trip coords for last point
-            return null;
-          }).filter(Boolean) as [number, number][],
           [t.longitude, t.latitude],
         ].filter(p => p && p[0] && p[1]) as [number, number][];
 
