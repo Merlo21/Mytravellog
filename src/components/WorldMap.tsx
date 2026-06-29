@@ -304,7 +304,6 @@ export function WorldMap({
       if (map.getSource(id)) map.removeSource(id);
     });
 
-    console.log("[addTripsToMap] ordered:", ordered.length, ordered.map((t:any) => ({id:t.id, lat:t.latitude, lon:t.longitude})));
     if (!ordered.length) return;
 
     // Per-trip lines: pink for single, colored by transport for multi-tappa
@@ -489,9 +488,7 @@ export function WorldMap({
 
   // Rebuild markers when map is ready AND trips change
   useEffect(() => {
-    console.log("[WorldMap] useEffect fired — mapReady:", mapReady, "ordered.length:", ordered.length);
     if (!mapReady || !mapRef.current) return;
-    console.log("[WorldMap] calling addTripsToMap with", ordered.length, "trips");
     import("maplibre-gl").then(ml => {
       const maplibregl = (ml as any).default || ml;
       addTripsToMap(mapRef.current, maplibregl);
