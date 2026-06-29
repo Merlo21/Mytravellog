@@ -5,6 +5,9 @@ import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { Compass, Globe, MapPin, Plane, PieChart, Plus, Settings, X, CheckCircle } from "lucide-react";
+import { WorldMap, CityInfo } from "@/components/WorldMap";
+import { StarField } from "@/components/StarField";
+import { TripCard } from "@/components/TripCard";
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
   state = { error: null };
