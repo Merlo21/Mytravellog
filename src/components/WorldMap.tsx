@@ -383,7 +383,7 @@ export function WorldMap({
       map.addLayer({
         id, type: "circle", source: id,
         paint: {
-          "circle-radius": ["case", ["get", "selected"], 10, 7],
+          "circle-radius": ["case", ["get", "selected"], 7, 5],
           "circle-color": ["case", ["get", "selected"], selColor, color],
           "circle-stroke-width": ["case", ["get", "selected"], 2.5, 1.5],
           "circle-stroke-color": "#ffffff",
