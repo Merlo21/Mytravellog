@@ -37,11 +37,11 @@ export function AppHeader({ onTripsClick }: Props) {
           {onTripsClick ? (
             <button onClick={onTripsClick}
               className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
-              <Plane className="w-4 h-4 text-primary"/> I tuoi viaggi
+              <Plane className="w-4 h-4 text-primary"/> I miei viaggi
             </button>
           ) : (
             <Link to="/" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
-              <Plane className="w-4 h-4 text-primary"/> I tuoi viaggi
+              <Plane className="w-4 h-4 text-primary"/> I miei viaggi
             </Link>
           )}
           <Link to="/statistiche" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
