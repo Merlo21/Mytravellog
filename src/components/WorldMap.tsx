@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Trip } from "@/lib/storage";
 import { AutoRotate } from "@/lib/settings";
