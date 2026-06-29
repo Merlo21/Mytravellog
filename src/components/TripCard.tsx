@@ -66,8 +66,15 @@ export function TripCard({ trip, selected, onClick, onDeleted, onUpdated }: Prop
         }}>
 
         <div className="flex items-start gap-3">
-          {/* Flag */}
-          <div className="text-2xl flex-shrink-0 mt-0.5">{flag}</div>
+          {/* Flag CDN */}
+          <div className="flex-shrink-0 mt-0.5" style={{width:32,height:32,borderRadius:"50%",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)"}}>
+            {trip.country_code
+              ? <img src={`https://flagcdn.com/w80/${trip.country_code.toLowerCase()}.png`}
+                  width="32" height="32" style={{objectFit:"cover"}}
+                  onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/>
+              : <div style={{width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🌍</div>
+            }
+          </div>
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
