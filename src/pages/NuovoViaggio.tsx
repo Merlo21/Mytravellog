@@ -443,7 +443,22 @@ const NuovoViaggio = () => {
   const [notes, setNotes] = useState("");
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+  const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
+    try {
+      const raw = sessionStorage.getItem("navta.prefill.city");
+      if (!raw) return [];
+      const city = JSON.parse(raw);
+      sessionStorage.removeItem("navta.prefill.city");
+      return [{
+        city: city.name,
+        country: city.country,
+        country_code: city.country_code ?? "",
+        lat: city.latitude ?? 0,
+        lon: city.longitude ?? 0,
+        transport_mode: "plane" as TransportMode,
+      }];
+    } catch { return []; }
+  });
   const [wpQuery, setWpQuery] = useState("");
   const [wpResults, setWpResults] = useState<GeoResult[]>([]);
   const [wpLoading, setWpLoading] = useState(false);
