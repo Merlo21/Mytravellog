@@ -378,7 +378,12 @@ export function WorldMap({
       const hasWaypoints = t.waypoints && t.waypoints.length > 0;
       const baseColor = sel ? "#5eead4" : hasWaypoints ? "#60a5fa" : "#f472b6";
       const glowColor = sel ? "rgba(94,234,212,0.3)" : hasWaypoints ? "rgba(96,165,250,0.3)" : "rgba(244,114,182,0.3)";
-      el.style.cssText = `width:${sel?18:12}px;height:${sel?18:12}px;border-radius:50%;background:${baseColor};border:${sel?"2.5px solid #fff":"1.5px solid rgba(255,255,255,0.6)"};cursor:pointer;box-shadow:${sel?`0 0 0 4px ${glowColor},0 2px 8px rgba(0,0,0,0.5)`:"0 2px 6px rgba(0,0,0,0.4)"};transition:all 0.2s`;
+      const size = sel ? 18 : 12;
+      const border = sel ? "2.5px solid #fff" : "1.5px solid rgba(255,255,255,0.6)";
+      const shadow = sel
+        ? "0 0 0 4px " + glowColor + ",0 2px 8px rgba(0,0,0,0.5)"
+        : "0 2px 6px rgba(0,0,0,0.4)";
+      el.style.cssText = "width:" + size + "px;height:" + size + "px;border-radius:50%;background:" + baseColor + ";border:" + border + ";cursor:pointer;box-shadow:" + shadow + ";transition:all 0.2s";
 
       const flag = (c: string) => c.length === 2
         ? String.fromCodePoint(...c.toUpperCase().split("").map(ch => 0x1f1e6 + ch.charCodeAt(0) - 65))
