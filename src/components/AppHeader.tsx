@@ -1,3 +1,4 @@
+// [FROZEN] — Non modificare senza esplicita richiesta
 import { Link } from "react-router-dom";
 import { Plane, PieChart, Settings, Plus } from "lucide-react";
 
