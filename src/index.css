@@ -64,3 +64,9 @@ html, body, #root { background-color: #060e1e !important; }
 
 /* Hide MapLibre replay button */
 .maplibregl-ctrl-replay { display: none !important; }
+
+/* Hide MapLibre controls when sidebar is open */
+.sidebar-open .maplibregl-ctrl-bottom-right,
+.sidebar-open .maplibregl-ctrl-bottom-left {
+  display: none !important;
+}
