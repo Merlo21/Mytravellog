@@ -288,76 +288,247 @@ export function WorldMap({
     popupsRef.current = [];
 
     // Remove old layers/sources
-    ["route-line","route-points"].forEach(id => {
+    ["route-line","route-points", ...ordered.map(t => `route-${t.id}`)].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
 
     if (!ordered.length) return;
 
-    // Transport colors for route segments
+    // Per-trip dashed lines — pink for single, colored by transport for multi-tappa
     const TRANSPORT_COLORS: Record<string, string> = {
-      plane: "#378ADD", train: "#BA7517", car: "#639922",
-      ship: "#0F6E56", walk: "#D85A30"
+      plane: "#378ADD", train: "#BA7517", car: "#639922", ship: "#0F6E56", walk: "#D85A30"
     };
-
-    // Draw per-trip: single = pink dot, multi-tappa = blue dots + dashed segments
-    ordered.forEach((t, tripIdx) => {
-      const hasWaypoints = t.waypoints && t.waypoints.length > 0;
+    ordered.forEach((t) => {
+      if (!t.home_latitude || !t.home_longitude || !t.latitude || !t.longitude) return;
+      const hasWp = t.waypoints && t.waypoints.length > 0;
       const sel = t.id === selectedId;
-
-      if (hasWaypoints && t.home_latitude && t.home_longitude) {
-        // Multi-tappa trip — draw segments between waypoints
-        const allPoints: [number, number][] = [
-          [t.home_longitude!, t.home_latitude!],
-          [t.longitude, t.latitude],
-        ].filter(p => p && p[0] && p[1]) as [number, number][];
-
-        if (allPoints.length >= 2) {
-          const lineId = `route-multi-${t.id}`;
-          if (map.getLayer(lineId)) map.removeLayer(lineId);
-          if (map.getSource(lineId)) map.removeSource(lineId);
-          const color = TRANSPORT_COLORS[t.transport_mode ?? "plane"] ?? "#60a5fa";
-          map.addSource(lineId, {
-            type: "geojson",
-            data: { type:"Feature", geometry:{ type:"LineString", coordinates: allPoints } },
-          });
-          map.addLayer({
-            id: lineId, type: "line", source: lineId,
-            paint: { "line-color": color, "line-width": sel ? 2.5 : 1.8,
-              "line-opacity": sel ? 0.9 : 0.5, "line-dasharray": [4, 3] },
-          });
-        }
-      } else if (t.home_latitude && t.home_longitude) {
-        // Single destination — just draw a subtle line from home
-        const lineId = `route-single-${t.id}`;
-        if (map.getLayer(lineId)) map.removeLayer(lineId);
-        if (map.getSource(lineId)) map.removeSource(lineId);
-        if (sel) {
-          // Only show line for selected single trip
-          map.addSource(lineId, {
-            type: "geojson",
-            data: { type:"Feature", geometry:{ type:"LineString",
-              coordinates: [[t.home_longitude!, t.home_latitude!], [t.longitude, t.latitude]] } },
-          });
-          map.addLayer({
-            id: lineId, type: "line", source: lineId,
-            paint: { "line-color":"#f472b6", "line-width":1.5,
-              "line-opacity": 0.6, "line-dasharray": [3, 3] },
-          });
-        }
-      }
+      const lineId = `route-${t.id}`;
+      if (map.getLayer(lineId)) map.removeLayer(lineId);
+      if (map.getSource(lineId)) map.removeSource(lineId);
+      // Single: only show when selected; Multi: always show
+      if (!hasWp && !sel) return;
+      const color = hasWp
+        ? (TRANSPORT_COLORS[t.transport_mode ?? "plane"] ?? "#60a5fa")
+        : "#f472b6";
+      map.addSource(lineId, {
+        type: "geojson",
+        data: { type:"Feature", geometry:{ type:"LineString",
+          coordinates: [[t.home_longitude!, t.home_latitude!], [t.longitude, t.latitude]] } },
+      });
+      map.addLayer({
+        id: lineId, type: "line", source: lineId,
+        paint: { "line-color": color, "line-width": sel ? 2.5 : 1.8,
+          "line-opacity": sel ? 0.9 : 0.5, "line-dasharray": [4, 3] },
+      });
     });
 
-    // Home marker (yellow)
-    if (ordered[0]?.home_latitude && ordered[0]?.home_longitude) {
-      const homeEl = document.createElement("div");
-      homeEl.style.cssText = "width:14px;height:14px;border-radius:50%;background:#fbbf24;border:2px solid #fff;box-shadow:0 0 0 3px rgba(251,191,36,0.3),0 2px 6px rgba(0,0,0,0.4)";
+    // Home marker
+    const homeEl = document.createElement("div");
+    homeEl.style.cssText = "width:16px;height:16px;border-radius:50%;background:#fbbf24;border:2.5px solid #fff;box-shadow:0 0 8px rgba(251,191,36,0.6);cursor:pointer";
+    markersRef.current.push(
+      new maplibregl.Marker({ element: homeEl })
+        .setLngLat([home.home_longitude, home.home_latitude])
+        .addTo(map)
+    );
+
+    // Trip markers
+    ordered.forEach((t, i) => {
+      const sel = t.id === selectedId;
+      const el = document.createElement("div");
+      const hasWaypoints = t.waypoints && t.waypoints.length > 0;
+      const baseColor = sel ? "#5eead4" : hasWaypoints ? "#60a5fa" : "#f472b6";
+      const glowColor = sel ? "rgba(94,234,212,0.3)" : hasWaypoints ? "rgba(96,165,250,0.3)" : "rgba(244,114,182,0.3)";
+      el.style.cssText = `width:${sel?18:12}px;height:${sel?18:12}px;border-radius:50%;background:${baseColor};border:${sel?"2.5px solid #fff":"1.5px solid rgba(255,255,255,0.6)"};cursor:pointer;box-shadow:${sel?`0 0 0 4px ${glowColor},0 2px 8px rgba(0,0,0,0.5)`:"0 2px 6px rgba(0,0,0,0.4)"};transition:all 0.2s`;
+
+      const flag = (c: string) => c.length === 2
+        ? String.fromCodePoint(...c.toUpperCase().split("").map(ch => 0x1f1e6 + ch.charCodeAt(0) - 65))
+        : "🌍";
+
+      const popup = new maplibregl.Popup({ offset:20, closeButton:false, className:"atlas-popup" })
+        .setHTML(`
+          <div style="font-family:ui-sans-serif,system-ui,sans-serif;min-width:150px">
+            <div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:2px">${flag(t.country_code)} ${t.city}</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:6px">${t.country} · ${new Date(t.trip_date+"T00:00:00").toLocaleDateString("it-IT",{day:"2-digit",month:"short",year:"numeric"})}</div>
+            ${t.temperature_c != null ? `<div style="font-size:11px;color:#94a3b8">🌡 ${t.temperature_c.toFixed(1)}°C</div>`:""}
+            ${t.altitude_m != null ? `<div style="font-size:11px;color:#94a3b8">⛰ ${Math.round(t.altitude_m)}m</div>`:""}
+            ${t.distance_from_home_km != null ? `<div style="font-size:11px;color:#94a3b8">↔ ${t.distance_from_home_km.toLocaleString("it-IT")}km</div>`:""}
+            ${t.notes ? `<div style="font-size:10px;color:#64748b;margin-top:4px;font-style:italic">"${t.notes}"</div>`:""}
+          </div>
+        `);
+
+      popupsRef.current.push(popup);
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onSelectTripRef.current?.(t);
+        map.flyTo({ center:[t.longitude,t.latitude], zoom:Math.max(map.getZoom(),5), duration:800 });
+      });
+      el.addEventListener("mouseenter", () => popup.setLngLat([t.longitude,t.latitude]).addTo(map));
+      el.addEventListener("mouseleave", () => popup.remove());
+
       markersRef.current.push(
-        new maplibregl.Marker({ element: homeEl })
-          .setLngLat([ordered[0].home_longitude!, ordered[0].home_latitude!])
+        new maplibregl.Marker({ element: el })
+          .setLngLat([t.longitude, t.latitude])
           .addTo(map)
       );
+    });
+  }
+
+  // ── City labels ────────────────────────────────────────────────────────────
+  function updateCityLabels(map: any, _maplibregl: any) {
+    // Remove old city markers (HTML)
+    cityMarkerRefs.current.forEach(({marker}) => marker.remove());
+    cityMarkerRefs.current = [];
+
+    // Remove old native layers/sources
+    ["cities-t1","cities-t2","cities-t3","cities-t1-labels","cities-t2-labels","cities-t3-labels"].forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id);
+    });
+    ["cities-src-t1","cities-src-t2","cities-src-t3"].forEach(id => {
+      if (map.getSource(id)) map.removeSource(id);
+    });
+
+    const tiers: (1|2|3)[] = [1,2,3];
+    tiers.forEach(tier => {
+      const cities = ALL_CITIES.filter(c => c.tier === tier);
+      const minZoom = tier === 1 ? 2 : tier === 2 ? 3.5 : 5;
+
+      map.addSource(`cities-src-t${tier}`, {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: cities.map(c => ({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [c.longitude, c.latitude] },
+            properties: { name: c.name, country: c.country, country_code: c.country_code, latitude: c.latitude, longitude: c.longitude, tier: c.tier },
+          })),
+        },
+      });
+
+      // Dot
+      map.addLayer({
+        id: `cities-t${tier}`,
+        type: "circle",
+        source: `cities-src-t${tier}`,
+        minzoom: minZoom,
+        paint: {
+          "circle-radius": tier === 1 ? 3.5 : tier === 2 ? 2.5 : 2,
+          "circle-color": "#ffffff",
+          "circle-opacity": 0.9,
+          "circle-stroke-width": 0,
+        },
+      });
+
+      // Label
+      map.addLayer({
+        id: `cities-t${tier}-labels`,
+        type: "symbol",
+        source: `cities-src-t${tier}`,
+        minzoom: minZoom,
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+          "text-size": tier === 1 ? 13 : tier === 2 ? 11 : 10,
+          "text-anchor": "left",
+          "text-offset": [0.5, 0],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "rgba(0,0,0,0.9)",
+          "text-halo-width": 1.5,
+          "text-opacity": ["interpolate",["linear"],["zoom"], minZoom, 0, minZoom + 0.5, 1],
+        },
+      });
+
+      // Click on city label
+      map.on("click", `cities-t${tier}`, (e: any) => {
+        if (!e.features?.length) return;
+        const p = e.features[0].properties;
+        onSelectCityRef.current?.({
+          name: p.name, country: p.country, country_code: p.country_code,
+          latitude: p.latitude, longitude: p.longitude, tier: p.tier,
+        });
+        e.preventDefault();
+      });
+
+      map.on("mouseenter", `cities-t${tier}`, () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", `cities-t${tier}`, () => { map.getCanvas().style.cursor = ""; });
+    });
+  }
+
+
+  // Rebuild on trips/selection change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    import("maplibre-gl").then(ml => {
+      const maplibregl = (ml as any).default || ml;
+      addTripsToMap(map, maplibregl);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordered, selectedId]);
+
+  // Focus selected trip
+  useEffect(() => {
+    if (!selectedId || !mapRef.current) return;
+    const t = ordered.find(x => x.id === selectedId); if (!t) return;
+    mapRef.current.flyTo({ center:[t.longitude,t.latitude], zoom:Math.max(mapRef.current.getZoom(),5), duration:1000 });
+  }, [selectedId, ordered]);
+
+  // ── Replay ─────────────────────────────────────────────────────────────────
+  const startReplay = () => {
+    if (!ordered.length || !mapRef.current || playing) return;
+    setPlaying(true); playingRef.current = true; stopRotation();
+    const pts = [
+      [ordered[0].home_longitude, ordered[0].home_latitude],
+      ...ordered.map(t => [t.longitude, t.latitude]),
+    ];
+    let i = 0;
+    const flyNext = () => {
+      if (!playingRef.current || !mapRef.current || i >= pts.length) { stopReplay(); return; }
+      mapRef.current.flyTo({ center: pts[i] as [number,number], zoom:4, duration:2000, essential:true });
+      i++;
+      setTimeout(flyNext, 2500);
+    };
+    mapRef.current.flyTo({ center: pts[0] as [number,number], zoom:2, duration:800 });
+    setTimeout(flyNext, 1000);
+  };
+
+  const stopReplay = () => {
+    setPlaying(false); playingRef.current = false;
+    if (autoRotateSetting === "on") startRotation();
+  };
+
+  // Popup styles
+  useEffect(() => {
+    if (!document.getElementById("atlas-popup-css")) {
+      const s = document.createElement("style"); s.id = "atlas-popup-css";
+      s.textContent = `.atlas-popup .maplibregl-popup-content{background:#0d1829!important;border:1px solid rgba(255,255,255,0.1)!important;border-radius:10px!important;padding:12px 14px!important;box-shadow:0 8px 32px rgba(0,0,0,0.6)!important;color:#e2e8f0!important}.atlas-popup .maplibregl-popup-tip{border-top-color:#0d1829!important}.maplibregl-ctrl-attrib{background:rgba(0,0,0,0.4)!important;color:#475569!important;font-size:9px!important}`;
+      document.head.appendChild(s);
     }
+  }, []);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden">
+      <div ref={containerRef} style={{ position:"absolute", inset:0 }} />
+
+      {/* Zoom */}
+      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
+        <button onClick={() => mapRef.current?.zoomIn()}
+          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">+</button>
+        <button onClick={() => mapRef.current?.zoomOut()}
+          className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">−</button>
+      </div>
 
 
+
+      {/* Legend */}
+      <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/>Casa</div>
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400"/>Tappa</div>
+      </div>
+    </div>
+  );
+}
