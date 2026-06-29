@@ -113,7 +113,7 @@ function HomeInner() {
             <WorldMap
               trips={trips}
               selectedId={selectedId}
-              onSelectTrip={(t) => { setSelectedId(t.id); setSidebarOpen(true); }}
+              onSelectTrip={(t) => setSelectedId(t.id)}
               onSelectCity={(city) => setSelectedCity(city)}
               autoRotateSetting={autoRotate}
             />
