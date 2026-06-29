@@ -469,14 +469,24 @@ export function WorldMap({
   }
 
 
-  // Rebuild on trips/selection change
+  // Rebuild on trips/selection change — poll until map is ready
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    import("maplibre-gl").then(ml => {
-      const maplibregl = (ml as any).default || ml;
-      addTripsToMap(map, maplibregl);
-    });
+    if (!ordered.length) return;
+    let attempts = 0;
+    const tryAdd = () => {
+      const map = mapRef.current;
+      if (!map) return;
+      attempts++;
+      if (map.isStyleLoaded()) {
+        import("maplibre-gl").then(ml => {
+          const maplibregl = (ml as any).default || ml;
+          addTripsToMap(map, maplibregl);
+        });
+      } else if (attempts < 20) {
+        setTimeout(tryAdd, 500);
+      }
+    };
+    tryAdd();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordered, selectedId]);
 
