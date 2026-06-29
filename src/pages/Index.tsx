@@ -24,10 +24,6 @@ class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> 
 }
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { loadTrips, updateTrip, Trip } from "@/lib/storage";
-import { distanceKm } from "@/lib/geo";
-import { fmtDistance, useSettings } from "@/lib/settings";
 
 function HomeInner() {
   const navigate = useNavigate();
@@ -54,9 +50,9 @@ function HomeInner() {
   // Ricalcola distanze per viaggi senza distance_from_home_km quando homeCity è impostata
   useEffect(() => {
     if (!homeCity) return;
-    const trips = loadTrips();
+    const allTrips = loadTrips();
     let changed = false;
-    trips.forEach(t => {
+    allTrips.forEach(t => {
       if (t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude) &&
           (t.distance_from_home_km == null || t.distance_from_home_km === 0)) {
         const dist = distanceKm(homeCity.lat, homeCity.lon, t.latitude, t.longitude);
