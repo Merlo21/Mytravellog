@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, Component, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
+import { fmtDistance, useSettings } from "@/lib/settings";
 import { Compass, Globe, MapPin, Plane, PieChart, Plus, Settings, X, CheckCircle } from "lucide-react";
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
@@ -22,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
+import { fmtDistance, useSettings } from "@/lib/settings";
 
 function HomeInner() {
   const { distanceUnit, autoRotate, homeCity } = useSettings();
