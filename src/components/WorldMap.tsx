@@ -506,10 +506,23 @@ export function WorldMap({
   // Rebuild on trips/selection change
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
     import("maplibre-gl").then(ml => {
       const maplibregl = (ml as any).default || ml;
-      addTripsToMap(map, maplibregl);
+      if (map.isStyleLoaded()) {
+        addTripsToMap(map, maplibregl);
+      } else {
+        // Wait for style to load then add markers
+        const onLoad = () => {
+          addTripsToMap(map, maplibregl);
+          map.off("style.load", onLoad);
+        };
+        map.on("style.load", onLoad);
+        // Also retry after short delay as fallback
+        setTimeout(() => {
+          if (map.isStyleLoaded()) addTripsToMap(map, maplibregl);
+        }, 1500);
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordered, selectedId]);
