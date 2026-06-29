@@ -39,12 +39,11 @@ const TRANSPORT_SVG: Record<string, (color: string, size?: number) => React.Reac
 };
 
 
-function ContinuousFlyer({ stops, cx, cy, W, TRANSPORT_ICONS }: {
+function ContinuousFlyer({ stops, cx, cy, W }: {
   stops: { label: string; isHome: boolean; transport: string | null }[];
   cx: (i: number) => number;
   cy: number;
   W: number;
-  TRANSPORT_ICONS: Record<string, string>;
 }) {
   const [progress, setProgress] = React.useState(0);
   const animRef = React.useRef<number>();
@@ -319,7 +318,7 @@ function RouteHero({
             </div>
 
             {/* Single continuous animation across all arcs */}
-            <ContinuousFlyer stops={stops} cx={cx} cy={cy} W={W} TRANSPORT_ICONS={TRANSPORT_ICONS}/>
+            <ContinuousFlyer stops={stops} cx={cx} cy={cy} W={W}/>
           </div>
         ) : (
           /* Empty state */
