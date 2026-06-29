@@ -143,7 +143,9 @@ export function WorldMap({
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
   const ordered = useMemo(() =>
-    [...trips].sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
+    [...trips]
+      .filter(t => t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude))
+      .sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
 
   // ── Init MapLibre ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -335,11 +337,14 @@ export function WorldMap({
     // Home marker
     const homeEl = document.createElement("div");
     homeEl.style.cssText = "width:16px;height:16px;border-radius:50%;background:#fbbf24;border:2.5px solid #fff;box-shadow:0 0 8px rgba(251,191,36,0.6);cursor:pointer";
-    markersRef.current.push(
-      new maplibregl.Marker({ element: homeEl })
-        .setLngLat([home.home_longitude, home.home_latitude])
-        .addTo(map)
-    );
+    const firstWithHome = ordered.find((t: any) => t.home_latitude && t.home_longitude);
+    if (firstWithHome) {
+      markersRef.current.push(
+        new maplibregl.Marker({ element: homeEl })
+          .setLngLat([firstWithHome.home_longitude!, firstWithHome.home_latitude!])
+          .addTo(map)
+      );
+    }
 
     // Trip markers
     ordered.forEach((t, i) => {
