@@ -3,10 +3,6 @@ import { useEffect, useMemo, useState, Component, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
-import { fmtDistance, useSettings } from "@/lib/settings";
-import { WorldMap, CityInfo } from "@/components/WorldMap";
-import { StarField } from "@/components/StarField";
-import { TripCard } from "@/components/TripCard";
 import { Compass, Globe, MapPin, Plane, PieChart, Plus, Settings, X, CheckCircle } from "lucide-react";
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
@@ -26,13 +22,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
-import { fmtDistance, useSettings } from "@/lib/settings";
-import { WorldMap, CityInfo } from "@/components/WorldMap";
-import { StarField } from "@/components/StarField";
-import { TripCard } from "@/components/TripCard";
 
 function HomeInner() {
-  const { distanceUnit, autoRotate } = useSettings();
+  const { distanceUnit, autoRotate, homeCity } = useSettings();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,8 +32,6 @@ function HomeInner() {
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
   const [pendingCity, setPendingCity] = useState<CityInfo | null>(null);
-
-  const { homeCity } = useSettings();
   const refresh = () => setTrips(loadTrips());
   useEffect(() => { refresh(); }, []);
 
