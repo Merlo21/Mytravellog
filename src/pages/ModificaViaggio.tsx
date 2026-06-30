@@ -556,12 +556,16 @@ const ModificaViaggio = () => {
     }
     // Max distance from home reached at any point in the trip
     let maxDist: number | null = null;
+    let maxDistCity: string | null = null;
     if (distHome) {
       const allStops = [
-        ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ lat: w.lat, lon: w.lon })),
-        { lat: dest.lat, lon: dest.lon },
+        ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ lat: w.lat, lon: w.lon, city: w.city })),
+        { lat: dest.lat, lon: dest.lon, city: dest.city },
       ];
-      maxDist = Math.max(...allStops.map(p => distanceKm(distHome.lat, distHome.lon, p.lat, p.lon)));
+      const distances = allStops.map(p => ({ city: p.city, d: distanceKm(distHome.lat, distHome.lon, p.lat, p.lon) }));
+      const max = distances.reduce((a, b) => b.d > a.d ? b : a);
+      maxDist = max.d;
+      maxDistCity = max.city;
     }
     const [alt, temp] = await Promise.all([
       dest.lat ? fetchElevation(dest.lat, dest.lon) : Promise.resolve(trip?.altitude_m ?? null),
