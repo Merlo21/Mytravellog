@@ -19,7 +19,12 @@ export function TravelHighlights({ trips }: Props) {
     [trips]
   );
   const farthest = useMemo(
-    () => trips.filter(t => t.distance_from_home_km != null).sort((a, b) => (b.distance_from_home_km! - a.distance_from_home_km!))[0],
+    () => trips
+      .filter(t => (t.max_distance_from_home_km ?? t.distance_from_home_km) != null)
+      .sort((a, b) =>
+        (b.max_distance_from_home_km ?? b.distance_from_home_km!) -
+        (a.max_distance_from_home_km ?? a.distance_from_home_km!)
+      )[0],
     [trips]
   );
   const hottest = useMemo(
@@ -69,7 +74,7 @@ export function TravelHighlights({ trips }: Props) {
           icon={<Globe2 className="w-12 h-12" strokeWidth={1.5} />}
           color="text-pink-500"
           label="Più distante da casa"
-          value={farthest ? formatDistanceKm(farthest.distance_from_home_km, distanceUnit) : "—"}
+          value={farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—"}
           sub={farthest?.city}
         />
         <HighlightCard
