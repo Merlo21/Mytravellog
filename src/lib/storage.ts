@@ -19,6 +19,7 @@ export type Trip = {
   altitude_m: number | null;
   distance_from_home_km: number | null; // somma di tutti i segmenti (km totali percorsi)
   max_distance_from_home_km: number | null; // distanza massima raggiunta dalla città di residenza (per "più lontano")
+  max_distance_city: string | null; // nome della città più lontana
   country_code: string;
   created_at: string;
 };
