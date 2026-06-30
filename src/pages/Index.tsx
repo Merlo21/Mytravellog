@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X } from "lucide-react";
+import { CalendarDays, Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripCard } from "@/components/TripCard";
@@ -67,7 +67,12 @@ function HomeInner() {
     const countries = new Set(trips.map((t) => t.country_code || t.country));
     const cities = new Set(trips.map((t) => `${t.city}|${t.country}`));
     const km = trips.reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0);
-    return { trips: trips.length, countries: countries.size, cities: cities.size, km };
+    const days = trips.reduce((s, t) => {
+      if (!t.date_end || t.date_end === t.trip_date) return s + 1;
+      const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
+      return s + Math.max(1, d);
+    }, 0);
+    return { trips: trips.length, countries: countries.size, cities: cities.size, km, days };
   }, [trips]);
 
   const defaultHome = trips[0]
@@ -86,6 +91,7 @@ function HomeInner() {
               { icon: <Globe className="w-[18px] h-[18px]"/>,   label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24" as const, border: "#fbbf24" as const },
               { icon: <MapPin className="w-[18px] h-[18px]"/>,  label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa" as const, border: "#60a5fa" as const },
               { icon: <Compass className="w-[18px] h-[18px]"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24" as const, border: "#fbbf24" as const },
+              { icon: <CalendarDays className="w-[18px] h-[18px]"/>, label: "Giorni in viaggio", value: stats.days.toString(), accent: "#60a5fa" as const, border: "#60a5fa" as const },
             ] as const).map(({ icon, label, value, accent, border }, i) => (
               <div key={label} className="flex-1 py-3 px-4" style={{
                 borderLeft: `3px solid ${border}`,
