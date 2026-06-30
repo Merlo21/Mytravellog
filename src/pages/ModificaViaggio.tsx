@@ -554,6 +554,15 @@ const ModificaViaggio = () => {
         dist += distanceKm(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
       }
     }
+    // Max distance from home reached at any point in the trip
+    let maxDist: number | null = null;
+    if (distHome) {
+      const allStops = [
+        ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ lat: w.lat, lon: w.lon })),
+        { lat: dest.lat, lon: dest.lon },
+      ];
+      maxDist = Math.max(...allStops.map(p => distanceKm(distHome.lat, distHome.lon, p.lat, p.lon)));
+    }
     const [alt, temp] = await Promise.all([
       dest.lat ? fetchElevation(dest.lat, dest.lon) : Promise.resolve(trip?.altitude_m ?? null),
       dest.lat ? fetchTemperature(dest.lat, dest.lon, dateStart) : Promise.resolve(trip?.temperature_c ?? null),
@@ -568,7 +577,7 @@ const ModificaViaggio = () => {
       latitude: dest.lat || trip?.latitude || 0,
       longitude: dest.lon || trip?.longitude || 0,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, altitude_m: alt, temperature_c: temp,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, altitude_m: alt, temperature_c: temp,
       country_code: dest.country_code || trip?.country_code || "",
       rating: rating || null,
     });
