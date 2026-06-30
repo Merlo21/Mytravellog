@@ -75,7 +75,7 @@ export function TravelHighlights({ trips }: Props) {
           color="text-pink-500"
           label="Più distante da casa"
           value={farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—"}
-          sub={farthest?.city}
+          sub={farthest?.max_distance_city ?? farthest?.city}
         />
         <HighlightCard
           icon={<Sun className="w-12 h-12" strokeWidth={1.5} />}
