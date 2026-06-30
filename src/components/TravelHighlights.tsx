@@ -1,7 +1,7 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useMemo } from "react";
 import React from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, CalendarDays } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
@@ -25,6 +25,14 @@ export function TravelHighlights({ trips }: Props) {
         (b.max_distance_from_home_km ?? b.distance_from_home_km!) -
         (a.max_distance_from_home_km ?? a.distance_from_home_km!)
       )[0],
+    [trips]
+  );
+  const totalDays = useMemo(
+    () => trips.reduce((s, t) => {
+      if (!t.date_end || t.date_end === t.trip_date) return s + 1;
+      const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
+      return s + Math.max(1, d);
+    }, 0),
     [trips]
   );
   const hottest = useMemo(
@@ -90,6 +98,13 @@ export function TravelHighlights({ trips }: Props) {
           label="Il posto più freddo"
           value={coldest ? formatTemperatureC(coldest.temperature_c, temperatureUnit) : "—"}
           sub={coldest?.city}
+        />
+        <HighlightCard
+          icon={<CalendarDays className="w-12 h-12" strokeWidth={1.5} />}
+          color="text-blue-400"
+          label="Giorni in viaggio"
+          value={totalDays.toString()}
+          sub={trips.length > 0 ? `in ${trips.length} ${trips.length === 1 ? "viaggio" : "viaggi"}` : undefined}
         />
       </div>
 
