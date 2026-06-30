@@ -541,7 +541,19 @@ const ModificaViaggio = () => {
     const dest = waypoints[waypoints.length - 1];
     const settHome = s.homeCity;
     const distHome = settHome ?? home;
-    const dist = distHome ? distanceKm(distHome.lat, distHome.lon, dest.lat, dest.lon) : null;
+    // Sum all segments: home → waypoint1 → waypoint2 → ... → destination
+    let dist: number | null = null;
+    if (distHome) {
+      const points: { lat: number; lon: number }[] = [
+        { lat: distHome.lat, lon: distHome.lon },
+        ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ lat: w.lat, lon: w.lon })),
+        { lat: dest.lat, lon: dest.lon },
+      ];
+      dist = 0;
+      for (let i = 1; i < points.length; i++) {
+        dist += distanceKm(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
+      }
+    }
     const [alt, temp] = await Promise.all([
       dest.lat ? fetchElevation(dest.lat, dest.lon) : Promise.resolve(trip?.altitude_m ?? null),
       dest.lat ? fetchTemperature(dest.lat, dest.lon, dateStart) : Promise.resolve(trip?.temperature_c ?? null),
