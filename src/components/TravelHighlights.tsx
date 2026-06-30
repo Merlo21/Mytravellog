@@ -45,10 +45,6 @@ export function TravelHighlights({ trips }: Props) {
       const d = t.distance_from_home_km ?? 0;
       const mode = t.transport_mode ?? (d > 1000 ? "plane" : d >= 200 ? "train" : d >= 20 ? "car" : "walk");
       acc[mode] = (acc[mode] ?? 0) + d;
-      // Add waypoints distances (approximate)
-      for (const wp of t.waypoints ?? []) {
-        acc[wp.transport_mode] = (acc[wp.transport_mode] ?? 0) + d * 0.3;
-      }
     }
     return acc;
   }, [trips]);
