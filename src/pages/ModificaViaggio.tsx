@@ -485,7 +485,7 @@ const ModificaViaggio = () => {
     trip ? [
       ...(trip.waypoints ?? []).map(w => ({
         city: w.city, country: w.country, country_code: "",
-        lat: 0, lon: 0, transport_mode: w.transport_mode as TransportMode,
+        lat: w.lat ?? 0, lon: w.lon ?? 0, transport_mode: w.transport_mode as TransportMode,
       })),
       { city: trip.city, country: trip.country, country_code: trip.country_code ?? "",
         lat: trip.latitude, lon: trip.longitude,
