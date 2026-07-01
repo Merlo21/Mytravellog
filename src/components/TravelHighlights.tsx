@@ -115,7 +115,8 @@ export function TravelHighlights({ trips }: Props) {
         })}
       </div>
 
-      <h2 className="text-lg font-bold mb-4">Distanze</h2>
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-bold mb-4">Distanze</h2>
 
         {/* Hero row — 3 stats same style */}
         <div className="flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
@@ -212,6 +213,7 @@ export function TravelHighlights({ trips }: Props) {
             })}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
