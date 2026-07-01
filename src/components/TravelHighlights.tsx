@@ -215,15 +215,4 @@ export function TravelHighlights({ trips }: Props) {
   );
 }
 
-function HighlightCard({
-  icon, color, label, value, sub,
-}: { icon: React.ReactNode; color: string; label: string; value: string; sub?: string }) {
-  return (
-    <div className="glass-card p-5 flex flex-col items-center text-center">
-      <div className={color}>{icon}</div>
-      <div className="text-2xl font-extrabold mt-3 tracking-tight">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
-      <div className={"text-sm font-semibold mt-2 " + color}>{label}</div>
-    </div>
-  );
-}
+
