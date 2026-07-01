@@ -105,7 +105,7 @@ export function TravelHighlights({ trips }: Props) {
               gap:4,
             }}>
               <div style={{width:32,height:32,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <Icon style={{width:16,height:16,color:color}}/>
+                {React.createElement(Icon, {style:{width:16,height:16,color:color}})}
               </div>
               <div style={{fontSize:14,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
               <div style={{fontSize:9,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{label}</div>
