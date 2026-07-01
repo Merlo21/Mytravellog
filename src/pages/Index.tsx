@@ -30,15 +30,8 @@ function HomeInner() {
   const { distanceUnit, autoRotate, homeCity } = useSettings();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [search, setSearch] = useState("");
 
-  // Toggle body class to hide MapLibre controls when sidebar is open
-  useEffect(() => {
-    if (sidebarOpen) document.body.classList.add("sidebar-open");
-    else document.body.classList.remove("sidebar-open");
-    return () => document.body.classList.remove("sidebar-open");
-  }, [sidebarOpen]);
+
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
@@ -127,89 +120,7 @@ function HomeInner() {
             />
           </div>
 
-          {/* Inline sidebar panel */}
-          {sidebarOpen && (
-            <div style={{
-              width: 360,
-              flexShrink: 0,
-              borderLeft: "0.5px solid #1a2d4a",
-              background: "#060e1e",
-              display: "flex",
-              flexDirection: "column",
-              transition: "width 0.3s ease",
-              overflow: "hidden",
-            }}>
-              {/* Header */}
-              <div style={{ padding:"16px 20px 12px", borderBottom:"0.5px solid #1a2d4a", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <div>
-                  <div style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>I miei viaggi</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:2 }}>{trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}</div>
-                </div>
-                <button onClick={() => setSidebarOpen(false)}
-                  style={{ width:30, height:30, borderRadius:8, background:"transparent", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,0.4)" }}>
-                  <X className="w-4 h-4"/>
-                </button>
-              </div>
 
-              {/* Search */}
-              <div style={{ padding:"10px 16px", borderBottom:"0.5px solid #1a2d4a" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.05)", borderRadius:10, padding:"7px 12px" }}>
-                  <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
-                  <input
-                    style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:13, flex:1 }}
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Cerca città, paese…"
-                  />
-                  {search && (
-                    <button onClick={() => setSearch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)" }}>
-                      <X className="w-3.5 h-3.5"/>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Trips grouped by year */}
-              <div style={{ flex:1, overflowY:"auto", padding:"12px 12px" }}>
-                {(() => {
-                  const filtered = trips.filter(t =>
-                    !search || [t.title, t.city, t.country].some(s =>
-                      s?.toLowerCase().includes(search.toLowerCase())
-                    )
-                  );
-                  if (filtered.length === 0) return (
-                    <p style={{ fontSize:13, color:"rgba(255,255,255,0.4)", textAlign:"center", padding:"32px 0" }}>
-                      {search ? "Nessun risultato." : "Nessun viaggio ancora."}
-                    </p>
-                  );
-                  const byYear = filtered.reduce((acc, t) => {
-                    const year = t.trip_date ? new Date(t.trip_date).getFullYear().toString() : "—";
-                    if (!acc[year]) acc[year] = [];
-                    acc[year].push(t);
-                    return acc;
-                  }, {} as Record<string, typeof trips>);
-                  const years = Object.keys(byYear).sort((a, b) => b.localeCompare(a));
-                  return years.map(year => (
-                    <div key={year} style={{ marginBottom:16 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, padding:"0 4px" }}>
-                        <span style={{ fontSize:10, fontWeight:700, letterSpacing:"2px", textTransform:"uppercase", color:"rgba(255,255,255,0.25)" }}>{year}</span>
-                        <div style={{ flex:1, height:"0.5px", background:"#1a2d4a" }}/>
-                        <span style={{ fontSize:10, color:"rgba(255,255,255,0.25)" }}>{byYear[year].length}</span>
-                      </div>
-                      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                        {byYear[year].map(t => (
-                          <TripCard key={t.id} trip={t}
-                            selected={selectedId === t.id}
-                            onClick={() => setSelectedId(t.id)}
-                            onDeleted={refresh} onUpdated={refresh}/>
-                        ))}
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
