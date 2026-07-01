@@ -105,7 +105,7 @@ export function TravelHighlights({ trips }: Props) {
               textAlign:"center",
               gap:4,
             }}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",color}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",color:color}}>
                 {icon}
               </div>
               <div style={{fontSize:14,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
