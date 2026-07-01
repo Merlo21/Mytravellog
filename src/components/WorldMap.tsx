@@ -646,7 +646,8 @@ export function WorldMap({
       {/* Legend */}
       <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/>Casa</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-cyan-400"/>Tappa</div>
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{background:"#f472b6"}}/>Destinazione</div>
+        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400"/>Multi-tappa</div>
       </div>
     </div>
   );
