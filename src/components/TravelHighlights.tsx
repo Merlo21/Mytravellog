@@ -189,7 +189,7 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#0F6E56", label:"Nave",  pct:byShip},
               {color:"#D85A30", label:"Piedi", pct:byWalk},
             ] as const).map(x => (
-              <span key={x.label} className={`flex items-center gap-1 transition-opacity ${x.pct > 0 ? "opacity-100" : "opacity-30"}`}>
+              <span key={x.label} className={"flex items-center gap-1 transition-opacity " + (x.pct > 0 ? "opacity-100" : "opacity-30")}>
                 <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
                 {x.label} {totalKm > 0 ? (Math.round(x.pct/totalKm*100) + "%") : "0%"}
               </span>
