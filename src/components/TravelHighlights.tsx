@@ -207,10 +207,10 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#639922", pct:byCar},
               {color:"#0F6E56", pct:byShip},
               {color:"#D85A30", pct:byWalk},
-            ] as const).map((x,i) => (
-              <div key={i} className="h-full transition-all duration-700"
-                style={{width:(x.pct * 100 / totalKm) + "%", background:x.color}}/>
-            )) : <div className="h-full w-full rounded-full bg-secondary opacity-60"/>}
+            ] as const).map((x,i) => {
+              const pctW = totalKm > 0 ? String(Math.round(x.pct * 100 / totalKm)) + "%" : "0%";
+              return <div key={i} className="h-full transition-all duration-700" style={{width:pctW, background:x.color}}/>;
+            }) : <div className="h-full w-full rounded-full bg-muted"/>}
           </div>
         </div>
       </div>
