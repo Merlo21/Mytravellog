@@ -37,11 +37,15 @@ export function TravelHighlights({ trips }: Props) {
     [trips]
   );
   const hottest = useMemo(
-    () => trips.filter(t => t.temperature_c != null).sort((a, b) => (b.temperature_c! - a.temperature_c!))[0],
+    () => trips
+      .filter(t => (t.hottest_temp_c ?? t.temperature_c) != null)
+      .sort((a, b) => (b.hottest_temp_c ?? b.temperature_c!) - (a.hottest_temp_c ?? a.temperature_c!))[0],
     [trips]
   );
   const coldest = useMemo(
-    () => trips.filter(t => t.temperature_c != null).sort((a, b) => (a.temperature_c! - b.temperature_c!))[0],
+    () => trips
+      .filter(t => (t.coldest_temp_c ?? t.temperature_c) != null)
+      .sort((a, b) => (a.coldest_temp_c ?? a.temperature_c!) - (b.coldest_temp_c ?? b.temperature_c!))[0],
     [trips]
   );
   const totalKm = useMemo(
@@ -70,9 +74,9 @@ export function TravelHighlights({ trips }: Props) {
   const hlItems: HlItem[] = [
     { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.altitude_m, distanceUnit) : "—",      sub: highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain,    angle:-90 },
     { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2, angle:-18 },
-    { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun,         angle:54  },
+    { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun,         angle:54  },
     { label:"Giorni in viaggio",    value: String(totalDays), sub: trips.length > 0 ? ("in " + trips.length + (trips.length === 1 ? " viaggio" : " viaggi")) : undefined, color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  Icon:CalendarDays, angle:126 },
-    { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.city,  color:"#93c5fd", bg:"rgba(147,197,253,0.12)", Icon:Snowflake,   angle:198 },
+    { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.coldest_temp_c ?? coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.coldest_city ?? coldest?.city,  color:"#93c5fd", bg:"rgba(147,197,253,0.12)", Icon:Snowflake,   angle:198 },
   ];
 
   return (
