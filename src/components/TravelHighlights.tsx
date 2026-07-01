@@ -194,16 +194,16 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#0F6E56", label:"Nave",  pct:byShip},
               {color:"#D85A30", label:"Piedi", pct:byWalk},
             ] as const).map(x => (
-              <span key={x.label} className={`flex items-center gap-1 transition-opacity ${x.pct > 0 ? "opacity-100" : "opacity-30"}`}>
+            ] as const).map(x => {
+              const pct2 = totalKm > 0 ? (String(Math.round(x.pct * 100 / totalKm)) + "%") : "0%";
+              const opClass = "flex items-center gap-1 transition-opacity " + (x.pct > 0 ? "opacity-100" : "opacity-30");
+              return (
+              <span key={x.label} className={opClass}>
                 <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
-                {x.label}{" "}{totalKm > 0 ? (String(Math.round(x.pct * 100 / totalKm)) + "%") : "0%"}
+                {x.label}{" "}{pct2}
               </span>
-            ))}
-          </div>
-          <div className="h-2 rounded-full overflow-hidden flex bg-secondary opacity-40">
-            {totalKm > 0 ? ([
-              {color:"#378ADD", pct:byPlane},
-              {color:"#BA7517", pct:byTrain},
+              );
+            })}
               {color:"#639922", pct:byCar},
               {color:"#0F6E56", pct:byShip},
               {color:"#D85A30", pct:byWalk},
