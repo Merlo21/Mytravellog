@@ -195,7 +195,7 @@ export function TravelHighlights({ trips }: Props) {
               </span>
             ))}
           </div>
-          <div className="h-2 rounded-full overflow-hidden flex bg-secondary opacity-40">
+          <div className="h-2 rounded-full overflow-hidden flex" style={{background:"rgba(255,255,255,0.1)"}}>
             {([
               {color:"#378ADD", pct:byPlane},
               {color:"#BA7517", pct:byTrain},
