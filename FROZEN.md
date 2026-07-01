@@ -38,3 +38,11 @@ Modifiche future devono essere esplicite e motivate.
 - NON toccare layout, altezze, proporzioni
 - Per nuove feature: creare nuovi file, non modificare quelli esistenti
 - Per bug critici: modifica minima e mirata
+
+## Aggiornamento freeze
+
+### Nuovi file frozen
+- `src/pages/MieiViaggi.tsx` — pagina dedicata lista viaggi con TripCardTicket
+- `src/components/TripCardTicket.tsx` — card stile biglietto aereo
+- `src/pages/Stats.tsx` — già frozen
+- `src/pages/Settings.tsx` — già frozen
