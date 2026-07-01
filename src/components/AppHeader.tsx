@@ -11,8 +11,8 @@ export function AppHeader({ onTripsClick }: Props) {
     <header className="border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-20">
       <div className="container mx-auto px-6 py-3 flex items-center justify-between">
 
-        {/* Logo */}
-        <div className="flex items-center gap-3">
+        {/* Logo — click to go home */}
+        <Link to="/" className="flex items-center gap-3" style={{textDecoration:"none"}}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: "#60a5fa" }}>
             <svg width="26" height="26" viewBox="0 0 30 30" fill="none" aria-hidden="true">
@@ -30,7 +30,7 @@ export function AppHeader({ onTripsClick }: Props) {
             <span style={{ color: "#fbbf24" }}>·</span>
             <span>TA</span>
           </h1>
-        </div>
+        </Link>
 
         {/* Nav */}
         <div className="flex items-center gap-1">
