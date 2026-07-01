@@ -204,7 +204,7 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#D85A30", pct:byWalk},
             ] as const).map((x,i) => (
               <div key={i} className="h-full transition-all duration-700"
-                style={{width:`${x.pct/totalKm*100}%`, background:x.color}}/>
+                style={{width:(totalKm > 0 ? (x.pct/totalKm*100) : 0)+"%", background:x.color}}/>
             )) : <div className="h-full w-full rounded-full bg-secondary/60"/>}
           </div>
         </div>
