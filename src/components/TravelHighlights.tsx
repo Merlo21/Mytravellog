@@ -116,4 +116,5 @@ export function TravelHighlights({ trips }: Props) {
       </div>
     </div>
   );
+
 }
