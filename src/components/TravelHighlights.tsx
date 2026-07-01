@@ -68,35 +68,33 @@ export function TravelHighlights({ trips }: Props) {
   const byWalk  = byMode.walk;
   const byRoad  = byCar;
 
+  const hlItems = [
+    { label: "Altitudine più alta",   value: highest ? formatAltitudeM(highest.altitude_m, distanceUnit) : "—",       sub: highest?.city,                                               color: "#34d399", bg: "rgba(52,211,153,0.12)",  angle: -90 },
+    { label: "Più distante da casa",  value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color: "#f472b6", bg: "rgba(244,114,182,0.12)", angle: -18 },
+    { label: "Il posto più caldo",    value: hottest  ? formatTemperatureC(hottest.temperature_c, temperatureUnit) : "—",  sub: hottest?.city,                                               color: "#fb7185", bg: "rgba(251,113,133,0.12)", angle:  54 },
+    { label: "Giorni in viaggio",     value: String(totalDays),                                                              sub: trips.length > 0 ? "in " + trips.length + (trips.length === 1 ? " viaggio" : " viaggi") : undefined, color: "#fbbf24", bg: "rgba(251,191,36,0.12)",  angle: 126 },
+    { label: "Il posto più freddo",   value: coldest  ? formatTemperatureC(coldest.temperature_c, temperatureUnit) : "—",   sub: coldest?.city,                                               color: "#93c5fd", bg: "rgba(147,197,253,0.12)", angle: 198 },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-up">
-      {/* Circular highlights layout */}
-      {(() => {
-        const highlights: { label: string; value: string; sub?: string; color: string; bg: string; icon: React.ReactElement; angle: number }[] = [
-          { label:"Altitudine più alta", value: highest ? formatAltitudeM(highest.altitude_m, distanceUnit) : "—", sub: highest?.city, color:"#34d399", bg:"rgba(52,211,153,0.12)", icon: <Mountain className="w-4 h-4"/>, angle: -90 },
-          { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", icon: <Globe2 className="w-4 h-4"/>, angle: -18 },
-          { label:"Il posto più caldo", value: hottest ? formatTemperatureC(hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.city, color:"#fb7185", bg:"rgba(251,113,133,0.12)", icon: <Sun className="w-4 h-4"/>, angle: 54 },
-          { label:"Giorni in viaggio", value: totalDays.toString(), sub: trips.length > 0 ? `in ${trips.length} ${trips.length === 1 ? "viaggio" : "viaggi"}` : undefined, color:"#fbbf24", bg:"rgba(251,191,36,0.12)", icon: <CalendarDays className="w-4 h-4"/>, angle: 126 },
-          { label:"Il posto più freddo", value: coldest ? formatTemperatureC(coldest.temperature_c, temperatureUnit) : "—", sub: coldest?.city, color:"#93c5fd", bg:"rgba(147,197,253,0.12)", icon: <Snowflake className="w-4 h-4"/>, angle: 198 },
-        ];
-        return (
-      <div style={{position:"relative", width:"100%", display:"flex", justifyContent:"center", alignItems:"center", minHeight:420}}>
+      <div style={{position:"relative",width:"100%",display:"flex",justifyContent:"center",alignItems:"center",minHeight:420}}>
         <svg style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)"}} width="500" height="420" viewBox="0 0 500 420">
-          <circle cx="250" cy="210" r="140" fill="none" stroke="#1a2d4a" strokeWidth="1" strokeDasharray="5 4"/>
+          <circle cx="250" cy="210" r="140" fill="none" stroke="#1a2d4a" strokeWidth={1} strokeDasharray="5 4"/>
         </svg>
-        {highlights.map(({ label, value, sub, color, bg, icon, angle }) => {
-          const rad = (angle * Math.PI) / 180;
-          const cx = 250 + 140 * Math.cos(rad);
-          const cy = 210 + 140 * Math.sin(rad);
+        {hlItems.map(function(item) {
+          const rad = (item.angle * Math.PI) / 180;
+          const px = 250 + 140 * Math.cos(rad);
+          const py = 210 + 140 * Math.sin(rad);
           return (
-            <div key={label} style={{
+            <div key={item.label} style={{
               position:"absolute",
-              left: `calc(50% + ${cx - 250}px)`,
-              top: cy,
+              left:"calc(50% + " + (px - 250) + "px)",
+              top:py,
               transform:"translate(-50%, -50%)",
               width:120,
               background:"#0a1628",
-              border:`0.5px solid ${color}`,
+              border:"0.5px solid " + item.color,
               borderRadius:12,
               padding:"10px 12px",
               display:"flex",
@@ -105,13 +103,18 @@ export function TravelHighlights({ trips }: Props) {
               textAlign:"center",
               gap:4,
             }}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",color:color}}>
-                {icon}
+              <div style={{width:32,height:32,borderRadius:"50%",background:item.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {item.label === "Altitudine più alta"  && <Mountain  style={{width:16,height:16,color:item.color}}/>}
+                {item.label === "Più distante da casa" && <Globe2     style={{width:16,height:16,color:item.color}}/>}
+                {item.label === "Il posto più caldo"   && <Sun        style={{width:16,height:16,color:item.color}}/>}
+                {item.label === "Giorni in viaggio"    && <CalendarDays style={{width:16,height:16,color:item.color}}/>}
+                {item.label === "Il posto più freddo"  && <Snowflake  style={{width:16,height:16,color:item.color}}/>}
               </div>
-              <div style={{fontSize:14,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
-              <div style={{fontSize:9,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{label}</div>
-              {sub && <div style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{sub}</div>}
+              <div style={{fontSize:14,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{item.value}</div>
+              <div style={{fontSize:9,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{item.label}</div>
+              {item.sub && <div style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>{item.sub}</div>}
             </div>
           );
         })}
       </div>
+
