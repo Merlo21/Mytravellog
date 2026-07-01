@@ -537,8 +537,9 @@ const NuovoViaggio = () => {
       ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ city: w.city, lat: w.lat, lon: w.lon })),
       { city: dest.city, lat: dest.lat, lon: dest.lon },
     ];
-    const [alt, ...stopTemps] = await Promise.all([
+    const [alt, region, ...stopTemps] = await Promise.all([
       fetchElevation(dest.lat, dest.lon),
+      fetchRegion(dest.lat, dest.lon),
       ...allStopsWithCoords.map(s => fetchTemperature(s.lat, s.lon, dateStart)),
     ]);
     const temp = stopTemps[stopTemps.length - 1] ?? null;
@@ -554,7 +555,7 @@ const NuovoViaggio = () => {
       waypoints: waypoints.slice(0, -1).map(w => ({ city: w.city, country: w.country, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon })),
       latitude: dest.lat, longitude: dest.lon,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null,
       country_code: dest.country_code, rating: rating || null,
     });
     toast.success("Viaggio salvato!");
