@@ -9,6 +9,7 @@ import Stats from "./pages/Stats";
 import NuovoViaggio from "./pages/NuovoViaggio";
 import ModificaViaggio from "./pages/ModificaViaggio";
 import SettingsPage from "./pages/Settings";
+import MieiViaggi from "./pages/MieiViaggi";
 
 const rootEl = document.getElementById("root")!;
 rootEl.style.backgroundColor = "#060e1e";
@@ -23,6 +24,7 @@ ReactDOM.createRoot(rootEl).render(
           <Route path="/impostazioni" element={<SettingsPage />} />
           <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
           <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
+          <Route path="/miei-viaggi" element={<MieiViaggi />} />
         </Routes>
         <Toaster richColors position="top-right" />
       </HashRouter>
