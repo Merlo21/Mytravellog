@@ -168,7 +168,7 @@ export function TravelHighlights({ trips }: Props) {
             <div key={label}
               className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
               style={{background: bg, borderColor: border}}>
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black">
                 <span style={{color}}>{icon}</span>
               </div>
               <div>
@@ -195,7 +195,7 @@ export function TravelHighlights({ trips }: Props) {
               </span>
             ))}
           </div>
-          <div className="h-2 rounded-full overflow-hidden flex bg-secondary/40">
+          <div className="h-2 rounded-full overflow-hidden flex bg-secondary opacity-40">
             {totalKm > 0 ? ([
               {color:"#378ADD", pct:byPlane},
               {color:"#BA7517", pct:byTrain},
@@ -205,7 +205,7 @@ export function TravelHighlights({ trips }: Props) {
             ] as const).map((x,i) => (
               <div key={i} className="h-full transition-all duration-700"
                 style={{width:(totalKm > 0 ? (x.pct/totalKm*100) : 0)+"%", background:x.color}}/>
-            )) : <div className="h-full w-full rounded-full bg-secondary/60"/>}
+            )) : <div className="h-full w-full rounded-full bg-secondary opacity-60"/>}
           </div>
         </div>
       </div>
