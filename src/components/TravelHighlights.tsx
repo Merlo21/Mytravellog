@@ -208,7 +208,7 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#0F6E56", pct:byShip},
               {color:"#D85A30", pct:byWalk},
             ] as const).map((x,i) => {
-              const pctW = totalKm > 0 ? String(Math.round(x.pct * 100 / totalKm)) + "%" : "0%";
+              const pctW = totalKm > 0 ? (String(Math.round(x.pct * 100 / totalKm)) + "%") : "0%";
               return <div key={i} className="h-full transition-all duration-700" style={{width:pctW, background:x.color}}/>;
             }) : <div className="h-full w-full rounded-full bg-muted"/>}
           </div>
