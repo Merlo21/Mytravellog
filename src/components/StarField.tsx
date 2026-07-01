@@ -79,52 +79,45 @@ export function StarField({ offsetX, offsetY, mousePos }: Props) {
       ctx.fillRect(0, 0, W, H);
 
       // ── Milky Way band ──────────────────────────────────────────────────────
-      // Draw a diagonal nebula band across the canvas
-      const mwAngle = -0.35; // radians — slight diagonal
-      const mwCenterX = W * 0.55;
-      const mwCenterY = H * 0.45;
-      const mwLen = Math.max(W, H) * 1.6;
-      const mwWidth = Math.min(W, H) * 0.28;
+      const mwAngle = -0.4;
+      const mwCX = W * 0.52 + offsetX * 0.1;
+      const mwCY = H * 0.48 + offsetY * 0.05;
+      const mwLen = Math.max(W, H) * 1.8;
+      const mwW = Math.min(W, H) * 0.32;
 
-      // Soft nebula glow
-      for (let i = 0; i < 4; i++) {
-        const spread = mwWidth * (0.5 + i * 0.3);
-        const alpha = 0.015 - i * 0.003;
-        const x1 = mwCenterX - Math.cos(mwAngle) * mwLen / 2;
-        const y1 = mwCenterY - Math.sin(mwAngle) * mwLen / 2;
-        const x2 = mwCenterX + Math.cos(mwAngle) * mwLen / 2;
-        const y2 = mwCenterY + Math.sin(mwAngle) * mwLen / 2;
-        const grad = ctx.createLinearGradient(x1, y1, x2, y2);
-        grad.addColorStop(0,   "rgba(100,140,255,0)");
-        grad.addColorStop(0.2, "rgba(120,160,255," + alpha + ")");
-        grad.addColorStop(0.5, "rgba(140,180,255," + (alpha * 1.4) + ")");
-        grad.addColorStop(0.8, "rgba(120,160,255," + alpha + ")");
-        grad.addColorStop(1,   "rgba(100,140,255,0)");
-        ctx.save();
-        ctx.translate(mwCenterX, mwCenterY);
-        ctx.rotate(mwAngle + Math.PI / 2);
-        const bgrad = ctx.createLinearGradient(-spread, 0, spread, 0);
-        bgrad.addColorStop(0,   "rgba(100,140,255,0)");
-        bgrad.addColorStop(0.3, "rgba(120,160,255," + alpha + ")");
-        bgrad.addColorStop(0.5, "rgba(140,180,255," + (alpha * 2) + ")");
-        bgrad.addColorStop(0.7, "rgba(120,160,255," + alpha + ")");
-        bgrad.addColorStop(1,   "rgba(100,140,255,0)");
-        ctx.restore();
-      }
+      // Nebula glow — save/restore to draw rotated band
+      ctx.save();
+      ctx.translate(mwCX, mwCY);
+      ctx.rotate(mwAngle);
+      const nebulaGrad = ctx.createLinearGradient(0, -mwW, 0, mwW);
+      nebulaGrad.addColorStop(0,    "rgba(80,120,220,0)");
+      nebulaGrad.addColorStop(0.25, "rgba(100,140,240,0.06)");
+      nebulaGrad.addColorStop(0.5,  "rgba(120,160,255,0.1)");
+      nebulaGrad.addColorStop(0.75, "rgba(100,140,240,0.06)");
+      nebulaGrad.addColorStop(1,    "rgba(80,120,220,0)");
+      ctx.fillStyle = nebulaGrad;
+      ctx.fillRect(-mwLen / 2, -mwW, mwLen, mwW * 2);
+
+      // Second layer — brighter core
+      const coreGrad = ctx.createLinearGradient(0, -mwW * 0.3, 0, mwW * 0.3);
+      coreGrad.addColorStop(0,   "rgba(140,170,255,0)");
+      coreGrad.addColorStop(0.5, "rgba(160,190,255,0.07)");
+      coreGrad.addColorStop(1,   "rgba(140,170,255,0)");
+      ctx.fillStyle = coreGrad;
+      ctx.fillRect(-mwLen / 2, -mwW * 0.3, mwLen, mwW * 0.6);
+      ctx.restore();
 
       // Dense micro-stars along the band
-      for (let i = 0; i < 600; i++) {
-        const t = (i / 600);
-        const along = (t - 0.5) * mwLen;
-        const perp = (Math.sin(i * 137.5) * 0.5) * mwWidth * (0.4 + Math.abs(Math.sin(i * 53)) * 0.6);
-        const x = mwCenterX + Math.cos(mwAngle) * along - Math.sin(mwAngle) * perp + offsetX * 0.15;
-        const y = mwCenterY + Math.sin(mwAngle) * along + Math.cos(mwAngle) * perp + offsetY * 0.05;
-        if (x < 0 || x > W || y < 0 || y > H) continue;
-        const distFromCenter = Math.abs(perp) / (mwWidth * 0.5);
-        const falloff = Math.max(0, 1 - distFromCenter);
-        const alpha = (0.1 + Math.abs(Math.sin(i * 91.3)) * 0.35) * falloff * 0.7;
-        const r = 0.2 + Math.abs(Math.sin(i * 47.3)) * 0.5;
-        ctx.fillStyle = "rgba(200,215,255," + alpha + ")";
+      for (let i = 0; i < 900; i++) {
+        const along = ((i / 900) - 0.5) * mwLen;
+        const perp = Math.sin(i * 137.508) * mwW * 0.9 * (0.3 + Math.abs(Math.sin(i * 53.3)) * 0.7);
+        const x = mwCX + Math.cos(mwAngle) * along - Math.sin(mwAngle) * perp;
+        const y = mwCY + Math.sin(mwAngle) * along + Math.cos(mwAngle) * perp;
+        if (x < -10 || x > W + 10 || y < -10 || y > H + 10) continue;
+        const falloff = Math.max(0, 1 - Math.abs(perp) / (mwW * 0.8));
+        const alpha = (0.25 + Math.abs(Math.sin(i * 91.3)) * 0.55) * falloff;
+        const r = 0.3 + Math.abs(Math.sin(i * 47.3)) * 0.8;
+        ctx.fillStyle = "rgba(210,225,255," + alpha + ")";
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
 
