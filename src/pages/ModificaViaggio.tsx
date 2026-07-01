@@ -567,10 +567,19 @@ const ModificaViaggio = () => {
       maxDist = max.d;
       maxDistCity = max.city;
     }
-    const [alt, temp] = await Promise.all([
+    // Fetch temperatures for all stops to find hottest/coldest
+    const allStopsWithCoords = [
+      ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ city: w.city, lat: w.lat, lon: w.lon })),
+      { city: dest.city, lat: dest.lat, lon: dest.lon },
+    ];
+    const [alt, ...stopTemps] = await Promise.all([
       dest.lat ? fetchElevation(dest.lat, dest.lon) : Promise.resolve(trip?.altitude_m ?? null),
-      dest.lat ? fetchTemperature(dest.lat, dest.lon, dateStart) : Promise.resolve(trip?.temperature_c ?? null),
+      ...allStopsWithCoords.map(s => s.lat ? fetchTemperature(s.lat, s.lon, dateStart) : Promise.resolve(null)),
     ]);
+    const temp = stopTemps[stopTemps.length - 1] ?? null;
+    const tempsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, temp: stopTemps[i] as number | null })).filter(x => x.temp != null);
+    const hottestStop = tempsWithCity.length ? tempsWithCity.reduce((a, b) => (b.temp! > a.temp! ? b : a)) : null;
+    const coldestStop = tempsWithCity.length ? tempsWithCity.reduce((a, b) => (b.temp! < a.temp! ? b : a)) : null;
     updateTrip(id!, {
       title: title.trim() || dest.city,
       country: dest.country, city: dest.city,
@@ -581,7 +590,7 @@ const ModificaViaggio = () => {
       latitude: dest.lat || trip?.latitude || 0,
       longitude: dest.lon || trip?.longitude || 0,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, temperature_c: temp,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null,
       country_code: dest.country_code || trip?.country_code || "",
       rating: rating || null,
     });
