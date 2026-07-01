@@ -24,6 +24,7 @@ export type Trip = {
   hottest_city: string | null;      // città più calda
   coldest_temp_c: number | null;    // temperatura più bassa tra tutte le tappe
   coldest_city: string | null;      // città più fredda
+  region: string | null;             // regione/stato della destinazione
   country_code: string;
   created_at: string;
 };
