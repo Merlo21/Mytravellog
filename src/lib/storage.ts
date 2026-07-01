@@ -20,6 +20,10 @@ export type Trip = {
   distance_from_home_km: number | null; // somma di tutti i segmenti (km totali percorsi)
   max_distance_from_home_km: number | null; // distanza massima raggiunta dalla città di residenza (per "più lontano")
   max_distance_city: string | null; // nome della città più lontana
+  hottest_temp_c: number | null;    // temperatura più alta tra tutte le tappe
+  hottest_city: string | null;      // città più calda
+  coldest_temp_c: number | null;    // temperatura più bassa tra tutte le tappe
+  coldest_city: string | null;      // città più fredda
   country_code: string;
   created_at: string;
 };
