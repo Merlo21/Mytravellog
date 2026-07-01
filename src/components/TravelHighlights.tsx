@@ -193,7 +193,6 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#639922", label:"Auto",  pct:byCar},
               {color:"#0F6E56", label:"Nave",  pct:byShip},
               {color:"#D85A30", label:"Piedi", pct:byWalk},
-            ] as const).map(x => (
             ] as const).map(x => {
               const pct2 = totalKm > 0 ? (String(Math.round(x.pct * 100 / totalKm)) + "%") : "0%";
               const opClass = "flex items-center gap-1 transition-opacity " + (x.pct > 0 ? "opacity-100" : "opacity-30");
