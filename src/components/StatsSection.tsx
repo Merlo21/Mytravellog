@@ -2,8 +2,8 @@
 import { useMemo, useState } from "react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { countryFlag } from "@/lib/geo";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CalendarDays, Route, Mountain, MapPin } from "lucide-react";
+import { CountryMapModal } from "@/components/CountryMapModal";
 const earthImg = "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=600&q=80";
 const forestImg = "https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=80";
 import { useSettings, formatDistanceKm, formatAltitudeM } from "@/lib/settings";
@@ -111,51 +111,14 @@ export function StatsSection({ trips }: Props) {
         )}
       </div>
 
-      <Dialog open={!!selectedCountry} onOpenChange={(o) => !o && setSelectedKey(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-xl">
-              <span className="text-2xl leading-none">{countryFlag(selectedCountry?.code)}</span>
-              <span>{selectedCountry?.name}</span>
-              <span className="text-xs font-semibold text-primary bg-primary/10 rounded-full px-2 py-0.5">
-                {selectedTrips.length} {selectedTrips.length === 1 ? "viaggio" : "viaggi"}
-              </span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-2 max-h-[60vh] overflow-y-auto space-y-3 pr-1">
-            {selectedTrips.map((t) => (
-              <div key={t.id} className="rounded-xl border border-border bg-muted/30 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="font-semibold">{t.title}</div>
-                  <div className="inline-flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
-                    <CalendarDays className="w-3.5 h-3.5" />
-                    {formatDateIt(t.trip_date)}
-                  </div>
-                </div>
-                <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="w-3.5 h-3.5" /> {t.city}
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Route className="w-4 h-4 text-primary" />
-                    <span className="font-semibold">
-                      {formatDistanceKm(t.distance_from_home_km, distanceUnit)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">da casa</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mountain className="w-4 h-4 text-emerald-500" />
-                    <span className="font-semibold">
-                      {formatAltitudeM(t.altitude_m, distanceUnit)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">altitudine</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {selectedCountry && (
+        <CountryMapModal
+          countryCode={selectedCountry.code ?? ""}
+          countryName={selectedCountry.name}
+          trips={selectedTrips}
+          onClose={() => setSelectedKey(null)}
+        />
+      )}
     </section>
   );
 }
