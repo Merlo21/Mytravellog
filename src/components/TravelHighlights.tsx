@@ -114,12 +114,8 @@ export function TravelHighlights({ trips }: Props) {
           );
         })}
       </div>
-    </div>
-  );
 
-}
-
-      <div className="glass-card p-6">
+      <div className="mt-6 glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
 
         {/* Hero row */}
