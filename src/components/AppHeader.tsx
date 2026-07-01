@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Plane, PieChart, Settings, Plus } from "lucide-react";
 
 interface Props {
-  onTripsClick?: () => void; // solo Index ne ha bisogno per aprire la sidebar
+  onTripsClick?: () => void;
 }
 
 export function AppHeader({ onTripsClick }: Props) {
@@ -34,16 +34,9 @@ export function AppHeader({ onTripsClick }: Props) {
 
         {/* Nav */}
         <div className="flex items-center gap-1">
-          {onTripsClick ? (
-            <button onClick={onTripsClick}
-              className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
-              <Plane className="w-4 h-4 text-primary"/> I miei viaggi
-            </button>
-          ) : (
-            <Link to="/" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
-              <Plane className="w-4 h-4 text-primary"/> I miei viaggi
-            </Link>
-          )}
+          <Link to="/miei-viaggi" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
+            <Plane className="w-4 h-4 text-primary"/> I miei viaggi
+          </Link>
           <Link to="/statistiche" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
             <PieChart className="w-4 h-4 text-primary"/> Statistiche
           </Link>
