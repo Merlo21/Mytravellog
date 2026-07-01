@@ -122,7 +122,7 @@ export function TravelHighlights({ trips }: Props) {
       <div className="glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
 
-        {/* Hero row — 3 stats same style */}
+        {/* Hero row */}
         <div className="flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(55,138,221,0.12)"}}>
@@ -138,14 +138,14 @@ export function TravelHighlights({ trips }: Props) {
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(99,153,34,0.12)"}}>
               <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <circle cx="11" cy="11" r="6.5" stroke="#639922" strokeWidth="1.5"/>
-                <path d="M4.5 11 Q11 4.5 17.5 11 Q11 17.5 4.5 11Z" stroke="#639922" strokeWidth="1.2" fill="none"/>
-                <path d="M11 4.5 V17.5" stroke="#639922" strokeWidth="1.2"/>
-                <path d="M18 8 A8 8 0 0 0 18 14" stroke="#639922" strokeWidth="1.8" strokeLinecap="round"/>
-                <polyline points="16.5,6.5 18,8 19.5,6.5" fill="#639922"/>
+                <ellipse cx="11" cy="11" rx="3.5" ry="6.5" stroke="#639922" strokeWidth="1.2"/>
+                <line x1="4.5" y1="11" x2="17.5" y2="11" stroke="#639922" strokeWidth="1.2"/>
+                <path d="M6.5 7Q11 9 15.5 7" stroke="#639922" strokeWidth="1" fill="none"/>
+                <path d="M6.5 15Q11 13 15.5 15" stroke="#639922" strokeWidth="1" fill="none"/>
               </svg>
             </div>
             <div>
-              <div className="text-2xl font-bold font-mono">{aroundWorld.toFixed(2).replace(".",",")}×</div>
+              <div className="text-2xl font-bold font-mono">{aroundWorld.toFixed(3).replace(".",",")}×</div>
               <div className="text-xs text-muted-foreground mt-0.5">intorno al mondo</div>
             </div>
           </div>
@@ -161,18 +161,16 @@ export function TravelHighlights({ trips }: Props) {
           </div>
         </div>
 
-        {/* 5 transport cards — horizontal style */}
+        {/* 5 transport cards */}
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-4">
           {([
             { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
             { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
-            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#639922", bg:"rgba(99,153,34,0.12)",   border:"rgba(99,153,34,0.3)",   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto" },
-            { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   val: formatDistanceKm(byShip,  distanceUnit), label:"In nave" },
-            { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi" },
+            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#639922", bg:"rgba(99,153,34,0.12)",   border:"rgba(99,153,34,0.3)",   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
+            { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
+            { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
           ] as const).map(({ icon, color, bg, border, val, label }) => (
-            <div key={label}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
-              style={{background: bg, borderColor: border}}>
+            <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform" style={{background:bg, borderColor:border}}>
               <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
                 <span style={{color}}>{icon}</span>
               </div>
@@ -184,7 +182,7 @@ export function TravelHighlights({ trips }: Props) {
           ))}
         </div>
 
-        {/* Proportional bar — always visible */}
+        {/* Proportional bar */}
         <div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground mb-1.5">
             {([
@@ -194,21 +192,26 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#0F6E56", label:"Nave",  pct:byShip},
               {color:"#D85A30", label:"Piedi", pct:byWalk},
             ] as const).map(x => {
-              const pct2 = totalKm > 0 ? (String(Math.round(x.pct * 100 / totalKm)) + "%") : "0%";
-              const opClass = "flex items-center gap-1 transition-opacity " + (x.pct > 0 ? "opacity-100" : "opacity-30");
+              const p = totalKm > 0 ? String(Math.round(x.pct * 100 / totalKm)) + "%" : "0%";
+              const op = x.pct > 0 ? "opacity-100" : "opacity-30";
               return (
-              <span key={x.label} className={opClass}>
-                <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
-                {x.label}{" "}{pct2}
-              </span>
+                <span key={x.label} className={"flex items-center gap-1 transition-opacity " + op}>
+                  <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
+                  {x.label} {p}
+                </span>
               );
             })}
+          </div>
+          <div className="h-2 rounded-full overflow-hidden flex bg-muted">
+            {totalKm > 0 ? ([
+              {color:"#378ADD", pct:byPlane},
+              {color:"#BA7517", pct:byTrain},
               {color:"#639922", pct:byCar},
               {color:"#0F6E56", pct:byShip},
               {color:"#D85A30", pct:byWalk},
             ] as const).map((x,i) => {
-              const pctW = totalKm > 0 ? (String(Math.round(x.pct * 100 / totalKm)) + "%") : "0%";
-              return <div key={i} className="h-full transition-all duration-700" style={{width:pctW, background:x.color}}/>;
+              const w = String(Math.round(x.pct * 100 / totalKm)) + "%";
+              return <div key={i} className="h-full transition-all duration-700" style={{width:w, background:x.color}}/>;
             }) : <div className="h-full w-full rounded-full bg-muted"/>}
           </div>
         </div>
@@ -217,4 +220,15 @@ export function TravelHighlights({ trips }: Props) {
   );
 }
 
-
+function HighlightCard({
+  icon, color, label, value, sub,
+}: { icon: React.ReactNode; color: string; label: string; value: string; sub?: string }) {
+  return (
+    <div className="glass-card p-5 flex flex-col items-center text-center">
+      <div className={color}>{icon}</div>
+      <div className="text-2xl font-extrabold mt-3 tracking-tight">{value}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-1">{sub}</div>}
+      <div className={"text-sm font-semibold mt-2 " + color}>{label}</div>
+    </div>
+  );
+}
