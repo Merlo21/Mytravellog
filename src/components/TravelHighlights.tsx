@@ -196,19 +196,20 @@ export function TravelHighlights({ trips }: Props) {
             ))}
           </div>
           <div className="h-2 rounded-full overflow-hidden flex bg-secondary opacity-40">
-            {totalKm > 0 ? ([
+            {([
               {color:"#378ADD", pct:byPlane},
               {color:"#BA7517", pct:byTrain},
               {color:"#639922", pct:byCar},
               {color:"#0F6E56", pct:byShip},
               {color:"#D85A30", pct:byWalk},
-            ] as const).map((x,i) => {
-              const w = totalKm > 0 ? String(Math.round(x.pct * 100 / totalKm)) + "%" : "0%";
+            ] as const).filter(x => x.pct > 0).map((x,i) => {
+              const pct = totalKm > 0 ? Math.round(x.pct * 100 / totalKm) : 0;
+              const w = String(pct) + "%";
               return (
                 <div key={i} className="h-full transition-all duration-700"
                   style={{width:w, background:x.color}}/>
               );
-            }) : [<div key="empty" className="h-full w-full rounded-full bg-secondary"/>]}
+            })}
           </div>
         </div>
       </div>
