@@ -84,27 +84,32 @@ function HomeInner() {
       <AppHeader onTripsClick={() => setSidebarOpen(true)}/>
 
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
-        <div className="rounded-xl overflow-hidden" style={{background:"#0a1628", border:"0.5px solid #1a2d4a"}}>
-          <div className="flex">
-            {([
-              { icon: <Plane className="w-[18px] h-[18px]"/>,   label: "Viaggi",   value: stats.trips.toString(),     accent: "#60a5fa" as const, border: "#60a5fa" as const },
-              { icon: <Globe className="w-[18px] h-[18px]"/>,   label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24" as const, border: "#fbbf24" as const },
-              { icon: <MapPin className="w-[18px] h-[18px]"/>,  label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa" as const, border: "#60a5fa" as const },
-              { icon: <Compass className="w-[18px] h-[18px]"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24" as const, border: "#fbbf24" as const },
-              { icon: <CalendarDays className="w-[18px] h-[18px]"/>, label: "Giorni in viaggio", value: stats.days.toString(), accent: "#60a5fa" as const, border: "#60a5fa" as const },
-            ] as const).map(({ icon, label, value, accent, border }, i) => (
-              <div key={label} className="flex-1 py-3 px-4" style={{
-                borderLeft: `3px solid ${border}`,
-                borderRight: i < 3 ? "0.5px solid #1a2d4a" : "none",
-              }}>
-                <div className="text-[10px] uppercase tracking-widest mb-1.5" style={{color:"rgba(255,255,255,0.35)"}}>{label}</div>
-                <div className="flex items-center gap-2">
-                  <span style={{color: accent}}>{icon}</span>
-                  <span className="text-xl font-bold" style={{color: accent}}>{value}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div style={{display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10}}>
+          {([
+            { icon: <Plane  className="w-5 h-5"/>, label: "Viaggi",   value: stats.trips.toString(),     accent: "#60a5fa" },
+            { icon: <Globe  className="w-5 h-5"/>, label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24" },
+            { icon: <MapPin className="w-5 h-5"/>, label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa" },
+            { icon: <Compass className="w-5 h-5"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24" },
+            { icon: <CalendarDays className="w-5 h-5"/>, label: "Giorni", value: stats.days.toString(), accent: "#60a5fa" },
+          ]).map(({ icon, label, value, accent }) => (
+            <div key={label} style={{
+              background:"#0a1628",
+              border:"0.5px solid #1a2d4a",
+              borderRadius:12,
+              padding:"14px 16px",
+              display:"flex",
+              flexDirection:"column",
+              gap:8,
+              position:"relative",
+              overflow:"hidden",
+            }}>
+              {/* accent top line */}
+              <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:accent,borderRadius:"12px 12px 0 0"}}/>
+              <span style={{color:accent}}>{icon}</span>
+              <div style={{fontSize:22,fontWeight:700,color:"#f0f4ff",lineHeight:1}}>{value}</div>
+              <div style={{fontSize:10,letterSpacing:"1.5px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)"}}>{label}</div>
+            </div>
+          ))}
         </div>
 
         <div style={{ display:"flex", height:"calc(100vh - 220px)", minHeight:"460px", overflow:"hidden", transition:"all 0.3s ease" }}>
