@@ -86,28 +86,25 @@ function HomeInner() {
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
         <div style={{display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10}}>
           {([
-            { icon: <Plane  className="w-5 h-5"/>, label: "Viaggi",   value: stats.trips.toString(),     accent: "#60a5fa" },
-            { icon: <Globe  className="w-5 h-5"/>, label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24" },
-            { icon: <MapPin className="w-5 h-5"/>, label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa" },
-            { icon: <Compass className="w-5 h-5"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24" },
-            { icon: <CalendarDays className="w-5 h-5"/>, label: "Giorni", value: stats.days.toString(), accent: "#60a5fa" },
-          ]).map(({ icon, label, value, accent }) => (
+            { icon: <Plane       className="w-[18px] h-[18px]"/>, label: "Viaggi",   value: stats.trips.toString(),     accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+            { icon: <Globe       className="w-[18px] h-[18px]"/>, label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
+            { icon: <MapPin      className="w-[18px] h-[18px]"/>, label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+            { icon: <Compass     className="w-[18px] h-[18px]"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
+            { icon: <CalendarDays className="w-[18px] h-[18px]"/>, label: "Giorni",  value: stats.days.toString(),      accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
+          ]).map(({ icon, label, value, accent, bg }) => (
             <div key={label} style={{
-              background:"#0a1628",
-              border:"0.5px solid #1a2d4a",
-              borderRadius:12,
-              padding:"14px 16px",
-              display:"flex",
-              flexDirection:"column",
-              gap:8,
-              position:"relative",
-              overflow:"hidden",
+              background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12,
+              padding:"14px 16px", display:"flex", alignItems:"center", gap:12,
+              position:"relative", overflow:"hidden",
             }}>
-              {/* accent top line */}
               <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:accent,borderRadius:"12px 12px 0 0"}}/>
-              <span style={{color:accent}}>{icon}</span>
-              <div style={{fontSize:22,fontWeight:700,color:"#f0f4ff",lineHeight:1}}>{value}</div>
-              <div style={{fontSize:10,letterSpacing:"1.5px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)"}}>{label}</div>
+              <div style={{width:36,height:36,borderRadius:9,background:bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <span style={{color:accent}}>{icon}</span>
+              </div>
+              <div>
+                <div style={{fontSize:20,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
+                <div style={{fontSize:10,letterSpacing:"1.2px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginTop:3}}>{label}</div>
+              </div>
             </div>
           ))}
         </div>
