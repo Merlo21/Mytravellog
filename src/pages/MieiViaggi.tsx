@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCard } from "@/components/TripCard";
 import { loadTrips, Trip } from "@/lib/storage";
@@ -8,7 +7,6 @@ import { Search, X } from "lucide-react";
 export default function MieiViaggi() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [search, setSearch] = useState("");
-  const navigate = useNavigate();
 
   useEffect(() => { setTrips(loadTrips()); }, []);
   const refresh = () => setTrips(loadTrips());
@@ -34,19 +32,11 @@ export default function MieiViaggi() {
       <div className="container mx-auto px-6 py-8 flex-1">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">I miei viaggi</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}
-            </p>
-          </div>
-          <button
-            onClick={() => navigate("/nuovo-viaggio")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10"
-            style={{color:"#60a5fa", border:"1.5px solid #60a5fa"}}>
-            + Nuovo viaggio
-          </button>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold">I miei viaggi</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}
+          </p>
         </div>
 
         {/* Search */}
