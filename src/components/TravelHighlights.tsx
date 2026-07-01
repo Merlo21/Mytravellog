@@ -1,7 +1,7 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useMemo } from "react";
 import React from "react";
-import { Mountain, Globe2, Sun, Snowflake, Plane, Car, Train, Ship, Footprints, CalendarDays } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, CalendarDays } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 
