@@ -67,6 +67,18 @@ export function distanceKm(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(2 * R * Math.asin(Math.sqrt(a)));
 }
 
+export async function fetchRegion(lat: number, lon: number): Promise<string | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
+    const r = await fetch(url, { headers: { "Accept-Language": "en" } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function countryFlag(code?: string): string {
   if (!code || code.length !== 2) return "🌍";
   const A = 0x1f1e6;
