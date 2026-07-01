@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { TripCard } from "@/components/TripCard";
+import { TripCardTicket } from "@/components/TripCardTicket";
 import { loadTrips, Trip } from "@/lib/storage";
 import { Search, X } from "lucide-react";
 
@@ -73,12 +73,7 @@ export default function MieiViaggi() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {byYear[year].map(t => (
-                    <TripCard key={t.id} trip={t}
-                      selected={false}
-                      onClick={() => {}}
-                      onDeleted={refresh}
-                      onUpdated={refresh}
-                    />
+                    <TripCardTicket key={t.id} trip={t} onDeleted={refresh}/>
                   ))}
                 </div>
               </div>
