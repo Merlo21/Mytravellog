@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
-import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";

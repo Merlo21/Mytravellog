@@ -282,7 +282,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
   const addWaypoint = (r: GeoResult) => {
     setWaypoints(prev => [...prev, {
       city: r.name, country: r.country, country_code: r.country_code ?? "",
-      lat: r.lat, lon: r.lon, transport_mode: wpTransport,
+      lat: r.latitude, lon: r.longitude, transport_mode: wpTransport,
     }]);
     setWpQuery(""); setWpResults([]); setWpOpen(false);
   };
@@ -301,7 +301,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
     setSaving(true);
     const dest = waypoints[waypoints.length - 1];
     const dist = home ? distanceKm(home.lat, home.lon, dest.lat, dest.lon) : null;
-    const [alt, temp] = await Promise.all([fetchElevation(dest.lat, dest.lon), fetchTemperature(dest.lat, dest.lon)]);
+    const [alt, temp] = await Promise.all([fetchElevation(dest.lat, dest.lon), fetchTemperature(dest.lat, dest.lon, dateStart)]);
     addTrip({
       title: title.trim() || dest.city,
       country: dest.country, city: dest.city,
@@ -311,7 +311,12 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
       waypoints: waypoints.slice(0, -1).map(w => ({ city: w.city, country: w.country, transport_mode: w.transport_mode })),
       latitude: dest.lat, longitude: dest.lon,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null,
+      home_label: home?.label ?? null,
       distance_from_home_km: dist, altitude_m: alt, temperature_c: temp,
+      max_distance_from_home_km: dist, max_distance_city: dest.city,
+      hottest_temp_c: temp, hottest_city: dest.city,
+      coldest_temp_c: temp, coldest_city: dest.city,
+      region: null,
       country_code: dest.country_code, rating: rating || null,
     });
     toast.success("Viaggio salvato!");
@@ -419,7 +424,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                 homeQuery={homeQuery} setHomeQuery={setHomeQuery}
                 homeResults={homeResults}
                 onSelectHome={r => {
-                  setHome({ lat:r.lat, lon:r.lon, label:`${r.name}, ${r.country}` });
+                  setHome({ lat:r.latitude, lon:r.longitude, label:`${r.name}, ${r.country}` });
                   setHomeQuery(`${r.name}, ${r.country}`);
                   setHomeResults([]); setEditingHome(false);
                 }}
@@ -459,7 +464,7 @@ export function NewTripDialog({ onCreated, defaultHome, prefilledCity, triggerLa
                           value={wpQuery}
                           onChange={e => setWpQuery(e.target.value)}
                           placeholder="Cerca città…"/>
-                        <button type="button" onClick={() => { setWpQuery(""); setWpResults([]); }}
+                        <button type="button"
                           style={{ background:"none", border:"none", cursor:"pointer",
                             color:"rgba(255,255,255,0.3)", fontSize:14 }}
                           onClick={() => { setWpQuery(""); setWpResults([]); setWpOpen(false); }}>×</button>

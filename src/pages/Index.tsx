@@ -23,7 +23,7 @@ class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> 
   }
 }
 
-import { useEffect, useMemo, useState } from "react";
+
 
 function HomeInner() {
   const navigate = useNavigate();
@@ -74,7 +74,7 @@ function HomeInner() {
 
   return (
     <main className="h-screen flex flex-col" style={{backgroundColor:"#060e1e"}}>
-      <AppHeader onTripsClick={() => setSidebarOpen(true)}/>
+      <AppHeader/>
 
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
         <div style={{display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10}}>
