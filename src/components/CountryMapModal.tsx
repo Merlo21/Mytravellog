@@ -46,9 +46,8 @@ function projectGeoJSON(features: any[], W: number, H: number) {
   return { project };
 }
 
-function drawPolygon(ctx: CanvasRenderingContext2D, coords: any[], project: (lon: number, lat: number) => [number, number]) {
-  ctx.beginPath();
-  const ring = coords[0];
+// Draw a single polygon ring onto an existing path (NO beginPath here)
+function drawRing(ctx: CanvasRenderingContext2D, ring: any[], project: (lon: number, lat: number) => [number, number]) {
   if (!ring?.length) return;
   const [x0, y0] = project(ring[0][0], ring[0][1]);
   ctx.moveTo(x0, y0);
@@ -59,11 +58,20 @@ function drawPolygon(ctx: CanvasRenderingContext2D, coords: any[], project: (lon
   ctx.closePath();
 }
 
-function drawFeature(ctx: CanvasRenderingContext2D, feature: any, project: (lon: number, lat: number) => [number, number]) {
+// Build the full path for a feature (Polygon or MultiPolygon) in a single beginPath
+function buildFeaturePath(ctx: CanvasRenderingContext2D, feature: any, project: (lon: number, lat: number) => [number, number]) {
   const geom = feature.geometry;
   if (!geom) return;
-  if (geom.type === "Polygon") drawPolygon(ctx, geom.coordinates, project);
-  else if (geom.type === "MultiPolygon") geom.coordinates.forEach((poly: any) => drawPolygon(ctx, poly, project));
+  ctx.beginPath();
+  if (geom.type === "Polygon") {
+    // Only outer ring (index 0); holes ignored for simplicity
+    drawRing(ctx, geom.coordinates[0], project);
+  } else if (geom.type === "MultiPolygon") {
+    // ALL sub-polygons in one path so fill/stroke covers the whole region
+    for (const poly of geom.coordinates) {
+      drawRing(ctx, poly[0], project);
+    }
+  }
 }
 
 export function CountryMapModal({ countryCode, countryName, trips, onClose }: Props) {
@@ -111,14 +119,14 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
           if (isVisited) visited.push(name);
 
           ctx.save();
+          // Build the full path once (covers all sub-polygons)
+          buildFeaturePath(ctx, f, project);
           // Fill
           ctx.fillStyle = isVisited ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.12)";
-          drawFeature(ctx, f, project);
           ctx.fill();
-          // Stroke
+          // Stroke — reuse the same path (no rebuild needed)
           ctx.strokeStyle = isVisited ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.25)";
           ctx.lineWidth = 0.8;
-          drawFeature(ctx, f, project);
           ctx.stroke();
           ctx.restore();
         });
