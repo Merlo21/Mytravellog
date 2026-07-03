@@ -604,14 +604,24 @@ const ModificaViaggio = () => {
 
   const handleRefetchRegion = async () => {
     const dest = waypoints[waypoints.length - 1];
-    if (!dest) return;
+    const lat = dest?.lat || trip?.latitude;
+    const lon = dest?.lon || trip?.longitude;
+    if (!lat || !lon) { toast.error("Coordinate non disponibili"); return; }
     setRefetchingRegion(true);
     try {
-      const region = await fetchRegion(dest.lat, dest.lon);
+      // Call Nominatim directly with proper headers and Italian language
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
+      const r = await fetch(url, {
+        headers: { "Accept-Language": "it", "User-Agent": "NAV-TA TravelTracker/1.0" }
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const region: string | null = d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
       setCurrentRegion(region);
       if (id) updateTrip(id, { region });
-      toast.success(region ? "Regione: " + region : "Regione non trovata");
-    } catch {
+      if (region) toast.success("Regione salvata: " + region);
+      else toast.error("Regione non trovata");
+    } catch (err) {
       toast.error("Errore nel recupero della regione");
     }
     setRefetchingRegion(false);
