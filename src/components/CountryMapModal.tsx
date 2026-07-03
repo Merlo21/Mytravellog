@@ -11,6 +11,74 @@ const GEOJSON_SOURCES: Record<string, { url: string; nameProp: string }> = {
   US: { url: "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json", nameProp: "name" },
 };
 
+// Translation maps: English names (from Nominatim EN) → local GeoJSON names
+// Nominatim with Accept-Language:"en" returns English region names; GeoJSON uses local names.
+const REGION_ALIASES: Record<string, Record<string, string>> = {
+  IT: {
+    // English → Italian
+    "tuscany": "toscana",
+    "sicily": "sicilia",
+    "sardinia": "sardegna",
+    "apulia": "puglia",
+    "piedmont": "piemonte",
+    "lombardy": "lombardia",
+    "veneto": "veneto",
+    "liguria": "liguria",
+    "umbria": "umbria",
+    "marche": "marche",
+    "lazio": "lazio",
+    "abruzzo": "abruzzo",
+    "molise": "molise",
+    "campania": "campania",
+    "basilicata": "basilicata",
+    "calabria": "calabria",
+    "aosta valley": "valle d'aosta/vallée d'aoste",
+    "aosta": "valle d'aosta/vallée d'aoste",
+    "valle d'aosta": "valle d'aosta/vallée d'aoste",
+    "friuli-venezia giulia": "friuli-venezia giulia",
+    "friuli venezia giulia": "friuli-venezia giulia",
+    "emilia-romagna": "emilia-romagna",
+    "emilia romagna": "emilia-romagna",
+    "trentino-alto adige": "trentino-alto adige/südtirol",
+    "trentino alto adige": "trentino-alto adige/südtirol",
+    "south tyrol": "trentino-alto adige/südtirol",
+    "trentino": "trentino-alto adige/südtirol",
+  },
+  ES: {
+    "catalonia": "cataluña",
+    "aragon": "aragón",
+    "andalusia": "andalucía",
+    "castile and león": "castilla y león",
+    "castile-la mancha": "castilla-la mancha",
+    "basque country": "país vasco",
+    "valencian community": "comunitat valenciana",
+    "canary islands": "canarias",
+    "balearic islands": "illes balears",
+    "navarre": "navarra",
+    "la rioja": "la rioja",
+    "extremadura": "extremadura",
+    "galicia": "galicia",
+    "asturias": "asturias",
+    "cantabria": "cantabria",
+    "murcia": "región de murcia",
+    "madrid": "comunidad de madrid",
+  },
+  FR: {
+    "brittany": "bretagne",
+    "normandy": "normandie",
+    "occitanie": "occitanie",
+    "new aquitaine": "nouvelle-aquitaine",
+    "auvergne-rhône-alpes": "auvergne-rhône-alpes",
+    "provence-alpes-côte d'azur": "provence-alpes-côte d'azur",
+    "ile-de-france": "île-de-france",
+    "hauts-de-france": "hauts-de-france",
+    "grand est": "grand est",
+    "bourgogne-franche-comté": "bourgogne-franche-comté",
+    "centre-val de loire": "centre-val de loire",
+    "pays de la loire": "pays de la loire",
+  },
+};
+
 // Cache loaded GeoJSON in memory
 const geoCache: Record<string, any> = {};
 
@@ -22,7 +90,6 @@ interface Props {
 }
 
 function projectGeoJSON(features: any[], W: number, H: number) {
-  // Find bounding box
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
   const visitCoords = (coords: any[]) => {
     if (typeof coords[0] === "number") {
@@ -46,7 +113,6 @@ function projectGeoJSON(features: any[], W: number, H: number) {
   return { project };
 }
 
-// Draw a single polygon ring onto an existing path (NO beginPath here)
 function drawRing(ctx: CanvasRenderingContext2D, ring: any[], project: (lon: number, lat: number) => [number, number]) {
   if (!ring?.length) return;
   const [x0, y0] = project(ring[0][0], ring[0][1]);
@@ -58,20 +124,53 @@ function drawRing(ctx: CanvasRenderingContext2D, ring: any[], project: (lon: num
   ctx.closePath();
 }
 
-// Build the full path for a feature (Polygon or MultiPolygon) in a single beginPath
 function buildFeaturePath(ctx: CanvasRenderingContext2D, feature: any, project: (lon: number, lat: number) => [number, number]) {
   const geom = feature.geometry;
   if (!geom) return;
   ctx.beginPath();
   if (geom.type === "Polygon") {
-    // Only outer ring (index 0); holes ignored for simplicity
     drawRing(ctx, geom.coordinates[0], project);
   } else if (geom.type === "MultiPolygon") {
-    // ALL sub-polygons in one path so fill/stroke covers the whole region
     for (const poly of geom.coordinates) {
       drawRing(ctx, poly[0], project);
     }
   }
+}
+
+/** Normalize a region name for matching: lowercase, remove accents, trim */
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['']/g, "'")
+    .trim();
+}
+
+/**
+ * Returns true if the saved trip.region matches a GeoJSON feature name.
+ * Strategy (in order):
+ * 1. Exact match after normalize
+ * 2. Alias lookup (EN→local) after normalize
+ * 3. Substring containment after normalize
+ */
+function regionMatches(tripRegion: string, geoName: string, countryCode: string): boolean {
+  const t = normalize(tripRegion);
+  const g = normalize(geoName);
+
+  // 1. Exact
+  if (t === g) return true;
+
+  // 2. Alias
+  const aliases = REGION_ALIASES[countryCode?.toUpperCase()] ?? {};
+  const resolved = aliases[t];
+  if (resolved && normalize(resolved) === g) return true;
+
+  // 3. Substring (both directions)
+  if (t.length >= 4 && g.includes(t)) return true;
+  if (g.length >= 4 && t.includes(g)) return true;
+
+  return false;
 }
 
 export function CountryMapModal({ countryCode, countryName, trips, onClose }: Props) {
@@ -83,7 +182,6 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
 
   const source = GEOJSON_SOURCES[countryCode?.toUpperCase()];
 
-  // Collect visited regions from trips
   const visitedSet = new Set(trips.map(t => t.region).filter(Boolean) as string[]);
 
   useEffect(() => {
@@ -110,21 +208,14 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
 
         const visited: string[] = [];
         features.forEach((f: any) => {
-          const name = f.properties?.[source.nameProp] ?? "";
-          // Fuzzy match: check if any visited region contains this name or vice versa
-          const isVisited = [...visitedSet].some(v =>
-            v?.toLowerCase().includes(name.toLowerCase()) ||
-            name.toLowerCase().includes(v?.toLowerCase() ?? "")
-          );
-          if (isVisited) visited.push(name);
+          const geoName: string = f.properties?.[source.nameProp] ?? "";
+          const isVisited = [...visitedSet].some(v => regionMatches(v, geoName, countryCode));
+          if (isVisited) visited.push(geoName);
 
           ctx.save();
-          // Build the full path once (covers all sub-polygons)
           buildFeaturePath(ctx, f, project);
-          // Fill
           ctx.fillStyle = isVisited ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.12)";
           ctx.fill();
-          // Stroke — reuse the same path (no rebuild needed)
           ctx.strokeStyle = isVisited ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.25)";
           ctx.lineWidth = 0.8;
           ctx.stroke();
@@ -170,16 +261,18 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
           </button>
         </div>
 
-        {/* % centered */}
+        {/* Stats */}
         {!loading && !error && totalRegions > 0 && (
           <div style={{ textAlign: "center", paddingTop: 16 }}>
             <span style={{ fontSize: 30, fontWeight: 700, color: "#60a5fa" }}>{pct}%</span>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>del paese visitato</span>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{visitedRegions.length} regioni su {totalRegions}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+              {visitedRegions.length} region{visitedRegions.length === 1 ? "e" : "i"} su {totalRegions}
+            </div>
           </div>
         )}
 
-        {/* Map canvas */}
+        {/* Map */}
         <div style={{ flex: 1, padding: 16, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
           {loading && (
             <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Caricamento mappa…</div>
@@ -188,9 +281,11 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
             <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>🗺️</div>
               <div>Mappa non disponibile per questo paese.</div>
-              <div style={{ marginTop: 8, fontSize: 11 }}>
-                Regioni visitate: {[...visitedSet].join(", ") || "—"}
-              </div>
+              {visitedSet.size > 0 && (
+                <div style={{ marginTop: 8, fontSize: 11 }}>
+                  Regioni visitate: {[...visitedSet].join(", ")}
+                </div>
+              )}
             </div>
           )}
           {!error && (
@@ -198,7 +293,6 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
               style={{ width: "100%", maxWidth: 540, height: "auto", display: loading ? "none" : "block" }}/>
           )}
         </div>
-
 
       </div>
     </div>
