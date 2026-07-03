@@ -506,6 +506,8 @@ const ModificaViaggio = () => {
   const [homeQuery, setHomeQuery] = useState(trip?.home_label ?? homeCity?.label ?? "");
   const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
   const [saving, setSaving] = useState(false);
+  const [refetchingRegion, setRefetchingRegion] = useState(false);
+  const [currentRegion, setCurrentRegion] = useState<string | null>(trip?.region ?? null);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -590,13 +592,29 @@ const ModificaViaggio = () => {
       latitude: dest.lat || trip?.latitude || 0,
       longitude: dest.lon || trip?.longitude || 0,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: trip?.region ?? null,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: currentRegion ?? null,
       country_code: dest.country_code || trip?.country_code || "",
       rating: rating || null,
     });
     toast.success("Viaggio aggiornato!");
     setSaving(false);
     navigate("/");
+  };
+
+
+  const handleRefetchRegion = async () => {
+    const dest = waypoints[waypoints.length - 1];
+    if (!dest) return;
+    setRefetchingRegion(true);
+    try {
+      const region = await fetchRegion(dest.lat, dest.lon);
+      setCurrentRegion(region);
+      if (id) updateTrip(id, { region });
+      toast.success(region ? "Regione: " + region : "Regione non trovata");
+    } catch {
+      toast.error("Errore nel recupero della regione");
+    }
+    setRefetchingRegion(false);
   };
 
   const days = daysBetween(dateStart, dateEnd);
@@ -779,6 +797,32 @@ const ModificaViaggio = () => {
             {(hoverRating||rating) > 0 && (
               <div style={{ fontSize:11, color:"#fbbf24", marginTop:6 }}>{RATING_LABELS[hoverRating||rating]}</div>
             )}
+          </div>
+
+          {/* Regione */}
+          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <div>
+                <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase", display:"block", marginBottom:4 }}>Regione</label>
+                <div style={{ fontSize:13, color: currentRegion ? "#f0f4ff" : "rgba(255,255,255,0.25)" }}>
+                  {currentRegion || "Non rilevata"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleRefetchRegion}
+                disabled={refetchingRegion || waypoints.length === 0}
+                style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, padding:"6px 12px",
+                  borderRadius:8, cursor: waypoints.length === 0 ? "not-allowed" : "pointer",
+                  background:"rgba(96,165,250,0.1)", border:"1px solid rgba(96,165,250,0.3)",
+                  color:"#60a5fa", opacity: waypoints.length === 0 ? 0.4 : 1 }}>
+                {refetchingRegion
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin"/>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                }
+                Ricalcola
+              </button>
+            </div>
           </div>
 
           {/* Actions */}
