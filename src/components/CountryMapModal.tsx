@@ -182,7 +182,12 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
 
   const source = GEOJSON_SOURCES[countryCode?.toUpperCase()];
 
-  const visitedSet = new Set(trips.map(t => t.region).filter(Boolean) as string[]);
+  // region may be a comma-separated string (multi-stop trips); split into individual entries
+  const visitedSet = new Set(
+    trips.flatMap(t =>
+      t.region ? t.region.split(",").map(r => r.trim()).filter(Boolean) : []
+    )
+  );
 
   useEffect(() => {
     if (!source) { setLoading(false); setError(true); return; }
