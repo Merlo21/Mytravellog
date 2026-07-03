@@ -10,11 +10,13 @@ export type HomeCity = {
   lon: number;
 } | null;
 
-type Settings = {
+export type Settings = {
   distanceUnit: DistanceUnit;
   temperatureUnit: TemperatureUnit;
   autoRotate: AutoRotate;
   homeCity: HomeCity;
+  minMarkerScale: number;
+  maxMarkerScale: number;
 };
 
 type Ctx = Settings & {
@@ -22,14 +24,26 @@ type Ctx = Settings & {
   setTemperatureUnit: (v: TemperatureUnit) => void;
   setAutoRotate: (v: AutoRotate) => void;
   setHomeCity: (v: HomeCity) => void;
+  setMinMarkerScale: (v: number) => void;
+  setMaxMarkerScale: (v: number) => void;
 };
+
+export const MARKER_SCALE_MIN = 0.1;
+export const MARKER_SCALE_MAX = 2.0;
 
 const DEFAULTS: Settings = {
   distanceUnit: "metric",
   temperatureUnit: "celsius",
   autoRotate: "on",
   homeCity: null,
+  minMarkerScale: 0.5,
+  maxMarkerScale: 1.0,
 };
+
+function clampScale(v: number): number {
+  if (!Number.isFinite(v)) return 0.5;
+  return Math.min(MARKER_SCALE_MAX, Math.max(MARKER_SCALE_MIN, v));
+}
 
 const KEY = "atlas.settings.v1";
 
@@ -57,6 +71,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setTemperatureUnit: (v) => setS((p) => ({ ...p, temperatureUnit: v })),
     setAutoRotate: (v) => setS((p) => ({ ...p, autoRotate: v })),
     setHomeCity: (v) => setS((p) => ({ ...p, homeCity: v })),
+    setMinMarkerScale: (v) => setS((p) => ({ ...p, minMarkerScale: clampScale(v) })),
+    setMaxMarkerScale: (v) => setS((p) => ({ ...p, maxMarkerScale: clampScale(v) })),
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
