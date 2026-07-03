@@ -1,0 +1,204 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { TripCardTicket } from "./TripCardTicket";
+import { SettingsProvider } from "@/lib/settings";
+import { addTrip } from "@/lib/storage";
+import type { Trip } from "@/lib/storage";
+import React from "react";
+
+// Mock useNavigate
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+function renderCard(trip: Trip, onDeleted?: () => void) {
+  return render(
+    <MemoryRouter>
+      <SettingsProvider>
+        <TripCardTicket trip={trip} onDeleted={onDeleted} />
+      </SettingsProvider>
+    </MemoryRouter>
+  );
+}
+
+function makeTrip(overrides: Partial<Trip> = {}): Trip {
+  return {
+    id: "test-id-1",
+    created_at: new Date().toISOString(),
+    title: "Viaggio",
+    country: "Italia",
+    city: "Roma",
+    country_code: "IT",
+    trip_date: "2024-06-01",
+    date_end: null,
+    rating: null,
+    notes: null,
+    transport_mode: null,
+    waypoints: [],
+    latitude: 41.9,
+    longitude: 12.5,
+    home_latitude: null,
+    home_longitude: null,
+    home_label: "Milano",
+    temperature_c: null,
+    altitude_m: null,
+    distance_from_home_km: null,
+    max_distance_from_home_km: null,
+    max_distance_city: null,
+    hottest_temp_c: null,
+    hottest_city: null,
+    coldest_temp_c: null,
+    coldest_city: null,
+    region: null,
+    ...overrides,
+  };
+}
+
+describe("TripCardTicket — render base", () => {
+  beforeEach(() => { localStorage.clear(); mockNavigate.mockClear(); });
+
+  it("renderizza senza crash con campi minimi", () => {
+    expect(() => renderCard(makeTrip())).not.toThrow();
+  });
+
+  it("mostra city come titolo quando title === city", () => {
+    renderCard(makeTrip({ title: "Roma", city: "Roma" }));
+    expect(screen.getAllByText("Roma").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("mostra title custom quando title !== city", () => {
+    renderCard(makeTrip({ title: "Vacanza estiva", city: "Roma" }));
+    expect(screen.getByText("Vacanza estiva")).toBeInTheDocument();
+  });
+
+  it("mostra city e country nel sottotitolo", () => {
+    renderCard(makeTrip({ city: "Roma", country: "Italia" }));
+    expect(screen.getByText("Roma, Italia")).toBeInTheDocument();
+  });
+
+  it("mostra 🌍 come fallback senza country_code", () => {
+    renderCard(makeTrip({ country_code: undefined as any }));
+    expect(screen.getByText("🌍")).toBeInTheDocument();
+  });
+});
+
+describe("TripCardTicket — date e giorni", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("non mostra i giorni se date_end è null", () => {
+    renderCard(makeTrip({ trip_date: "2024-01-01", date_end: null }));
+    expect(screen.queryByText(/\dg$/)).not.toBeInTheDocument();
+  });
+
+  it("non mostra i giorni se date_end === trip_date", () => {
+    renderCard(makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-01" }));
+    expect(screen.queryByText(/\dg$/)).not.toBeInTheDocument();
+  });
+
+  it("mostra i giorni corretti con date_end diversa da trip_date", () => {
+    renderCard(makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-06" }));
+    expect(screen.getByText("5g")).toBeInTheDocument();
+  });
+});
+
+describe("TripCardTicket — transport mode", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("mostra label 'Aereo' con transport_mode=plane", () => {
+    renderCard(makeTrip({ transport_mode: "plane" }));
+    expect(screen.getByText("Aereo")).toBeInTheDocument();
+  });
+
+  it("mostra label 'Treno' con transport_mode=train", () => {
+    renderCard(makeTrip({ transport_mode: "train" }));
+    expect(screen.getByText("Treno")).toBeInTheDocument();
+  });
+
+  it("non mostra il badge trasporto senza transport_mode", () => {
+    renderCard(makeTrip({ transport_mode: null }));
+    expect(screen.queryByText("Aereo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Treno")).not.toBeInTheDocument();
+  });
+});
+
+describe("TripCardTicket — rotta waypoints", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("mostra le abbreviazioni delle tappe con waypoints presenti", () => {
+    const trip = makeTrip({
+      city: "Napoli",
+      home_label: "Milano",
+      waypoints: [{ city: "Roma", country: "Italia", transport_mode: "train" }],
+    });
+    renderCard(trip);
+    // Abbreviazioni: MIL, ROM, NAP
+    expect(screen.getByText("MIL")).toBeInTheDocument();
+    expect(screen.getByText("ROM")).toBeInTheDocument();
+    expect(screen.getByText("NAP")).toBeInTheDocument();
+  });
+
+  it("mostra rotta semplice casa→città senza waypoints", () => {
+    const trip = makeTrip({ city: "Venezia", home_label: "Milano", waypoints: [] });
+    renderCard(trip);
+    expect(screen.getByText("VEN")).toBeInTheDocument();
+    expect(screen.getByText("MIL")).toBeInTheDocument();
+  });
+});
+
+describe("TripCardTicket — edit e delete", () => {
+  beforeEach(() => { localStorage.clear(); mockNavigate.mockClear(); });
+
+  it("click edit naviga a /modifica-viaggio/:id", () => {
+    const trip = makeTrip({ id: "abc123" });
+    renderCard(trip);
+    const buttons = screen.getAllByRole("button");
+    const editBtn = buttons.find(b => b.querySelector("svg")); // pencil icon button
+    fireEvent.click(editBtn!);
+    expect(mockNavigate).toHaveBeenCalledWith("/modifica-viaggio/abc123");
+  });
+
+  it("primo click delete imposta confirmDelete=true (nessuna eliminazione)", () => {
+    const trip = makeTrip({ id: "abc123" });
+    addTrip({ ...trip });
+    const onDeleted = vi.fn();
+    renderCard(trip, onDeleted);
+    const buttons = screen.getAllByRole("button");
+    const deleteBtn = buttons[buttons.length - 1]; // ultimo bottone = trash
+    fireEvent.click(deleteBtn);
+    expect(onDeleted).not.toHaveBeenCalled();
+  });
+
+  it("secondo click delete chiama deleteTrip e onDeleted", () => {
+    const trip = makeTrip({ id: "del-test" });
+    localStorage.setItem("atlas.trips.v1", JSON.stringify([trip]));
+    const onDeleted = vi.fn();
+    renderCard(trip, onDeleted);
+    const buttons = screen.getAllByRole("button");
+    const deleteBtn = buttons[buttons.length - 1];
+    fireEvent.click(deleteBtn); // primo click → confirm
+    fireEvent.click(deleteBtn); // secondo click → delete
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("TripCardTicket — distanza e temperatura", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("mostra la distanza formattata se distance_from_home_km è presente", () => {
+    renderCard(makeTrip({ distance_from_home_km: 480 }));
+    expect(screen.getByText("480 km")).toBeInTheDocument();
+  });
+
+  it("non mostra distanza se distance_from_home_km è null", () => {
+    renderCard(makeTrip({ distance_from_home_km: null }));
+    expect(screen.queryByText(/km$/)).not.toBeInTheDocument();
+  });
+
+  it("mostra la temperatura se temperature_c è presente", () => {
+    renderCard(makeTrip({ temperature_c: 24 }));
+    expect(screen.getByText("24.0°C")).toBeInTheDocument();
+  });
+});
