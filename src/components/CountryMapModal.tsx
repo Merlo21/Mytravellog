@@ -112,11 +112,11 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
 
           ctx.save();
           // Fill
-          ctx.fillStyle = isVisited ? "rgba(96,165,250,0.5)" : "rgba(26,45,74,0.8)";
+          ctx.fillStyle = isVisited ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.12)";
           drawFeature(ctx, f, project);
           ctx.fill();
           // Stroke
-          ctx.strokeStyle = isVisited ? "rgba(96,165,250,0.9)" : "rgba(96,165,250,0.2)";
+          ctx.strokeStyle = isVisited ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.25)";
           ctx.lineWidth = 0.8;
           drawFeature(ctx, f, project);
           ctx.stroke();
