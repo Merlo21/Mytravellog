@@ -603,25 +603,28 @@ const ModificaViaggio = () => {
 
 
   const handleRefetchRegion = async () => {
-    const dest = waypoints[waypoints.length - 1];
-    const lat = dest?.lat || trip?.latitude;
-    const lon = dest?.lon || trip?.longitude;
-    if (!lat || !lon) { toast.error("Coordinate non disponibili"); return; }
+    if (waypoints.length === 0) return;
     setRefetchingRegion(true);
     try {
-      // Call Nominatim directly with proper headers and Italian language
-      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
-      const r = await fetch(url, {
-        headers: { "Accept-Language": "it", "User-Agent": "NAV-TA TravelTracker/1.0" }
-      });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const d = await r.json();
-      const region: string | null = d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
+      // Fetch region for ALL stops (waypoints + destination), deduplicated
+      const fetchNominatim = async (lat: number, lon: number): Promise<string | null> => {
+        if (!lat || !lon) return null;
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
+        const r = await fetch(url, { headers: { "Accept-Language": "it", "User-Agent": "NAV-TA/1.0" } });
+        if (!r.ok) return null;
+        const d = await r.json();
+        return d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
+      };
+      const results = await Promise.all(
+        waypoints.map(w => fetchNominatim(w.lat, w.lon))
+      );
+      const unique = [...new Set(results.filter((r): r is string => !!r))];
+      const region = unique.length > 0 ? unique.join(", ") : null;
       setCurrentRegion(region);
       if (id) updateTrip(id, { region });
-      if (region) toast.success("Regione salvata: " + region);
+      if (region) toast.success("Region" + (unique.length > 1 ? "i" : "e") + " salvat" + (unique.length > 1 ? "e" : "a") + ": " + region);
       else toast.error("Regione non trovata");
-    } catch (err) {
+    } catch {
       toast.error("Errore nel recupero della regione");
     }
     setRefetchingRegion(false);
