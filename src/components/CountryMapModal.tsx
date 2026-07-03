@@ -150,36 +150,29 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
       }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ padding: "16px 20px 12px", borderBottom: "0.5px solid #1a2d4a", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ padding: "14px 20px", borderBottom: "0.5px solid #1a2d4a", display: "flex", alignItems: "center", gap: 10 }}>
           {countryCode && (
             <img src={"https://flagcdn.com/w40/" + countryCode.toLowerCase() + ".png"}
               style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)" }}/>
           )}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#f0f4ff" }}>{countryName}</div>
-            {!loading && !error && (
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-                {visitedRegions.length} / {totalRegions} regioni visitate ({pct}%)
-              </div>
-            )}
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#f0f4ff", flex: 1 }}>{countryName}</div>
           <button onClick={onClose}
-            style={{ width: 30, height: 30, background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
+            style={{ width: 28, height: 28, background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
             <X style={{ width: 16, height: 16 }}/>
           </button>
         </div>
 
-        {/* Progress bar */}
+        {/* % centered */}
         {!loading && !error && totalRegions > 0 && (
-          <div style={{ padding: "8px 20px 0" }}>
-            <div style={{ height: 4, background: "#1a2d4a", borderRadius: 99, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: pct + "%", background: "#60a5fa", borderRadius: 99, transition: "width 0.8s ease" }}/>
-            </div>
+          <div style={{ textAlign: "center", paddingTop: 16 }}>
+            <span style={{ fontSize: 30, fontWeight: 700, color: "#60a5fa" }}>{pct}%</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>del paese visitato</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{visitedRegions.length} regioni su {totalRegions}</div>
           </div>
         )}
 
         {/* Map canvas */}
-        <div style={{ flex: 1, padding: 16, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 320 }}>
+        <div style={{ flex: 1, padding: 16, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
           {loading && (
             <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Caricamento mappa…</div>
           )}
@@ -198,21 +191,7 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
           )}
         </div>
 
-        {/* Visited regions list */}
-        {!loading && !error && visitedRegions.length > 0 && (
-          <div style={{ padding: "0 20px 16px" }}>
-            <div style={{ fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 8 }}>
-              Regioni visitate
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {visitedRegions.map(r => (
-                <span key={r} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "rgba(96,165,250,0.12)", color: "#60a5fa", border: "0.5px solid rgba(96,165,250,0.3)" }}>
-                  {r}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );
