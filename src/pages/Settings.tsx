@@ -2,7 +2,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { Link } from "react-router-dom";
 import { ArrowLeft, MapPin, Search, X } from "lucide-react";
-import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity } from "@/lib/settings";
+import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity, MARKER_SCALE_MIN, MARKER_SCALE_MAX } from "@/lib/settings";
 import { searchPlaces, GeoResult } from "@/lib/geo";
 import { useState, useEffect } from "react";
 
