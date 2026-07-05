@@ -4,7 +4,107 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, MapPin, Search, X } from "lucide-react";
 import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity, MARKER_SCALE_MIN, MARKER_SCALE_MAX } from "@/lib/settings";
 import { searchPlaces, GeoResult } from "@/lib/geo";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { AlertCircle } from "lucide-react";
+
+type MarkerScaleControlsProps = {
+  min: number;
+  max: number;
+  onChangeMin: (v: number) => void;
+  onChangeMax: (v: number) => void;
+};
+
+function MarkerScaleControls({ min, max, onChangeMin, onChangeMax }: MarkerScaleControlsProps) {
+  const [minText, setMinText] = useState(String(min));
+  const [maxText, setMaxText] = useState(String(max));
+
+  useEffect(() => { setMinText(String(min)); }, [min]);
+  useEffect(() => { setMaxText(String(max)); }, [max]);
+
+  const validate = (raw: string): { value: number | null; error: string | null } => {
+    const trimmed = raw.trim();
+    if (trimmed === "") return { value: null, error: "Valore richiesto" };
+    const n = Number(trimmed.replace(",", "."));
+    if (!Number.isFinite(n)) return { value: null, error: "Non è un numero valido" };
+    if (n < MARKER_SCALE_MIN || n > MARKER_SCALE_MAX) {
+      return { value: n, error: `Fuori range (${MARKER_SCALE_MIN}–${MARKER_SCALE_MAX})` };
+    }
+    return { value: n, error: null };
+  };
+
+  const minCheck = useMemo(() => validate(minText), [minText]);
+  const maxCheck = useMemo(() => validate(maxText), [maxText]);
+  const orderError = useMemo(() => {
+    if (minCheck.value != null && maxCheck.value != null && minCheck.value > maxCheck.value) {
+      return "Il valore minimo non può superare il massimo";
+    }
+    return null;
+  }, [minCheck.value, maxCheck.value]);
+
+  const commit = (which: "min" | "max", raw: string) => {
+    const { value, error } = validate(raw);
+    if (value == null || error) return;
+    if (which === "min") onChangeMin(value);
+    else onChangeMax(value);
+  };
+
+  const inputCls = (hasError: boolean) =>
+    `w-full bg-secondary/20 border rounded-xl px-3 py-2.5 text-sm outline-none transition-colors ${
+      hasError ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
+    }`;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1.5 block">Minimo</label>
+          <input
+            type="number"
+            step={0.1}
+            min={MARKER_SCALE_MIN}
+            max={MARKER_SCALE_MAX}
+            value={minText}
+            onChange={(e) => setMinText(e.target.value)}
+            onBlur={(e) => commit("min", e.target.value)}
+            aria-invalid={!!minCheck.error}
+            aria-describedby="min-scale-error"
+            className={inputCls(!!minCheck.error)}
+          />
+          {minCheck.error && (
+            <p id="min-scale-error" role="alert" className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+              <AlertCircle className="w-3 h-3"/> {minCheck.error}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1.5 block">Massimo</label>
+          <input
+            type="number"
+            step={0.1}
+            min={MARKER_SCALE_MIN}
+            max={MARKER_SCALE_MAX}
+            value={maxText}
+            onChange={(e) => setMaxText(e.target.value)}
+            onBlur={(e) => commit("max", e.target.value)}
+            aria-invalid={!!maxCheck.error}
+            aria-describedby="max-scale-error"
+            className={inputCls(!!maxCheck.error)}
+          />
+          {maxCheck.error && (
+            <p id="max-scale-error" role="alert" className="mt-1.5 text-xs text-destructive flex items-center gap-1">
+              <AlertCircle className="w-3 h-3"/> {maxCheck.error}
+            </p>
+          )}
+        </div>
+      </div>
+      {orderError && (
+        <p role="alert" className="text-xs text-destructive flex items-center gap-1">
+          <AlertCircle className="w-3 h-3"/> {orderError}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function SegmentControl<T extends string>({
   value, onChange, options,
