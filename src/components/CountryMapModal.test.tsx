@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, configure } from "@testing-library/react";
 import { CountryMapModal, __clearGeoCache } from "./CountryMapModal";
 import type { Trip } from "@/lib/storage";
 import React from "react";
+
+// Default 1000ms is troppo stretto sotto carico (suite in parallelo).
+configure({ asyncUtilTimeout: 5000 });
 
 beforeEach(() => __clearGeoCache());
 
