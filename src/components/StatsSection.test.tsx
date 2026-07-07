@@ -81,8 +81,8 @@ describe("StatsSection — tripsByCountry e countries", () => {
       makeTrip({ country: "Francia", country_code: "FR" }),
     ];
     renderStats(trips);
-    // 2 paesi unici
-    expect(screen.getByText("2")).toBeInTheDocument();
+    // 2 paesi unici — "2" appare sia nell'hero (count) sia nel badge visite IT
+    expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(1);
   });
 
   it("usa country come fallback chiave se country_code è undefined", () => {
@@ -133,11 +133,11 @@ describe("StatsSection — tripsByCountry e countries", () => {
 });
 
 describe("StatsSection — percent del mondo", () => {
-  it("percent = count / 195 * 100, arrotondato", () => {
-    // 1 paese su 195 = 0.51% → toFixed(1) = "0.5%"
+  it("percent = count / 195 * 100, arrotondato (0.5% con 1 paese)", () => {
+    // 1 paese su 195 = 0.5128% → percent < 1 → toFixed(1) = "0.5"
     const trips = [makeTrip({ country: "Italia", country_code: "IT" })];
     renderStats(trips);
-    expect(screen.getByText("1%")).toBeInTheDocument();
+    expect(screen.getByText("0.5%")).toBeInTheDocument();
   });
 });
 

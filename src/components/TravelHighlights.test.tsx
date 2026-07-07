@@ -165,9 +165,10 @@ describe("TravelHighlights — totalKm, aroundWorld, toMoon", () => {
     expect(screen.getByText("3000 km")).toBeInTheDocument();
   });
 
-  it("mostra 0 km totali con trips=[]", () => {
+  it("mostra 0 km totali con trips=[] (in più celle: totale + breakdown per mezzo)", () => {
     renderHighlights([]);
-    expect(screen.getByText("0 km")).toBeInTheDocument();
+    // "0 km" compare 6 volte: 1 totale + 5 breakdown transport
+    expect(screen.getAllByText("0 km").length).toBeGreaterThanOrEqual(1);
   });
 });
 

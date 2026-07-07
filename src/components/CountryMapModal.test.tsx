@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { CountryMapModal } from "./CountryMapModal";
+import { CountryMapModal, __clearGeoCache } from "./CountryMapModal";
 import type { Trip } from "@/lib/storage";
 import React from "react";
+
+beforeEach(() => __clearGeoCache());
 
 // ── GeoJSON fixture helpers ──────────────────────────────────────────────────
 
