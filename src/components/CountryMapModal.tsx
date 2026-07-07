@@ -82,6 +82,11 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
 // Cache loaded GeoJSON in memory
 const geoCache: Record<string, any> = {};
 
+/** Test-only: reset the module-level GeoJSON cache between tests. */
+export function __clearGeoCache() {
+  for (const k of Object.keys(geoCache)) delete geoCache[k];
+}
+
 interface Props {
   countryCode: string;
   countryName: string;
