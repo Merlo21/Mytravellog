@@ -153,7 +153,7 @@ describe("CountryMapModal — pct e regioni visitate", () => {
   it("mostra 0% con trips senza region", async () => {
     mockFetch(ITALY_GEOJSON);
     renderModal({ trips: [makeTrip({ region: null })] });
-    await waitFor(() => expect(screen.getByText("5")).toBeInTheDocument()); // totalRegions
+    await waitFor(() => expect(screen.getByText(/regioni? su 5/)).toBeInTheDocument());
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
 
@@ -220,7 +220,7 @@ describe("CountryMapModal — regionMatches (via render)", () => {
     mockFetch(ITALY_GEOJSON);
     // "Tosc" ha 4 chars → è il limite minimo, ma "toscana".includes("tosc") = true
     renderModal({ trips: [makeTrip({ region: "Tosc" })] });
-    await waitFor(() => expect(screen.getByText("5")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/regione? su 5/)).toBeInTheDocument());
     // "Tosc" lunghezza 4 → incluso, quindi trova "Toscana"
     expect(screen.getByText("1 regione su 5")).toBeInTheDocument();
   });
@@ -228,7 +228,7 @@ describe("CountryMapModal — regionMatches (via render)", () => {
   it("regione non riconosciuta: 'XYZ' non trova nessuna regione", async () => {
     mockFetch(ITALY_GEOJSON);
     renderModal({ trips: [makeTrip({ region: "XYZ" })] });
-    await waitFor(() => expect(screen.getByText("5")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/regioni? su 5/)).toBeInTheDocument());
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
 });

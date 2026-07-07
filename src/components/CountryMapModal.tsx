@@ -202,6 +202,7 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         let geo = geoCache[countryCode];
         if (!geo) {
           const r = await fetch(source.url);
+          if (!r.ok) throw new Error("HTTP " + r.status);
           geo = await r.json();
           geoCache[countryCode] = geo;
         }
