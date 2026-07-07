@@ -100,7 +100,10 @@ describe("TripCardTicket — date e giorni", () => {
 
   it("mostra i giorni corretti con date_end diversa da trip_date", () => {
     renderCard(makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-06" }));
-    expect(screen.getByText("5g")).toBeInTheDocument();
+    // JSX `{days}g` produce due nodi testo adiacenti (numero + "g"); confrontiamo textContent
+    expect(
+      screen.getByText((_content, node) => node?.textContent?.replace(/\s+/g, " ").trim() === "· 5g")
+    ).toBeInTheDocument();
   });
 });
 

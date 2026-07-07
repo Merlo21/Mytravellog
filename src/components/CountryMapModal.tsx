@@ -82,6 +82,11 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
 // Cache loaded GeoJSON in memory
 const geoCache: Record<string, any> = {};
 
+/** Test-only: reset the module-level GeoJSON cache between tests. */
+export function __clearGeoCache() {
+  for (const k of Object.keys(geoCache)) delete geoCache[k];
+}
+
 interface Props {
   countryCode: string;
   countryName: string;
@@ -197,6 +202,7 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         let geo = geoCache[countryCode];
         if (!geo) {
           const r = await fetch(source.url);
+          if (!r.ok) throw new Error("HTTP " + r.status);
           geo = await r.json();
           geoCache[countryCode] = geo;
         }
