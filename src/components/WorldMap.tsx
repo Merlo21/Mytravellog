@@ -212,6 +212,13 @@ export function WorldMap({
 
         // City labels as markers
         updateCityLabels(map, maplibregl);
+
+        // L'effetto che avvia la rotazione dipende da [autoRotateSetting], che
+        // non cambia al mount: se scattasse prima che mapRef.current sia
+        // assegnato (init() è asincrono: dynamic import + fetch dello style),
+        // la rotazione non partirebbe mai finché l'utente non tocca
+        // manualmente l'impostazione. Avviala qui, appena la mappa è pronta.
+        if (autoRotateSetting === "on") startRotation();
       });
 
       // Click → reverse geocode
