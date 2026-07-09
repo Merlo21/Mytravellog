@@ -166,7 +166,7 @@ export function ContinentsMap({ trips }: Props) {
         <h2 className="text-lg font-bold text-foreground">Mappa del mondo</h2>
 </div>
 
-      <div className="w-full rounded-xl bg-white p-3">
+      <div className="w-full rounded-xl p-3" style={{ background: "#060e1e" }}>
         <svg
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
@@ -179,7 +179,7 @@ export function ContinentsMap({ trips }: Props) {
               <rect x={0} y={0} width={W} height={H} />
             </clipPath>
           </defs>
-          <rect x={0} y={0} width={W} height={H} fill="#ffffff" />
+          <rect x={0} y={0} width={W} height={H} fill="#060e1e" />
           <g clipPath="url(#map-clip)">
             {countries.map((c) => {
               const isVisited = visitedCountryIds.has(c.id);
@@ -188,14 +188,14 @@ export function ContinentsMap({ trips }: Props) {
               const fill = isVisited
                 ? "#0ea5e9"
                 : continentVisited
-                  ? "rgba(96,165,250,0.18)"
-                  : "#e5e7eb";
+                  ? "rgba(96,165,250,0.22)"
+                  : "#16233d";
               return (
                 <path
                   key={c.id}
                   d={c.path}
                   fill={fill}
-                  stroke="#ffffff"
+                  stroke="#060e1e"
                   strokeWidth={0.5}
                   strokeLinejoin="round"
                 />
