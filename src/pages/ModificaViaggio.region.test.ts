@@ -32,7 +32,7 @@ describe("fetchMultiRegion", () => {
       { lat: 45.5, lon: 9.2 },
       { lat: 40.8, lon: 14.2 },
       { lat: 45.6, lon: 9.1 },
-    ]);
+    ], 0);
     expect(result.region).toBe("Lombardia, Campania");
     expect(result.details).toEqual([{ name: "Lombardia", code: "IT-25" }, { name: "Campania", code: "IT-72" }]);
   });
@@ -41,7 +41,7 @@ describe("fetchMultiRegion", () => {
     (fetch as any)
       .mockReturnValueOnce(regionResponse("Vienna", "AT-9"))
       .mockReturnValueOnce(regionResponse("Wien", "AT-9"));
-    const result = await fetchMultiRegion([{ lat: 48.2, lon: 16.4 }, { lat: 48.21, lon: 16.37 }]);
+    const result = await fetchMultiRegion([{ lat: 48.2, lon: 16.4 }, { lat: 48.21, lon: 16.37 }], 0);
     expect(result.details).toHaveLength(1);
   });
 
@@ -52,21 +52,34 @@ describe("fetchMultiRegion", () => {
     const result = await fetchMultiRegion([
       { lat: 38.1, lon: 13.4 },
       { lat: 0, lon: 0 },
-    ]);
+    ], 0);
     expect(result.region).toBe("Sicilia");
   });
 
   it("ritorna region=null se nessuna tappa ha una regione risolvibile", async () => {
     (fetch as any).mockReturnValue(Promise.resolve({ ok: false, json: () => Promise.resolve({}) } as Response));
-    const result = await fetchMultiRegion([{ lat: 1, lon: 1 }, { lat: 2, lon: 2 }]);
+    const result = await fetchMultiRegion([{ lat: 1, lon: 1 }, { lat: 2, lon: 2 }], 0);
     expect(result.region).toBeNull();
     expect(result.details).toEqual([]);
   });
 
   it("salta le tappe con coordinate mancanti (lat=0/lon=0) senza chiamare fetch", async () => {
     (fetch as any).mockReturnValue(regionResponse("Lazio", "IT-62"));
-    const result = await fetchMultiRegion([{ lat: 0, lon: 0 }, { lat: 41.9, lon: 12.5 }]);
+    const result = await fetchMultiRegion([{ lat: 0, lon: 0 }, { lat: 41.9, lon: 12.5 }], 0);
     expect(result.region).toBe("Lazio");
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("sequenzia le chiamate invece di spararle in parallelo: la seconda parte solo dopo la prima", async () => {
+    const order: string[] = [];
+    (fetch as any).mockImplementation(async (url: string) => {
+      const lat = new URL(url).searchParams.get("lat");
+      order.push(`start-${lat}`);
+      await new Promise(r => setTimeout(r, 5));
+      order.push(`end-${lat}`);
+      return { ok: true, json: () => Promise.resolve({ address: { state: "X", "ISO3166-2-lvl4": lat } }) };
+    });
+    await fetchMultiRegion([{ lat: 1, lon: 1 }, { lat: 2, lon: 2 }], 0);
+    expect(order).toEqual(["start-1", "end-1", "start-2", "end-2"]);
   });
 });

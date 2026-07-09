@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
+import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
 
@@ -551,16 +552,18 @@ const NuovoViaggio = () => {
       return Promise.resolve(null);
     });
     const routeGeometriesPromise = Promise.all(routePromises);
-    const rest = await Promise.all([
-      ...allStopsWithCoords.map(s => fetchRegion(s.lat, s.lon)),
-      ...allStopsWithCoords.map(s => fetchTemperature(s.lat, s.lon, dateStart)),
-      ...allStopsWithCoords.map(s => fetchElevation(s.lat, s.lon)),
+    // fetchRegion interroga Nominatim, che nella sua usage policy chiede non
+    // più di 1 richiesta/secondo: le tappe vanno sequenziate (sequentialMap),
+    // non sparate in Promise.all, altrimenti un viaggio con molte tappe
+    // rischia un rate-limit silenzioso con alcune tappe senza regione.
+    // fetchTemperature/fetchElevation (Open-Meteo, nessun limite simile)
+    // restano invece in parallelo tra loro e rispetto alle chiamate a Nominatim.
+    const [stopRegions, stopTemps, stopAlts] = await Promise.all([
+      sequentialMap(allStopsWithCoords, s => fetchRegion(s.lat, s.lon)),
+      Promise.all(allStopsWithCoords.map(s => fetchTemperature(s.lat, s.lon, dateStart))),
+      Promise.all(allStopsWithCoords.map(s => fetchElevation(s.lat, s.lon))),
     ]);
     const routeGeometries = await routeGeometriesPromise;
-    const n = allStopsWithCoords.length;
-    const stopRegions = rest.slice(0, n) as { name: string | null; code: string | null }[];
-    const stopTemps = rest.slice(n, 2 * n) as (number | null)[];
-    const stopAlts = rest.slice(2 * n, 3 * n) as (number | null)[];
     // Un viaggio multi-tappa può attraversare più regioni: raccogliamo quelle di
     // ogni tappa (deduplicate per codice ISO, non solo quella della destinazione).
     const regionDetails = mergeRegions(stopRegions);

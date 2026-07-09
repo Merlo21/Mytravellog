@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult, RegionInfo } from "@/lib/geo";
 import { addTrip, updateTrip, loadTrips } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
+import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
 
@@ -49,9 +50,15 @@ async function fetchNominatimRegion(lat: number, lon: number): Promise<RegionInf
 
 /** Un viaggio multi-tappa può attraversare più regioni: raccoglie quelle di
  * ogni tappa (deduplicate per codice ISO, unite con ", "), non solo quella
- * della destinazione. */
-export async function fetchMultiRegion(points: { lat: number; lon: number }[]): Promise<{ region: string | null; details: { name: string; code: string | null }[] }> {
-  const results = await Promise.all(points.map(p => fetchNominatimRegion(p.lat, p.lon)));
+ * della destinazione. Le chiamate a Nominatim sono sequenziali (non
+ * Promise.all): la sua usage policy chiede non più di 1 richiesta/secondo, e
+ * un viaggio con molte tappe sparate tutte in parallelo rischierebbe un
+ * rate-limit silenzioso con alcune tappe che restano senza regione. */
+export async function fetchMultiRegion(
+  points: { lat: number; lon: number }[],
+  delayMs = 1100
+): Promise<{ region: string | null; details: { name: string; code: string | null }[] }> {
+  const results = await sequentialMap(points, p => fetchNominatimRegion(p.lat, p.lon), delayMs);
   const details = mergeRegions(results);
   const region = details.length > 0 ? details.map(r => r.name).join(", ") : null;
   return { region, details };
