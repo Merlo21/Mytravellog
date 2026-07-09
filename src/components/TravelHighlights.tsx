@@ -194,7 +194,7 @@ export function TravelHighlights({ trips }: Props) {
           {([
             { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  km: byPlane, val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
             { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  km: byTrain, val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
-            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#639922", bg:"rgba(99,153,34,0.12)",   border:"rgba(99,153,34,0.3)",   km: byCar,   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
+            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#A855F7", bg:"rgba(168,85,247,0.12)",  border:"rgba(168,85,247,0.3)",  km: byCar,   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
             { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   km: byShip,  val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
             { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   km: byWalk,  val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
           ] as const).map(({ icon, color, bg, border, km, val, label }) => {
@@ -221,7 +221,7 @@ export function TravelHighlights({ trips }: Props) {
             {([
               {color:"#378ADD", label:"Aereo", pct:byPlane},
               {color:"#BA7517", label:"Treno", pct:byTrain},
-              {color:"#639922", label:"Auto",  pct:byCar},
+              {color:"#A855F7", label:"Auto",  pct:byCar},
               {color:"#0F6E56", label:"Nave",  pct:byShip},
               {color:"#D85A30", label:"Piedi", pct:byWalk},
             ] as const).map(x => (
@@ -235,7 +235,7 @@ export function TravelHighlights({ trips }: Props) {
             {totalKm > 0 ? ([
               {color:"#378ADD", w:byPlane, k:0},
               {color:"#BA7517", w:byTrain, k:1},
-              {color:"#639922", w:byCar,   k:2},
+              {color:"#A855F7", w:byCar,   k:2},
               {color:"#0F6E56", w:byShip,  k:3},
               {color:"#D85A30", w:byWalk,  k:4},
             ] as const).map(x => (

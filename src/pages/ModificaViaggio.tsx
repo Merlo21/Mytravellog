@@ -15,7 +15,7 @@ type Waypoint = { city: string; country: string; country_code: string; lat: numb
 const TRANSPORT: { value: TransportMode; label: string; color: string; bg: string }[] = [
   { value: "plane", label: "Aereo",   color: "#378ADD", bg: "rgba(55,138,221,0.15)"  },
   { value: "train", label: "Treno",   color: "#BA7517", bg: "rgba(186,117,23,0.15)"  },
-  { value: "car",   label: "Auto",    color: "#639922", bg: "rgba(99,153,34,0.15)"   },
+  { value: "car",   label: "Auto",    color: "#A855F7", bg: "rgba(168,85,247,0.15)"  },
   { value: "ship",  label: "Nave",    color: "#0F6E56", bg: "rgba(15,110,86,0.15)"   },
   { value: "walk",  label: "A piedi", color: "#D85A30", bg: "rgba(216,90,48,0.15)"   },
 ];
@@ -160,7 +160,7 @@ function ContinuousFlyer({ stops, cx, cy, W }: {
 
   const color = (() => {
     const found = [
-      {v:"plane",c:"#378ADD"},{v:"train",c:"#BA7517"},{v:"car",c:"#639922"},
+      {v:"plane",c:"#378ADD"},{v:"train",c:"#BA7517"},{v:"car",c:"#A855F7"},
       {v:"ship",c:"#0F6E56"},{v:"walk",c:"#D85A30"}
     ].find(x => x.v === t);
     return found?.c ?? "#378ADD";

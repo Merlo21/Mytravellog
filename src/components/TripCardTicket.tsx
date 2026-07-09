@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string; Icon: React.ElementType }> = {
   plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", label: "Aereo",   Icon: Plane      },
   train: { color: "#BA7517", bg: "rgba(186,117,23,0.12)", label: "Treno",   Icon: Train      },
-  car:   { color: "#639922", bg: "rgba(99,153,34,0.12)",  label: "Auto",    Icon: Car        },
+  car:   { color: "#A855F7", bg: "rgba(168,85,247,0.12)", label: "Auto",    Icon: Car        },
   ship:  { color: "#0F6E56", bg: "rgba(15,110,86,0.12)",  label: "Nave",    Icon: Ship       },
   walk:  { color: "#D85A30", bg: "rgba(216,90,48,0.12)",  label: "A piedi", Icon: Footprints },
 };
