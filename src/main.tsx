@@ -10,6 +10,7 @@ import NuovoViaggio from "./pages/NuovoViaggio";
 import ModificaViaggio from "./pages/ModificaViaggio";
 import SettingsPage from "./pages/Settings";
 import MieiViaggi from "./pages/MieiViaggi";
+import NotFound from "./pages/NotFound";
 
 const rootEl = document.getElementById("root")!;
 rootEl.style.backgroundColor = "#060e1e";
@@ -25,6 +26,7 @@ ReactDOM.createRoot(rootEl).render(
           <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
           <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
           <Route path="/miei-viaggi" element={<MieiViaggi />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster richColors position="top-right" />
       </HashRouter>
