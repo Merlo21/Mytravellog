@@ -34,20 +34,20 @@ export function AppHeader({ onTripsClick }: Props) {
 
         {/* Nav */}
         <div className="flex items-center gap-1">
-          <Link to="/miei-viaggi" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
-            <Plane className="w-4 h-4 text-primary"/> I miei viaggi
+          <Link to="/miei-viaggi" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3" aria-label="I miei viaggi">
+            <Plane className="w-4 h-4 text-primary"/> <span className="hidden sm:inline">I miei viaggi</span>
           </Link>
-          <Link to="/statistiche" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3">
-            <PieChart className="w-4 h-4 text-primary"/> Statistiche
+          <Link to="/statistiche" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3" aria-label="Statistiche">
+            <PieChart className="w-4 h-4 text-primary"/> <span className="hidden sm:inline">Statistiche</span>
           </Link>
           <div className="w-px h-5 bg-border mx-1"/>
           <Link to="/impostazioni" className="btn-ghost p-2" aria-label="Impostazioni">
             <Settings className="w-4 h-4 text-muted-foreground"/>
           </Link>
           <Link to="/nuovo-viaggio"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10"
-            style={{ color: "#60a5fa", border: "1.5px solid #60a5fa" }}>
-            <Plus className="w-4 h-4"/> Nuovo viaggio
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10 whitespace-nowrap"
+            style={{ color: "#60a5fa", border: "1.5px solid #60a5fa" }} aria-label="Nuovo viaggio">
+            <Plus className="w-4 h-4"/> <span className="hidden sm:inline">Nuovo viaggio</span>
           </Link>
         </div>
 

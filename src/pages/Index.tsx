@@ -115,7 +115,7 @@ function HomeInner() {
       <AppHeader/>
 
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
-        <div style={{display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10}}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
           {([
             { icon: <Plane       className="w-[18px] h-[18px]"/>, label: "Viaggi",   value: stats.trips.toString(),     accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
             { icon: <Globe       className="w-[18px] h-[18px]"/>, label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },

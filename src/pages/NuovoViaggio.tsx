@@ -597,9 +597,9 @@ const NuovoViaggio = () => {
       {/* Header */}
       <AppHeader/>
 
-      {/* Main layout: itinerario hero sinistra, form destra */}
-      <div style={{ maxWidth:1200, margin:"0 auto", width:"100%",
-        padding:"32px 24px", display:"grid", gridTemplateColumns:"1fr 280px", gap:24, alignItems:"stretch" }}>
+      {/* Main layout: itinerario hero sinistra, form destra (impilati su mobile) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-stretch"
+        style={{ maxWidth:1200, margin:"0 auto", width:"100%", padding:"32px 24px" }}>
 
         {/* LEFT — Itinerario hero */}
         <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a",
