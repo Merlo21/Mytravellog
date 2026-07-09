@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { splitRingAtAntimeridian, deriveCountryId, allVisitedPoints } from "./ContinentsMap";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { splitRingAtAntimeridian, deriveCountryId, allVisitedPoints, ContinentsMap, __clearCountryFeatsCache } from "./ContinentsMap";
 import type { Trip } from "@/lib/storage";
+import { render, waitFor } from "@testing-library/react";
+import React from "react";
 
 describe("allVisitedPoints", () => {
   it("include la destinazione finale del viaggio", () => {
@@ -96,5 +98,47 @@ describe("splitRingAtAntimeridian", () => {
 
   it("handles empty rings", () => {
     expect(splitRingAtAntimeridian([])).toEqual([]);
+  });
+});
+
+describe("ContinentsMap — cache dei confini tra i mount", () => {
+  beforeEach(() => __clearCountryFeatsCache());
+  afterEach(() => vi.restoreAllMocks());
+
+  const fakeTopo = {
+    objects: { countries: { type: "GeometryCollection", geometries: [] } },
+    type: "Topology", arcs: [],
+  };
+
+  function renderMap() {
+    return render(React.createElement(ContinentsMap, { trips: [] }));
+  }
+
+  it("scarica il topojson al primo mount", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ json: async () => fakeTopo });
+    renderMap();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  });
+
+  it("un secondo mount non rifà il fetch: usa la cache in memoria", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ json: async () => fakeTopo });
+    const first = renderMap();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    renderMap();
+    await new Promise(r => setTimeout(r, 10));
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("__clearCountryFeatsCache forza un nuovo fetch al mount successivo", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ json: async () => fakeTopo });
+    const first = renderMap();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    __clearCountryFeatsCache();
+    renderMap();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   });
 });

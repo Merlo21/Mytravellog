@@ -80,12 +80,24 @@ type CountryFeat = {
   polygons: number[][][][]; // list of polygons; each polygon = list of rings of [lon,lat]
 };
 
+// I confini dei paesi non cambiano a runtime, ma senza cache il topojson
+// (e il ricalcolo di path/centroidi/poligoni per ogni paese) verrebbe
+// ri-scaricato ed elaborato ogni volta che questa pagina si smonta e
+// rimonta — es. navigando Statistiche → Home → Statistiche con HashRouter.
+let cachedCountryFeats: CountryFeat[] | null = null;
+
+/** Test-only: reset la cache dei country feats tra i test. */
+export function __clearCountryFeatsCache() {
+  cachedCountryFeats = null;
+}
+
 export function ContinentsMap({ trips }: Props) {
-  const [countries, setCountries] = useState<CountryFeat[]>([]);
+  const [countries, setCountries] = useState<CountryFeat[]>(cachedCountryFeats ?? []);
   const [debug, setDebug] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
+    if (cachedCountryFeats) { setCountries(cachedCountryFeats); return; }
     let cancelled = false;
     fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
       .then((r) => r.json())
@@ -99,6 +111,7 @@ export function ContinentsMap({ trips }: Props) {
           const id = deriveCountryId(f, idx);
           return { id, name: f.properties?.name ?? id, path, centroid: c, polygons };
         });
+        cachedCountryFeats = feats;
         setCountries(feats);
       })
       .catch(() => {});

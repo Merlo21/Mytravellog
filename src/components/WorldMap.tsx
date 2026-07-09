@@ -23,6 +23,27 @@ interface Props {
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
 
+// Lo style.json di MapTiler non cambia mai a runtime, ma senza cache verrebbe
+// ri-scaricato (una chiamata a un'API a consumo, non gratuita come Nominatim
+// o geoBoundaries) ogni volta che il globo si smonta e rimonta — es.
+// navigando Home → Statistiche → Home con HashRouter.
+let cachedMapStyle: any = null;
+
+/** Ritorna sempre una copia: ogni mount muta projection/glyphs sulla propria
+ * istanza senza toccare la cache condivisa. */
+export async function fetchMapStyle(): Promise<any> {
+  if (!cachedMapStyle) {
+    const styleResp = await fetch(`https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`);
+    cachedMapStyle = await styleResp.json();
+  }
+  return JSON.parse(JSON.stringify(cachedMapStyle));
+}
+
+/** Test-only: reset la cache dello style tra i test. */
+export function __clearMapStyleCache() {
+  cachedMapStyle = null;
+}
+
 export const ALL_CITIES: CityInfo[] = [
   {name:"Roma",country:"Italia",country_code:"IT",latitude:41.9,longitude:12.5,tier:1},
   {name:"Tokyo",country:"Giappone",country_code:"JP",latitude:35.68,longitude:139.69,tier:1},
@@ -185,9 +206,8 @@ export function WorldMap({
         document.head.appendChild(link);
       }
 
-      // Fetch style and inject globe projection + glyphs (MapLibre 5.x)
-      const styleResp = await fetch(`https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`);
-      const style = await styleResp.json();
+      // Fetch style (cache-backed) and inject globe projection + glyphs (MapLibre 5.x)
+      const style = await fetchMapStyle();
       style.projection = { type: "globe" };
       // Add glyph server so native symbol layers can render text
       style.glyphs = `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`;
