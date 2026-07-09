@@ -96,10 +96,10 @@ function renderModal(props: Partial<{
 describe("CountryMapModal — render base", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("mostra il nome del paese nell'header", () => {
+  it("mostra il nome del paese nell'header", async () => {
     mockFetch(ITALY_GEOJSON);
     renderModal({ countryName: "Italia" });
-    expect(screen.getByText("Italia")).toBeInTheDocument();
+    expect(await screen.findByText("Italia")).toBeInTheDocument();
   });
 
   it("mostra 'Caricamento mappa…' durante il fetch", () => {
