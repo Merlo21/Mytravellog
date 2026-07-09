@@ -33,6 +33,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     home_latitude: 45.5,
     home_longitude: 9.2,
     home_label: "Milano",
+    route_geometry: null,
     temperature_c: null,
     altitude_m: null,
     distance_from_home_km: null,

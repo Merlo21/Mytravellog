@@ -79,6 +79,28 @@ export async function fetchRegion(lat: number, lon: number): Promise<string | nu
   }
 }
 
+/**
+ * Percorso stradale reale (stile Google Maps) tra due punti, per le tratte
+ * in auto. Usa il server demo pubblico di OSRM (gratuito, nessuna chiave,
+ * non garantito per uso intensivo): in caso di errore ritorna null e chi
+ * chiama ricade sulla linea retta.
+ */
+export async function fetchDrivingRoute(
+  lat1: number, lon1: number, lat2: number, lon2: number
+): Promise<[number, number][] | null> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=simplified&geometries=geojson`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const d = await r.json();
+    const coords = d?.routes?.[0]?.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    return coords as [number, number][];
+  } catch {
+    return null;
+  }
+}
+
 export function countryFlag(code?: string): string {
   if (!code || code.length !== 2) return "🌍";
   const A = 0x1f1e6;

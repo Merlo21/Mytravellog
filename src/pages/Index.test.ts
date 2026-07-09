@@ -21,6 +21,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     home_latitude: null,
     home_longitude: null,
     home_label: null,
+    route_geometry: null,
     temperature_c: null,
     altitude_m: null,
     max_altitude_m: null,

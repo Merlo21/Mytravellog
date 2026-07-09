@@ -125,6 +125,27 @@ function GlobeHalo() {
   );
 }
 
+/**
+ * Costruisce la sequenza di coordinate home → tappe → destinazione per il
+ * disegno della rotta sul globo. Per le tratte in auto con un percorso
+ * stradale reale salvato (route_geometry, via OSRM), usa quel tracciato
+ * invece della linea retta tra i due punti.
+ */
+export function buildRouteCoords(t: Trip): [number, number][] {
+  const stops = [
+    ...(t.waypoints ?? [])
+      .filter((w): w is typeof w & { lat: number; lon: number } => w.lat != null && w.lon != null && !isNaN(w.lat) && !isNaN(w.lon))
+      .map(w => ({ lat: w.lat, lon: w.lon, route: w.route_geometry ?? null })),
+    { lat: t.latitude, lon: t.longitude, route: t.route_geometry ?? null },
+  ];
+  const coords: [number, number][] = [[t.home_longitude!, t.home_latitude!]];
+  for (const stop of stops) {
+    if (stop.route && stop.route.length > 1) coords.push(...stop.route);
+    else coords.push([stop.lon, stop.lat]);
+  }
+  return coords;
+}
+
 export function WorldMap({
   trips, selectedId, onSelectTrip, onSelectCity, autoRotateSetting = "on"
 }: Props) {
@@ -328,14 +349,7 @@ export function WorldMap({
       const lineColor = hasWp
         ? (TRANSPORT_COLORS_MAP[t.transport_mode ?? "plane"] ?? "#60a5fa")
         : "#f472b6";
-      // Build full coords: home → waypoints (with coords) → destination
-      const coords: [number,number][] = [
-        [t.home_longitude!, t.home_latitude!],
-        ...(t.waypoints ?? [])
-          .filter((w: any) => w.lat && w.lon && !isNaN(w.lat) && !isNaN(w.lon))
-          .map((w: any) => [w.lon, w.lat] as [number,number]),
-        [t.longitude, t.latitude],
-      ];
+      const coords = buildRouteCoords(t);
       map.addSource(lineId, {
         type: "geojson",
         data: { type:"Feature", geometry:{ type:"LineString", coordinates: coords } },

@@ -41,6 +41,7 @@ describe("Stats page", () => {
       trip_date: "2024-01-01", date_end: null, rating: null, notes: null,
       transport_mode: null, waypoints: [], latitude: 41.9, longitude: 12.5,
       home_latitude: null, home_longitude: null, home_label: null,
+      route_geometry: null,
       temperature_c: null, altitude_m: null, distance_from_home_km: null,
       max_distance_from_home_km: null, max_distance_city: null,
       max_altitude_m: null, max_altitude_city: null,

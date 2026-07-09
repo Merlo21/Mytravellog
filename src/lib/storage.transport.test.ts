@@ -23,6 +23,7 @@ function baseTrip(mode: Mode): Omit<Trip, "id" | "created_at"> {
     home_latitude: 45.5,
     home_longitude: 9.2,
     home_label: "Milano",
+    route_geometry: null,
     temperature_c: 22,
     altitude_m: 20,
     distance_from_home_km: 480,

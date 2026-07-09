@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
-import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
@@ -537,11 +537,26 @@ const NuovoViaggio = () => {
       ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ city: w.city, lat: w.lat, lon: w.lon })),
       { city: dest.city, lat: dest.lat, lon: dest.lon },
     ];
+    // Percorso stradale reale per ogni tratta in auto (home→tappa1→...→destinazione),
+    // invece della linea retta. waypoints[i] rappresenta "come sono arrivato qui",
+    // quindi il percorso va da prevPt (la tappa precedente, o casa per la prima) a
+    // waypoints[i]. Ricade su null (linea retta) se manca casa o la chiamata fallisce.
+    let prevPt: { lat: number; lon: number } | null = home ? { lat: home.lat, lon: home.lon } : null;
+    const routePromises = waypoints.map((wp) => {
+      const p = prevPt;
+      prevPt = wp.lat && wp.lon ? { lat: wp.lat, lon: wp.lon } : prevPt;
+      if (wp.transport_mode === "car" && p && wp.lat && wp.lon) {
+        return fetchDrivingRoute(p.lat, p.lon, wp.lat, wp.lon);
+      }
+      return Promise.resolve(null);
+    });
+    const routeGeometriesPromise = Promise.all(routePromises);
     const rest = await Promise.all([
       ...allStopsWithCoords.map(s => fetchRegion(s.lat, s.lon)),
       ...allStopsWithCoords.map(s => fetchTemperature(s.lat, s.lon, dateStart)),
       ...allStopsWithCoords.map(s => fetchElevation(s.lat, s.lon)),
     ]);
+    const routeGeometries = await routeGeometriesPromise;
     const n = allStopsWithCoords.length;
     const stopRegions = rest.slice(0, n) as (string | null)[];
     const stopTemps = rest.slice(n, 2 * n) as (number | null)[];
@@ -563,8 +578,9 @@ const NuovoViaggio = () => {
       trip_date: dateStart, date_end: dateEnd || null,
       notes: notes.trim() || null,
       transport_mode: dest.transport_mode,
-      waypoints: waypoints.slice(0, -1).map(w => ({ city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon })),
+      waypoints: waypoints.slice(0, -1).map((w, i) => ({ city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon, route_geometry: routeGeometries[i] ?? null })),
       latitude: dest.lat, longitude: dest.lon,
+      route_geometry: routeGeometries[routeGeometries.length - 1] ?? null,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
       distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null,
       country_code: dest.country_code, rating: rating || null,

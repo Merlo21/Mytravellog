@@ -9,12 +9,13 @@ export type Trip = {
   rating: number | null; // 1-5 stelle
   notes: string | null;
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | null;
-  waypoints: { city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk"; lat?: number; lon?: number }[];
+  waypoints: { city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
   latitude: number;
   longitude: number;
   home_latitude: number | null;
   home_longitude: number | null;
   home_label: string | null;
+  route_geometry: [number, number][] | null; // percorso stradale reale per la tratta finale (solo se transport_mode="car")
   temperature_c: number | null;
   altitude_m: number | null;
   max_altitude_m: number | null; // altitudine massima tra tutte le tappe (non solo la destinazione)

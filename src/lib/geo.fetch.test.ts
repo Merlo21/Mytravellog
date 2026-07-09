@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion } from "./geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute } from "./geo";
 
 const okJson = (data: unknown) =>
   Promise.resolve({ ok: true, json: () => Promise.resolve(data) } as Response);
@@ -116,5 +116,41 @@ describe("fetchRegion", () => {
   it("ritorna null su errore", async () => {
     (fetch as any).mockRejectedValue(new Error("net"));
     expect(await fetchRegion(0, 0)).toBeNull();
+  });
+});
+
+describe("fetchDrivingRoute", () => {
+  beforeEach(() => { vi.stubGlobal("fetch", vi.fn()); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("ritorna le coordinate del percorso da OSRM", async () => {
+    (fetch as any).mockReturnValue(okJson({
+      code: "Ok",
+      routes: [{ geometry: { type: "LineString", coordinates: [[12.5, 41.9], [12.6, 42.0], [12.7, 42.1]] } }],
+    }));
+    const route = await fetchDrivingRoute(41.9, 12.5, 42.1, 12.7);
+    expect(route).toEqual([[12.5, 41.9], [12.6, 42.0], [12.7, 42.1]]);
+  });
+
+  it("ritorna null se OSRM non trova un percorso (routes vuoto)", async () => {
+    (fetch as any).mockReturnValue(okJson({ code: "NoRoute", routes: [] }));
+    expect(await fetchDrivingRoute(0, 0, 1, 1)).toBeNull();
+  });
+
+  it("ritorna null su risposta non ok", async () => {
+    (fetch as any).mockReturnValue(notOk());
+    expect(await fetchDrivingRoute(0, 0, 1, 1)).toBeNull();
+  });
+
+  it("ritorna null su errore di rete", async () => {
+    (fetch as any).mockRejectedValue(new Error("net"));
+    expect(await fetchDrivingRoute(0, 0, 1, 1)).toBeNull();
+  });
+
+  it("costruisce l'URL con lon,lat nell'ordine corretto per OSRM", async () => {
+    (fetch as any).mockReturnValue(okJson({ routes: [{ geometry: { coordinates: [[1,2],[3,4]] } }] }));
+    await fetchDrivingRoute(41.9, 12.5, 48.85, 2.35);
+    const url = (fetch as any).mock.calls[0][0];
+    expect(url).toContain("driving/12.5,41.9;2.35,48.85");
   });
 });
