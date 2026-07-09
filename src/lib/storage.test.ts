@@ -40,6 +40,7 @@ function makeTrip(overrides: Partial<Omit<Trip, "id" | "created_at">> = {}): Omi
     coldest_temp_c: null,
     coldest_city: null,
     region: null,
+    region_details: null,
     ...overrides,
   };
 }

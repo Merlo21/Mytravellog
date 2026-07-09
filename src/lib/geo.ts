@@ -67,16 +67,50 @@ export function distanceKm(lat1: number, lon1: number, lat2: number, lon2: numbe
   return Math.round(2 * R * Math.asin(Math.sqrt(a)));
 }
 
-export async function fetchRegion(lat: number, lon: number): Promise<string | null> {
+export type RegionInfo = { name: string | null; code: string | null };
+
+/**
+ * Nome e codice ISO 3166-2 (es. "AT-9") della regione/stato in cui si trova
+ * un punto. Il codice è indipendente dalla lingua: permette di abbinare le
+ * regioni visitate ai confini geografici (CountryMapModal) senza dover
+ * tradurre i nomi da inglese a lingua locale paese per paese.
+ */
+export async function fetchRegion(lat: number, lon: number): Promise<RegionInfo> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
     const r = await fetch(url, { headers: { "Accept-Language": "en" } });
-    if (!r.ok) return null;
+    if (!r.ok) return { name: null, code: null };
     const d = await r.json();
-    return d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
+    // Nominatim non usa lo stesso campo per tutti i paesi: "state" per la
+    // maggior parte, ma "province" (Giappone) o "city" per le città-stato
+    // (Berlino, Vienna, Amburgo...) che non hanno un livello "state" sopra
+    // di loro. "name" di primo livello riflette comunque l'area risolta a
+    // questo zoom, quindi è un fallback affidabile quando gli altri mancano.
+    const name = d?.address?.state ?? d?.address?.region ?? d?.address?.county
+      ?? d?.address?.province ?? d?.address?.city ?? d?.name ?? null;
+    const code = d?.address?.["ISO3166-2-lvl4"] ?? null;
+    return { name, code };
   } catch {
-    return null;
+    return { name: null, code: null };
   }
+}
+
+/**
+ * Deduplica una lista di regioni (nome + codice) raccolte dalle tappe di un
+ * viaggio: due tappe nella stessa regione (stesso codice ISO, o stesso nome
+ * normalizzato quando il codice manca) contano una sola volta.
+ */
+export function mergeRegions(entries: RegionInfo[]): { name: string; code: string | null }[] {
+  const seen = new Set<string>();
+  const out: { name: string; code: string | null }[] = [];
+  for (const { name, code } of entries) {
+    if (!name && !code) continue;
+    const key = code ? `code:${code}` : `name:${name!.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name: name ?? code!, code });
+  }
+  return out;
 }
 
 /**

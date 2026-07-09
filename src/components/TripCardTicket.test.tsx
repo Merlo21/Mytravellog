@@ -56,6 +56,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     coldest_temp_c: null,
     coldest_city: null,
     region: null,
+    region_details: null,
     ...overrides,
   };
 }

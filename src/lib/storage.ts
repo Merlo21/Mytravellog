@@ -27,7 +27,8 @@ export type Trip = {
   hottest_city: string | null;      // città più calda
   coldest_temp_c: number | null;    // temperatura più bassa tra tutte le tappe
   coldest_city: string | null;      // città più fredda
-  region: string | null;             // regione/stato della destinazione
+  region: string | null;             // regione/stato della destinazione (nomi, per display)
+  region_details: { name: string; code: string | null }[] | null; // stesse regioni con codice ISO 3166-2, per l'abbinamento indipendente dalla lingua in CountryMapModal
   country_code: string;
   created_at: string;
 };

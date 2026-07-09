@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult, RegionInfo } from "@/lib/geo";
 import { addTrip, updateTrip, loadTrips } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
@@ -29,25 +29,32 @@ function daysBetween(a: string, b: string) {
   return d > 0 ? d : null;
 }
 
-async function fetchNominatimRegion(lat: number, lon: number): Promise<string | null> {
-  if (!lat || !lon) return null;
+async function fetchNominatimRegion(lat: number, lon: number): Promise<RegionInfo> {
+  if (!lat || !lon) return { name: null, code: null };
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
     const r = await fetch(url, { headers: { "Accept-Language": "it", "User-Agent": "NAV-TA/1.0" } });
-    if (!r.ok) return null;
+    if (!r.ok) return { name: null, code: null };
     const d = await r.json();
-    return d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
+    // Vedi commento in geo.ts::fetchRegion: Nominatim usa campi diversi per
+    // paesi diversi (province in Giappone, city per le città-stato).
+    const name = d?.address?.state ?? d?.address?.region ?? d?.address?.county
+      ?? d?.address?.province ?? d?.address?.city ?? d?.name ?? null;
+    const code = d?.address?.["ISO3166-2-lvl4"] ?? null;
+    return { name, code };
   } catch {
-    return null;
+    return { name: null, code: null };
   }
 }
 
 /** Un viaggio multi-tappa può attraversare più regioni: raccoglie quelle di
- * ogni tappa (deduplicate, unite con ", "), non solo quella della destinazione. */
-export async function fetchMultiRegion(points: { lat: number; lon: number }[]): Promise<string | null> {
+ * ogni tappa (deduplicate per codice ISO, unite con ", "), non solo quella
+ * della destinazione. */
+export async function fetchMultiRegion(points: { lat: number; lon: number }[]): Promise<{ region: string | null; details: { name: string; code: string | null }[] }> {
   const results = await Promise.all(points.map(p => fetchNominatimRegion(p.lat, p.lon)));
-  const unique = [...new Set(results.filter((r): r is string => !!r))];
-  return unique.length > 0 ? unique.join(", ") : null;
+  const details = mergeRegions(results);
+  const region = details.length > 0 ? details.map(r => r.name).join(", ") : null;
+  return { region, details };
 }
 
 
@@ -529,6 +536,7 @@ const ModificaViaggio = () => {
   const [saving, setSaving] = useState(false);
   const [refetchingRegion, setRefetchingRegion] = useState(false);
   const [currentRegion, setCurrentRegion] = useState<string | null>(trip?.region ?? null);
+  const [currentRegionDetails, setCurrentRegionDetails] = useState<{ name: string; code: string | null }[] | null>(trip?.region_details ?? null);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -626,7 +634,13 @@ const ModificaViaggio = () => {
     // Se la regione non è mai stata popolata (né al momento della creazione né
     // con "Ricalcola"), proviamo a recuperarla ora su tutte le tappe, invece
     // di lasciarla vuota per sempre finché l'utente non trova il pulsante.
-    const region = currentRegion ?? await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
+    let region = currentRegion;
+    let regionDetails = currentRegionDetails;
+    if (region == null) {
+      const fetched = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
+      region = fetched.region;
+      regionDetails = fetched.details.length > 0 ? fetched.details : null;
+    }
     updateTrip(id!, {
       title: title.trim() || dest.city,
       country: dest.country, city: dest.city,
@@ -638,7 +652,7 @@ const ModificaViaggio = () => {
       longitude: dest.lon || trip?.longitude || 0,
       route_geometry: routeGeometries[routeGeometries.length - 1] ?? null,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null, region_details: regionDetails,
       country_code: dest.country_code || trip?.country_code || "",
       rating: rating || null,
     });
@@ -652,11 +666,12 @@ const ModificaViaggio = () => {
     if (waypoints.length === 0) return;
     setRefetchingRegion(true);
     try {
-      const region = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
-      const unique = region ? region.split(", ") : [];
+      const { region, details } = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
+      const regionDetails = details.length > 0 ? details : null;
       setCurrentRegion(region);
-      if (id) updateTrip(id, { region });
-      if (region) toast.success("Region" + (unique.length > 1 ? "i" : "e") + " salvat" + (unique.length > 1 ? "e" : "a") + ": " + region);
+      setCurrentRegionDetails(regionDetails);
+      if (id) updateTrip(id, { region, region_details: regionDetails });
+      if (region) toast.success("Region" + (details.length > 1 ? "i" : "e") + " salvat" + (details.length > 1 ? "e" : "a") + ": " + region);
       else toast.error("Regione non trovata");
     } catch {
       toast.error("Errore nel recupero della regione");

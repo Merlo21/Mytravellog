@@ -1,18 +1,81 @@
 import { useEffect, useRef, useState } from "react";
 import { Trip } from "@/lib/storage";
+import { ISO2_TO_ISO3 } from "@/lib/iso3166";
 import { X } from "lucide-react";
 
-// GeoJSON sources per country ISO2 code
-const GEOJSON_SOURCES: Record<string, { url: string; nameProp: string }> = {
-  IT: { url: "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson", nameProp: "reg_name" },
-  ES: { url: "https://raw.githubusercontent.com/codeforgermany/click_that_hood/master/public/data/spain-communities.geojson", nameProp: "name" },
-  FR: { url: "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions.geojson", nameProp: "nom" },
-  AT: { url: "https://raw.githubusercontent.com/ginseng666/GeoJSON-TopoJSON-Austria/master/2021/simplified-99.5/laender_995_geo.json", nameProp: "name" },
-  US: { url: "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json", nameProp: "name" },
-};
+/**
+ * geoBoundaries ritorna URL nella forma github.com/<owner>/<repo>/raw/<ref>/<path>:
+ * un redirect (302) verso media.githubusercontent.com il cui hop intermedio ha
+ * un header Access-Control-Allow-Origin vuoto, bloccato dal browser come CORS
+ * error. raw.githubusercontent.com serve lo stesso path senza redirect e con
+ * CORS permissivo — ma per i file più grandi (i paesi con confini più
+ * complessi) tracciati con Git LFS ritorna solo il file puntatore testuale,
+ * non il contenuto reale, che va letto da media.githubusercontent.com usando
+ * l'hash completo del commit (risolto via l'API di GitHub, anch'essa CORS-friendly).
+ */
+export function parseGithubRawUrl(url: string): { owner: string; repo: string; ref: string; path: string } | null {
+  const m = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/raw\/([^/]+)\/(.+)$/);
+  return m ? { owner: m[1], repo: m[2], ref: m[3], path: m[4] } : null;
+}
 
-// Translation maps: English names (from Nominatim EN) → local GeoJSON names
-// Nominatim with Accept-Language:"en" returns English region names; GeoJSON uses local names.
+export function isGitLfsPointer(text: string): boolean {
+  return text.trimStart().startsWith("version https://git-lfs");
+}
+
+async function fetchGithubRawJson(url: string): Promise<any | null> {
+  const parsed = parseGithubRawUrl(url);
+  const directUrl = parsed
+    ? `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${parsed.ref}/${parsed.path}`
+    : url;
+  const r = await fetch(directUrl);
+  if (!r.ok) return null;
+  const text = await r.text();
+  if (!isGitLfsPointer(text)) return JSON.parse(text);
+  if (!parsed) return null;
+
+  // File tracciato con Git LFS: risolvi l'hash completo del commit e leggi
+  // il contenuto reale da media.githubusercontent.com.
+  const shaR = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}/commits/${parsed.ref}`);
+  if (!shaR.ok) return null;
+  const fullSha = (await shaR.json())?.sha;
+  if (!fullSha) return null;
+  const mediaUrl = `https://media.githubusercontent.com/media/${parsed.owner}/${parsed.repo}/${fullSha}/${parsed.path}`;
+  const mediaR = await fetch(mediaUrl);
+  if (!mediaR.ok) return null;
+  return await mediaR.json();
+}
+
+/**
+ * Suddivisioni di primo livello (regioni/stati/province) per praticamente
+ * ogni paese del mondo, via l'API pubblica e gratuita di geoBoundaries.org
+ * (nessuna chiave richiesta). Ogni feature ha "shapeName" (nome) e
+ * "shapeISO" (codice ISO 3166-2, es. "AT-9") — quest'ultimo permette di
+ * abbinare le regioni visitate senza dover tradurre i nomi paese per paese
+ * (vedi REGION_ALIASES sotto, usata solo come fallback per i viaggi
+ * salvati prima che venisse tracciato il codice ISO).
+ */
+async function fetchCountryRegions(countryCode2: string): Promise<any[] | null> {
+  const iso3 = ISO2_TO_ISO3[countryCode2?.toUpperCase()];
+  if (!iso3) return null;
+  try {
+    const metaUrl = `https://www.geoboundaries.org/api/current/gbOpen/${iso3}/ADM1/`;
+    const metaR = await fetch(metaUrl);
+    if (!metaR.ok) return null;
+    const meta = await metaR.json();
+    const geoUrl: string | undefined = meta?.simplifiedGeometryGeoJSON || meta?.gjDownloadURL;
+    if (!geoUrl) return null;
+    const geo = await fetchGithubRawJson(geoUrl);
+    const features = geo?.features;
+    return Array.isArray(features) && features.length > 0 ? features : null;
+  } catch {
+    return null;
+  }
+}
+
+// Fallback per i viaggi salvati prima che venisse tracciato il codice ISO
+// 3166-2 (region_details): traduce i nomi inglese (da Nominatim EN) nei nomi
+// locali usati dal GeoJSON. Con il codice ISO disponibile questo non serve
+// più: l'abbinamento per codice è indipendente dalla lingua.
 const REGION_ALIASES: Record<string, Record<string, string>> = {
   IT: {
     // English → Italian
@@ -165,29 +228,59 @@ function normalize(s: string): string {
 }
 
 /**
- * Returns true if the saved trip.region matches a GeoJSON feature name.
- * Strategy (in order):
- * 1. Exact match after normalize
- * 2. Alias lookup (EN→local) after normalize
- * 3. Substring containment after normalize
+ * Returns true if a visited region (name + eventuale codice ISO) matches un
+ * feature del GeoJSON. Il codice, quando disponibile su entrambi i lati, è
+ * indipendente dalla lingua e ha la priorità; altrimenti si ricade sul nome:
+ * 1. Match esatto per codice ISO 3166-2
+ * 2. Match esatto per nome dopo normalize
+ * 3. Alias lookup (EN→locale) dopo normalize — solo fallback per viaggi
+ *    salvati prima che il codice ISO venisse tracciato
+ * 4. Substring containment dopo normalize
  */
-function regionMatches(tripRegion: string, geoName: string, countryCode: string): boolean {
-  const t = normalize(tripRegion);
+function regionMatches(
+  visited: { name: string; code: string | null },
+  geoName: string,
+  geoCode: string | null,
+  countryCode: string
+): boolean {
+  if (visited.code && geoCode && visited.code.toUpperCase() === geoCode.toUpperCase()) return true;
+
+  const t = normalize(visited.name);
   const g = normalize(geoName);
 
-  // 1. Exact
   if (t === g) return true;
 
-  // 2. Alias
   const aliases = REGION_ALIASES[countryCode?.toUpperCase()] ?? {};
   const resolved = aliases[t];
   if (resolved && normalize(resolved) === g) return true;
 
-  // 3. Substring (both directions)
   if (t.length >= 4 && g.includes(t)) return true;
   if (g.length >= 4 && t.includes(g)) return true;
 
   return false;
+}
+
+/**
+ * Raccoglie le regioni visitate di un paese da tutti i viaggi, deduplicate.
+ * Usa region_details (nome+codice ISO) quando disponibile; per i viaggi
+ * salvati prima di quel campo, ricade sul parsing del vecchio campo region
+ * (stringa con nomi separati da virgola, nessun codice).
+ */
+function collectVisitedRegions(trips: Trip[]): { name: string; code: string | null }[] {
+  const seen = new Set<string>();
+  const out: { name: string; code: string | null }[] = [];
+  for (const t of trips) {
+    const entries = t.region_details && t.region_details.length > 0
+      ? t.region_details
+      : (t.region ? t.region.split(",").map(r => ({ name: r.trim(), code: null as string | null })).filter(r => r.name) : []);
+    for (const entry of entries) {
+      const key = entry.code ? `code:${entry.code.toUpperCase()}` : `name:${entry.name.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(entry);
+    }
+  }
+  return out;
 }
 
 export function CountryMapModal({ countryCode, countryName, trips, onClose }: Props) {
@@ -197,26 +290,16 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
   const [visitedRegions, setVisitedRegions] = useState<string[]>([]);
   const [totalRegions, setTotalRegions] = useState(0);
 
-  const source = GEOJSON_SOURCES[countryCode?.toUpperCase()];
-
-  // region may be a comma-separated string (multi-stop trips); split into individual entries
-  const visitedSet = new Set(
-    trips.flatMap(t =>
-      t.region ? t.region.split(",").map(r => r.trim()).filter(Boolean) : []
-    )
-  );
+  const visitedList = collectVisitedRegions(trips);
 
   useEffect(() => {
-    if (!source) { setLoading(false); setError(true); return; }
-
     const load = async () => {
       try {
-        let geo = geoCache[countryCode];
-        if (!geo) {
-          const r = await fetch(source.url);
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          geo = await r.json();
-          geoCache[countryCode] = geo;
+        let features = geoCache[countryCode];
+        if (!features) {
+          features = await fetchCountryRegions(countryCode);
+          if (!features) throw new Error("Nessuna suddivisione disponibile");
+          geoCache[countryCode] = features;
         }
 
         const canvas = canvasRef.current;
@@ -226,13 +309,13 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         const H = canvas.height;
         ctx.clearRect(0, 0, W, H);
 
-        const features = geo.features ?? [];
         const { project } = projectGeoJSON(features, W, H);
 
         const visited: string[] = [];
         features.forEach((f: any) => {
-          const geoName: string = f.properties?.[source.nameProp] ?? "";
-          const isVisited = [...visitedSet].some(v => regionMatches(v, geoName, countryCode));
+          const geoName: string = f.properties?.shapeName ?? "";
+          const geoCode: string | null = f.properties?.shapeISO ?? null;
+          const isVisited = visitedList.some(v => regionMatches(v, geoName, geoCode, countryCode));
           if (isVisited) visited.push(geoName);
 
           ctx.save();
@@ -254,7 +337,8 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
       }
     };
     load();
-  }, [countryCode, source]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countryCode]);
 
   const pct = totalRegions > 0 ? Math.round((visitedRegions.length / totalRegions) * 100) : 0;
 
@@ -304,9 +388,9 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
             <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>🗺️</div>
               <div>Mappa non disponibile per questo paese.</div>
-              {visitedSet.size > 0 && (
+              {visitedList.length > 0 && (
                 <div style={{ marginTop: 8, fontSize: 11 }}>
-                  Regioni visitate: {[...visitedSet].join(", ")}
+                  Regioni visitate: {visitedList.map(v => v.name).join(", ")}
                 </div>
               )}
             </div>

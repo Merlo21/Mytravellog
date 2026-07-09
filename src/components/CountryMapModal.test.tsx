@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor, configure } from "@testing-library/react";
-import { CountryMapModal, __clearGeoCache } from "./CountryMapModal";
+import { CountryMapModal, __clearGeoCache, parseGithubRawUrl, isGitLfsPointer } from "./CountryMapModal";
 import type { Trip } from "@/lib/storage";
 import React from "react";
 
@@ -10,11 +10,12 @@ configure({ asyncUtilTimeout: 5000 });
 beforeEach(() => __clearGeoCache());
 
 // ── GeoJSON fixture helpers ──────────────────────────────────────────────────
+// geoBoundaries usa sempre "shapeName" (nome) e "shapeISO" (codice ISO 3166-2).
 
-function makePolygon(name: string, nameProp = "reg_name") {
+function makePolygon(name: string, code?: string) {
   return {
     type: "Feature",
-    properties: { [nameProp]: name },
+    properties: { shapeName: name, shapeISO: code ?? null },
     geometry: {
       type: "Polygon",
       // Simple square around centre of Italy for projection
@@ -23,40 +24,34 @@ function makePolygon(name: string, nameProp = "reg_name") {
   };
 }
 
-function makeGeoJSON(features: any[]) {
-  return JSON.stringify({ type: "FeatureCollection", features });
-}
-
-// Minimal Italy GeoJSON with 5 regions
+// Minimal Italy: 5 regioni, con codici ISO 3166-2 reali
 const ITALY_FEATURES = [
-  makePolygon("Lazio"),
-  makePolygon("Toscana"),
-  makePolygon("Puglia"),
-  makePolygon("Sicilia"),
-  makePolygon("Sardegna"),
+  makePolygon("Lazio", "IT-62"),
+  makePolygon("Toscana", "IT-52"),
+  makePolygon("Puglia", "IT-75"),
+  makePolygon("Sicilia", "IT-82"),
+  makePolygon("Sardegna", "IT-88"),
 ];
-const ITALY_GEOJSON = makeGeoJSON(ITALY_FEATURES);
 
-// Le 9 regioni austriache nel loro nome tedesco (come nel GeoJSON reale).
-// L'Austria usa nameProp="name" (non "reg_name" come l'Italia, il default di makePolygon).
+// Le 9 regioni austriache nel loro nome tedesco (come nel dataset reale)
 const AUSTRIA_FEATURES = [
-  makePolygon("Wien", "name"),
-  makePolygon("Tirol", "name"),
-  makePolygon("Steiermark", "name"),
-  makePolygon("Oberösterreich", "name"),
-  makePolygon("Niederösterreich", "name"),
-  makePolygon("Kärnten", "name"),
-  makePolygon("Burgenland", "name"),
-  makePolygon("Salzburg", "name"),
-  makePolygon("Vorarlberg", "name"),
+  makePolygon("Wien", "AT-9"),
+  makePolygon("Tirol", "AT-7"),
+  makePolygon("Steiermark", "AT-6"),
+  makePolygon("Oberösterreich", "AT-4"),
+  makePolygon("Niederösterreich", "AT-3"),
+  makePolygon("Kärnten", "AT-2"),
+  makePolygon("Burgenland", "AT-1"),
+  makePolygon("Salzburg", "AT-5"),
+  makePolygon("Vorarlberg", "AT-8"),
 ];
-const AUSTRIA_GEOJSON = makeGeoJSON(AUSTRIA_FEATURES);
 
-function mockFetch(body: string, ok = true) {
-  global.fetch = vi.fn().mockResolvedValue({
-    ok,
-    json: async () => JSON.parse(body),
-  } as any);
+/** Simula le due chiamate di fetchCountryRegions: metadata geoBoundaries -> GeoJSON (testo, non LFS). */
+function mockGeoBoundaries(features: any[]) {
+  const body = JSON.stringify({ type: "FeatureCollection", features });
+  global.fetch = vi.fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ simplifiedGeometryGeoJSON: "https://fake/geo.json" }) })
+    .mockResolvedValueOnce({ ok: true, text: async () => body });
 }
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -91,6 +86,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     coldest_temp_c: null,
     coldest_city: null,
     region: null,
+    region_details: null,
     ...overrides,
   };
 }
@@ -115,7 +111,7 @@ describe("CountryMapModal — render base", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("mostra il nome del paese nell'header", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ countryName: "Italia" });
     expect(await screen.findByText("Italia")).toBeInTheDocument();
   });
@@ -129,29 +125,34 @@ describe("CountryMapModal — render base", () => {
 });
 
 describe("CountryMapModal — paese non supportato", () => {
-  it("mostra errore per paese senza GeoJSON source (es. DE)", () => {
-    renderModal({ countryCode: "DE", countryName: "Germania" });
-    expect(screen.getByText(/mappa non disponibile/i)).toBeInTheDocument();
+  afterEach(() => vi.restoreAllMocks());
+
+  it("mostra errore per un codice paese senza mapping ISO2→ISO3", async () => {
+    // "XX" non è un vero codice ISO 3166-1: fetchCountryRegions ritorna null
+    // senza nemmeno chiamare fetch.
+    renderModal({ countryCode: "XX", countryName: "Sconosciuto" });
+    await waitFor(() => expect(screen.getByText(/mappa non disponibile/i)).toBeInTheDocument());
   });
 
-  it("mostra errore per paese senza GeoJSON source (es. JP)", () => {
-    renderModal({ countryCode: "JP", countryName: "Giappone" });
-    expect(screen.getByText(/mappa non disponibile/i)).toBeInTheDocument();
+  it("mostra errore se geoBoundaries non ha suddivisioni per il paese (es. micro-stato)", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) } as any); // nessun gjDownloadURL
+    renderModal({ countryCode: "VA", countryName: "Vaticano" });
+    await waitFor(() => expect(screen.getByText(/mappa non disponibile/i)).toBeInTheDocument());
   });
 
-  it("mostra le regioni visitate nell'error state se ci sono", () => {
+  it("mostra le regioni visitate nell'error state se ci sono", async () => {
     renderModal({
-      countryCode: "DE",
+      countryCode: "XX",
       trips: [makeTrip({ region: "Bavaria" })],
     });
-    expect(screen.getByText(/Bavaria/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Bavaria/)).toBeInTheDocument());
   });
 });
 
 describe("CountryMapModal — fetch fallisce", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("mostra errore se fetch fallisce", async () => {
+  it("mostra errore se il fetch dei metadati fallisce", async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
     renderModal({ countryCode: "IT" });
     await waitFor(() =>
@@ -159,8 +160,10 @@ describe("CountryMapModal — fetch fallisce", () => {
     );
   });
 
-  it("mostra errore se fetch ritorna ok=false", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) } as any);
+  it("mostra errore se il fetch del GeoJSON ritorna ok=false", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ simplifiedGeometryGeoJSON: "https://fake/geo.json" }) })
+      .mockResolvedValueOnce({ ok: false, json: async () => ({}) });
     renderModal({ countryCode: "IT" });
     await waitFor(() =>
       expect(screen.getByText(/mappa non disponibile/i)).toBeInTheDocument()
@@ -172,21 +175,21 @@ describe("CountryMapModal — pct e regioni visitate", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("mostra 0% con trips senza region", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: null })] });
     await waitFor(() => expect(screen.getByText(/regioni? su 5/)).toBeInTheDocument());
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
 
   it("mostra 1 regione su 5 con region='Lazio'", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "Lazio" })] });
     await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
     expect(screen.getByText("20%")).toBeInTheDocument();
   });
 
   it("conta 2 regioni su 5 con due trip che hanno regioni diverse", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({
       trips: [
         makeTrip({ region: "Lazio" }),
@@ -198,7 +201,7 @@ describe("CountryMapModal — pct e regioni visitate", () => {
   });
 
   it("non duplica la stessa regione visitata due volte", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({
       trips: [
         makeTrip({ region: "Lazio" }),
@@ -210,55 +213,79 @@ describe("CountryMapModal — pct e regioni visitate", () => {
   });
 });
 
-describe("CountryMapModal — regionMatches (via render)", () => {
+describe("CountryMapModal — matching per codice ISO 3166-2 (region_details)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("abbina per codice anche se il nome salvato è in inglese", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({ trips: [makeTrip({ region: "Tuscany", region_details: [{ name: "Tuscany", code: "IT-52" }] })] });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+  });
+
+  it("il codice ha la priorità: nome non corrispondente ma codice giusto trova comunque la regione", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({ trips: [makeTrip({ region: "Nome qualsiasi", region_details: [{ name: "Nome qualsiasi", code: "IT-82" }] })] });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+  });
+
+  it("due region_details con lo stesso codice ma nomi diversi contano una sola volta", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({
+      trips: [makeTrip({
+        region: "Vienna, Wien",
+        region_details: [{ name: "Vienna", code: "IT-62" }, { name: "Wien", code: "IT-62" }],
+      })],
+    });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+  });
+});
+
+describe("CountryMapModal — regionMatches per nome (fallback senza codice, viaggi vecchi)", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("match esatto case-insensitive: 'lazio' trova 'Lazio'", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "lazio" })] });
     await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
   });
 
   it("alias EN→IT: 'Tuscany' trova 'Toscana'", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "Tuscany" })] });
     await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
   });
 
   it("alias EN→IT: 'Sicily' trova 'Sicilia'", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "Sicily" })] });
     await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
   });
 
   it("alias EN→IT: 'Apulia' trova 'Puglia'", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "Apulia" })] });
     await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
   });
 
-  it("substring match: 'Tosc' NON trova 'Toscana' (troppo corto, min 4 chars per substring)", async () => {
-    mockFetch(ITALY_GEOJSON);
-    // "Tosc" ha 4 chars → è il limite minimo, ma "toscana".includes("tosc") = true
+  it("substring match: 'Tosc' trova 'Toscana' (4 chars è il minimo)", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "Tosc" })] });
-    await waitFor(() => expect(screen.getByText(/regione? su 5/)).toBeInTheDocument());
-    // "Tosc" lunghezza 4 → incluso, quindi trova "Toscana"
-    expect(screen.getByText("1 regione su 5")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
   });
 
   it("regione non riconosciuta: 'XYZ' non trova nessuna regione", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "XYZ" })] });
     await waitFor(() => expect(screen.getByText(/regioni? su 5/)).toBeInTheDocument());
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
 });
 
-describe("CountryMapModal — alias EN→DE per l'Austria", () => {
+describe("CountryMapModal — alias EN→DE per l'Austria (fallback senza codice)", () => {
   afterEach(() => vi.restoreAllMocks());
 
   function renderAustria(region: string) {
-    mockFetch(AUSTRIA_GEOJSON);
+    mockGeoBoundaries(AUSTRIA_FEATURES);
     return renderModal({
       countryCode: "AT", countryName: "Austria",
       trips: [makeTrip({ region, country: "Austria", country_code: "AT" })],
@@ -296,7 +323,7 @@ describe("CountryMapModal — alias EN→DE per l'Austria", () => {
   });
 
   it("'Salzburg', 'Burgenland', 'Vorarlberg' (stesso nome in EN e DE) continuano a funzionare", async () => {
-    mockFetch(AUSTRIA_GEOJSON);
+    mockGeoBoundaries(AUSTRIA_FEATURES);
     renderModal({
       countryCode: "AT", countryName: "Austria",
       trips: [makeTrip({ region: "Salzburg, Burgenland, Vorarlberg", country: "Austria", country_code: "AT" })],
@@ -305,18 +332,18 @@ describe("CountryMapModal — alias EN→DE per l'Austria", () => {
   });
 });
 
-describe("CountryMapModal — visitedSet con regioni multiple (comma-separated)", () => {
+describe("CountryMapModal — regioni multiple (comma-separated, viaggi senza region_details)", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("esplode 'Lazio, Toscana' in due regioni separate", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "Lazio, Toscana" })] });
     await waitFor(() => expect(screen.getByText("2 regioni su 5")).toBeInTheDocument());
     expect(screen.getByText("40%")).toBeInTheDocument();
   });
 
   it("combina regioni da trip diversi e deduplica", async () => {
-    mockFetch(ITALY_GEOJSON);
+    mockGeoBoundaries(ITALY_FEATURES);
     renderModal({
       trips: [
         makeTrip({ region: "Lazio, Toscana" }),
@@ -325,5 +352,64 @@ describe("CountryMapModal — visitedSet con regioni multiple (comma-separated)"
     });
     // Lazio + Toscana + Puglia = 3 uniche
     await waitFor(() => expect(screen.getByText("3 regioni su 5")).toBeInTheDocument());
+  });
+});
+
+describe("parseGithubRawUrl", () => {
+  it("estrae owner/repo/ref/path da un URL github.com/.../raw/...", () => {
+    const url = "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/DEU/ADM1/geoBoundaries-DEU-ADM1_simplified.geojson";
+    expect(parseGithubRawUrl(url)).toEqual({
+      owner: "wmgeolab", repo: "geoBoundaries", ref: "9469f09",
+      path: "releaseData/gbOpen/DEU/ADM1/geoBoundaries-DEU-ADM1_simplified.geojson",
+    });
+  });
+
+  it("ritorna null per un URL che non è nel formato github.com/.../raw/...", () => {
+    expect(parseGithubRawUrl("https://raw.githubusercontent.com/openpolis/geojson-italy/master/x.geojson")).toBeNull();
+    expect(parseGithubRawUrl("https://example.com/data.geojson")).toBeNull();
+  });
+});
+
+describe("isGitLfsPointer", () => {
+  it("riconosce un puntatore Git LFS", () => {
+    const pointer = "version https://git-lfs.github.com/spec/v1\noid sha256:abc123\nsize 1209873\n";
+    expect(isGitLfsPointer(pointer)).toBe(true);
+  });
+
+  it("non scambia un GeoJSON reale per un puntatore LFS", () => {
+    expect(isGitLfsPointer('{"type":"FeatureCollection","features":[]}')).toBe(false);
+  });
+});
+
+describe("CountryMapModal — file tracciati con Git LFS (paesi con confini più grandi/complessi)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("risolve il contenuto reale da media.githubusercontent.com quando raw.githubusercontent.com ritorna solo il puntatore LFS", async () => {
+    const lfsPointer = "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 123\n";
+    const realBody = JSON.stringify({ type: "FeatureCollection", features: ITALY_FEATURES });
+    global.fetch = vi.fn()
+      // 1. metadata geoBoundaries
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ gjDownloadURL: "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/DEU/ADM1/geoBoundaries-DEU-ADM1.geojson" }) })
+      // 2. raw.githubusercontent.com -> solo il puntatore LFS
+      .mockResolvedValueOnce({ ok: true, text: async () => lfsPointer })
+      // 3. api.github.com risolve l'hash completo del commit
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ sha: "9469f09592ced973a3448cf66b6100b741b64c0d" }) })
+      // 4. media.githubusercontent.com -> contenuto reale
+      .mockResolvedValueOnce({ ok: true, json: async () => JSON.parse(realBody) });
+
+    renderModal({ countryCode: "DE", countryName: "Germania" });
+    await waitFor(() => expect(screen.getByText(/regioni? su 5/)).toBeInTheDocument());
+    expect(fetch).toHaveBeenCalledTimes(4);
+    const mediaCall = (fetch as any).mock.calls[3][0];
+    expect(mediaCall).toContain("media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09592ced973a3448cf66b6100b741b64c0d/");
+  });
+
+  it("mostra errore se anche la risoluzione dell'hash completo fallisce", async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ gjDownloadURL: "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/x.geojson" }) })
+      .mockResolvedValueOnce({ ok: true, text: async () => "version https://git-lfs.github.com/spec/v1\n" })
+      .mockResolvedValueOnce({ ok: false, json: async () => ({}) }); // api.github.com fallisce
+    renderModal({ countryCode: "DE", countryName: "Germania" });
+    await waitFor(() => expect(screen.getByText(/mappa non disponibile/i)).toBeInTheDocument());
   });
 });

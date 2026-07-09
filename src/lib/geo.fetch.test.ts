@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute } from "./geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions } from "./geo";
 
 const okJson = (data: unknown) =>
   Promise.resolve({ ok: true, json: () => Promise.resolve(data) } as Response);
@@ -98,24 +98,62 @@ describe("fetchRegion", () => {
   beforeEach(() => { vi.stubGlobal("fetch", vi.fn()); });
   afterEach(() => { vi.unstubAllGlobals(); });
 
-  it("preferisce state, poi region, poi county", async () => {
-    (fetch as any).mockReturnValue(okJson({ address: { state: "Lazio", region: "R", county: "C" } }));
-    expect(await fetchRegion(0, 0)).toBe("Lazio");
+  it("preferisce state, poi region, poi county; include il codice ISO 3166-2", async () => {
+    (fetch as any).mockReturnValue(okJson({ address: { state: "Lazio", region: "R", county: "C", "ISO3166-2-lvl4": "IT-62" } }));
+    expect(await fetchRegion(0, 0)).toEqual({ name: "Lazio", code: "IT-62" });
   });
 
   it("fallback a region se manca state", async () => {
     (fetch as any).mockReturnValue(okJson({ address: { region: "R", county: "C" } }));
-    expect(await fetchRegion(0, 0)).toBe("R");
+    expect(await fetchRegion(0, 0)).toEqual({ name: "R", code: null });
   });
 
-  it("ritorna null se nessun campo utile", async () => {
+  it("ritorna name e code null se nessun campo utile", async () => {
     (fetch as any).mockReturnValue(okJson({ address: {} }));
-    expect(await fetchRegion(0, 0)).toBeNull();
+    expect(await fetchRegion(0, 0)).toEqual({ name: null, code: null });
   });
 
-  it("ritorna null su errore", async () => {
+  it("ritorna name e code null su errore", async () => {
     (fetch as any).mockRejectedValue(new Error("net"));
-    expect(await fetchRegion(0, 0)).toBeNull();
+    expect(await fetchRegion(0, 0)).toEqual({ name: null, code: null });
+  });
+});
+
+describe("mergeRegions", () => {
+  it("ritorna [] con lista vuota", () => {
+    expect(mergeRegions([])).toEqual([]);
+  });
+
+  it("scarta le entry senza nome e senza codice", () => {
+    expect(mergeRegions([{ name: null, code: null }])).toEqual([]);
+  });
+
+  it("deduplica per codice ISO quando presente, anche con nomi diversi", () => {
+    const out = mergeRegions([
+      { name: "Vienna", code: "AT-9" },
+      { name: "Wien", code: "AT-9" }, // stessa regione, nome diverso -> stesso codice
+    ]);
+    expect(out).toEqual([{ name: "Vienna", code: "AT-9" }]);
+  });
+
+  it("deduplica per nome normalizzato quando il codice manca", () => {
+    const out = mergeRegions([
+      { name: "Lazio", code: null },
+      { name: "lazio", code: null },
+    ]);
+    expect(out).toHaveLength(1);
+  });
+
+  it("mantiene distinte due regioni diverse", () => {
+    const out = mergeRegions([
+      { name: "Vienna", code: "AT-9" },
+      { name: "Salzburg", code: "AT-5" },
+    ]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("usa il codice come nome se il nome manca", () => {
+    expect(mergeRegions([{ name: null, code: "AT-9" }])).toEqual([{ name: "AT-9", code: "AT-9" }]);
   });
 });
 

@@ -36,6 +36,7 @@ function baseTrip(mode: Mode): Omit<Trip, "id" | "created_at"> {
     coldest_temp_c: 22,
     coldest_city: "Roma",
     region: "Lazio",
+    region_details: [{ name: "Lazio", code: "IT-62" }],
   };
 }
 

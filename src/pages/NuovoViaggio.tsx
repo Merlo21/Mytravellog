@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
-import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
@@ -558,13 +558,13 @@ const NuovoViaggio = () => {
     ]);
     const routeGeometries = await routeGeometriesPromise;
     const n = allStopsWithCoords.length;
-    const stopRegions = rest.slice(0, n) as (string | null)[];
+    const stopRegions = rest.slice(0, n) as { name: string | null; code: string | null }[];
     const stopTemps = rest.slice(n, 2 * n) as (number | null)[];
     const stopAlts = rest.slice(2 * n, 3 * n) as (number | null)[];
     // Un viaggio multi-tappa può attraversare più regioni: raccogliamo quelle di
-    // ogni tappa (deduplicate), non solo quella della destinazione finale.
-    const uniqueRegions = [...new Set(stopRegions.filter((r): r is string => !!r))];
-    const region = uniqueRegions.length > 0 ? uniqueRegions.join(", ") : null;
+    // ogni tappa (deduplicate per codice ISO, non solo quella della destinazione).
+    const regionDetails = mergeRegions(stopRegions);
+    const region = regionDetails.length > 0 ? regionDetails.map(r => r.name).join(", ") : null;
     const alt = stopAlts[stopAlts.length - 1] ?? null; // altitudine della destinazione (per-trip badge)
     const temp = stopTemps[stopTemps.length - 1] ?? null;
     const tempsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, temp: stopTemps[i] as number | null })).filter(x => x.temp != null);
@@ -582,7 +582,7 @@ const NuovoViaggio = () => {
       latitude: dest.lat, longitude: dest.lon,
       route_geometry: routeGeometries[routeGeometries.length - 1] ?? null,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null, region_details: regionDetails.length > 0 ? regionDetails : null,
       country_code: dest.country_code, rating: rating || null,
     });
     toast.success("Viaggio salvato!");
