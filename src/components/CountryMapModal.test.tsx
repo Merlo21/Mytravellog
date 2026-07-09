@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor, configure } from "@testing-library/react";
-import { CountryMapModal, __clearGeoCache, parseGithubRawUrl, isGitLfsPointer } from "./CountryMapModal";
+import { CountryMapModal, __clearGeoCache, __clearMemoryCache, parseGithubRawUrl, isGitLfsPointer } from "./CountryMapModal";
 import type { Trip } from "@/lib/storage";
 import React from "react";
 
@@ -450,5 +450,47 @@ describe("CountryMapModal — file tracciati con Git LFS (paesi con confini più
       .mockResolvedValueOnce({ ok: false, json: async () => ({}) }); // api.github.com fallisce
     renderModal({ countryCode: "DE", countryName: "Germania" });
     await waitFor(() => expect(screen.getByText(/mappa non disponibile/i)).toBeInTheDocument());
+  });
+});
+
+describe("CountryMapModal — cache persistita in localStorage tra le sessioni", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("dopo un fetch riuscito, una nuova sessione (cache in memoria vuota) non richiama la rete", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
+    const first = renderModal({ trips: [makeTrip({ region: "Lazio" })] });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+    expect(fetch).toHaveBeenCalledTimes(2);
+    first.unmount();
+
+    // Simula un nuovo caricamento di pagina: la cache in memoria si azzera,
+    // ma i dati restano in localStorage dalla sessione precedente.
+    __clearMemoryCache();
+    global.fetch = vi.fn().mockRejectedValue(new Error("non dovrebbe essere chiamato"));
+
+    renderModal({ trips: [makeTrip({ region: "Toscana" })] });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("__clearGeoCache azzera anche i dati persistiti, non solo la cache in memoria", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
+    const first = renderModal({ trips: [makeTrip({ region: "Lazio" })] });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+    first.unmount();
+
+    __clearGeoCache();
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({ trips: [makeTrip({ region: "Lazio" })] });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("una cache localStorage corrotta viene ignorata e si ricade sul fetch di rete", async () => {
+    localStorage.setItem("geoBoundariesCache:v1:IT", "{non è json valido");
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({ trips: [makeTrip({ region: "Lazio" })] });
+    await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

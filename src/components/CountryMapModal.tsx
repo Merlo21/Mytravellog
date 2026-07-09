@@ -154,11 +154,50 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
   },
 };
 
-// Cache loaded GeoJSON in memory
+// Cache in memoria (per la sessione) + localStorage (tra le sessioni): i
+// confini di un paese non cambiano, quindi non serve una scadenza. Evita di
+// rifare fetch a geoBoundaries/GitHub ad ogni apertura del modal — l'API di
+// GitHub usata per risolvere i file Git LFS (fetchGithubRawJson) è limitata a
+// 60 richieste/ora senza autenticazione, quindi visitando molte mappe di
+// paesi "pesanti" nella stessa sessione si rischia di esaurirla e vedere
+// "Mappa non disponibile" per un paese in realtà supportato.
 const geoCache: Record<string, any> = {};
+const GEO_LOCALSTORAGE_PREFIX = "geoBoundariesCache:v1:";
 
-/** Test-only: reset the module-level GeoJSON cache between tests. */
+function readPersistedFeatures(countryCode: string): any[] | null {
+  try {
+    const raw = localStorage.getItem(GEO_LOCALSTORAGE_PREFIX + countryCode);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedFeatures(countryCode: string, features: any[]) {
+  try {
+    localStorage.setItem(GEO_LOCALSTORAGE_PREFIX + countryCode, JSON.stringify(features));
+  } catch {
+    // localStorage piena o non disponibile (es. modalità privata): la cache
+    // in-memory resta comunque valida per la sessione corrente.
+  }
+}
+
+/** Test-only: reset la cache del GeoJSON (in memoria e in localStorage) tra i test. */
 export function __clearGeoCache() {
+  __clearMemoryCache();
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith(GEO_LOCALSTORAGE_PREFIX)) localStorage.removeItem(k);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Test-only: reset solo la cache in memoria, per simulare un nuovo caricamento di pagina con localStorage già popolato. */
+export function __clearMemoryCache() {
   for (const k of Object.keys(geoCache)) delete geoCache[k];
 }
 
@@ -309,9 +348,14 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
       try {
         let features = geoCache[countryCode];
         if (!features) {
+          features = readPersistedFeatures(countryCode);
+          if (features) geoCache[countryCode] = features;
+        }
+        if (!features) {
           features = await fetchCountryRegions(countryCode);
           if (!features) throw new Error("Nessuna suddivisione disponibile");
           geoCache[countryCode] = features;
+          writePersistedFeatures(countryCode, features);
         }
 
         const canvas = canvasRef.current;
