@@ -47,6 +47,8 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     distance_from_home_km: null,
     max_distance_from_home_km: null,
     max_distance_city: null,
+    max_altitude_m: null,
+    max_altitude_city: null,
     hottest_temp_c: null,
     hottest_city: null,
     coldest_temp_c: null,
@@ -129,6 +131,57 @@ describe("StatsSection — tripsByCountry e countries", () => {
     renderStats(trips);
     // Badge con "3" visite
     expect(screen.getByText("3")).toBeInTheDocument();
+  });
+});
+
+describe("StatsSection — paesi visitati tramite waypoint (tappe intermedie)", () => {
+  it("conta anche i paesi delle tappe, non solo la destinazione finale", () => {
+    const trips = [makeTrip({
+      country: "Argentina", country_code: "AR",
+      waypoints: [
+        { city: "Il Cairo", country: "Egitto", country_code: "EG", transport_mode: "car" },
+        { city: "Tokyo", country: "Giappone", country_code: "JP", transport_mode: "walk" },
+      ],
+    })];
+    renderStats(trips);
+    // 3 paesi unici (Argentina + Egitto + Giappone) da UN SOLO viaggio
+    expect(screen.getByText("Argentina")).toBeInTheDocument();
+    expect(screen.getByText("Egitto")).toBeInTheDocument();
+    expect(screen.getByText("Giappone")).toBeInTheDocument();
+  });
+
+  it("non duplica un paese toccato sia da un waypoint che dalla destinazione nello stesso viaggio", () => {
+    const trips = [makeTrip({
+      country: "Italia", country_code: "IT",
+      waypoints: [{ city: "Milano", country: "Italia", country_code: "IT", transport_mode: "train" }],
+    })];
+    renderStats(trips);
+    // 1 solo pill "Italia" nell'elenco, non due
+    const italiaButtons = screen.getAllByRole("button").filter(b => b.textContent?.includes("Italia"));
+    expect(italiaButtons).toHaveLength(1);
+  });
+
+  it("un secondo viaggio nello stesso paese di un waypoint incrementa le visite", () => {
+    const trips = [
+      makeTrip({
+        country: "Argentina", country_code: "AR",
+        waypoints: [{ city: "Il Cairo", country: "Egitto", country_code: "EG", transport_mode: "car" }],
+      }),
+      makeTrip({ country: "Egitto", country_code: "EG" }), // secondo viaggio, stavolta destinazione diretta
+    ];
+    renderStats(trips);
+    // Egitto ha 2 visite totali (1 come waypoint + 1 come destinazione)
+    const egittoButton = screen.getByText("Egitto").closest("button");
+    expect(egittoButton?.textContent).toContain("2");
+  });
+
+  it("fallback su country_code assente per un waypoint di un viaggio salvato prima del fix", () => {
+    const trips = [makeTrip({
+      country: "Argentina", country_code: "AR",
+      waypoints: [{ city: "Il Cairo", country: "Egitto", transport_mode: "car" }], // niente country_code
+    })];
+    renderStats(trips);
+    expect(screen.getByText("Egitto")).toBeInTheDocument();
   });
 });
 

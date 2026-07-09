@@ -38,6 +38,8 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     distance_from_home_km: null,
     max_distance_from_home_km: null,
     max_distance_city: null,
+    max_altitude_m: null,
+    max_altitude_city: null,
     hottest_temp_c: null,
     hottest_city: null,
     coldest_temp_c: null,
@@ -79,6 +81,21 @@ describe("TravelHighlights — highest (altitudine)", () => {
     ];
     renderHighlights(trips);
     expect(screen.getAllByText("Everest").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("preferisce max_altitude_m (tappa più alta) su altitude_m (solo destinazione)", () => {
+    // La destinazione è a 100m, ma una tappa intermedia ha raggiunto 3000m
+    const trips = [makeTrip({ altitude_m: 100, max_altitude_m: 3000, max_altitude_city: "Passo Alpino", city: "Destinazione" })];
+    renderHighlights(trips);
+    expect(screen.getByText("3000 m")).toBeInTheDocument();
+    expect(screen.getAllByText("Passo Alpino").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("usa altitude_m se max_altitude_m è null (viaggi salvati prima del fix)", () => {
+    const trips = [makeTrip({ altitude_m: 750, max_altitude_m: null, city: "Destinazione" })];
+    renderHighlights(trips);
+    expect(screen.getByText("750 m")).toBeInTheDocument();
+    expect(screen.getAllByText("Destinazione").length).toBeGreaterThanOrEqual(1);
   });
 });
 

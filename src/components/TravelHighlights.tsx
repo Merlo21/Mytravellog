@@ -54,7 +54,9 @@ export function TravelHighlights({ trips }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
 
   const highest = useMemo(
-    () => trips.filter(t => t.altitude_m != null).sort((a, b) => (b.altitude_m! - a.altitude_m!))[0],
+    () => trips
+      .filter(t => (t.max_altitude_m ?? t.altitude_m) != null)
+      .sort((a, b) => (b.max_altitude_m ?? b.altitude_m!) - (a.max_altitude_m ?? a.altitude_m!))[0],
     [trips]
   );
   const farthest = useMemo(
@@ -102,7 +104,7 @@ export function TravelHighlights({ trips }: Props) {
 
   type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType; angle: number };
   const hlItems: HlItem[] = [
-    { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.altitude_m, distanceUnit) : "—",      sub: highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain,    angle:-90 },
+    { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain,    angle:-90 },
     { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2, angle:-18 },
     { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun,         angle:54  },
     { label:"Giorni in viaggio",    value: String(totalDays), sub: trips.length > 0 ? ("in " + trips.length + (trips.length === 1 ? " viaggio" : " viaggi")) : undefined, color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  Icon:CalendarDays, angle:126 },
@@ -116,7 +118,7 @@ export function TravelHighlights({ trips }: Props) {
       {(() => {
         type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType };
         const items: HlItem[] = [
-          { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.altitude_m, distanceUnit) : "—",      sub: highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain    },
+          { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain    },
           { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2 },
           { label:"Giorni in viaggio",    value: String(totalDays), sub: trips.length > 0 ? ("in " + trips.length + (trips.length === 1 ? " viaggio" : " viaggi")) : undefined, color:"#fbbf24", bg:"rgba(251,191,36,0.12)", Icon:CalendarDays },
           { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun      },

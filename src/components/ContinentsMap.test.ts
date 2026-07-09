@@ -1,5 +1,36 @@
 import { describe, it, expect } from "vitest";
-import { splitRingAtAntimeridian, deriveCountryId } from "./ContinentsMap";
+import { splitRingAtAntimeridian, deriveCountryId, allVisitedPoints } from "./ContinentsMap";
+import type { Trip } from "@/lib/storage";
+
+describe("allVisitedPoints", () => {
+  it("include la destinazione finale del viaggio", () => {
+    const trip = { latitude: 41.9, longitude: 12.5, waypoints: [] } as unknown as Trip;
+    expect(allVisitedPoints([trip])).toEqual([{ lat: 41.9, lon: 12.5 }]);
+  });
+
+  it("include anche ogni tappa (waypoint) intermedia, non solo la destinazione", () => {
+    const trip = {
+      latitude: -34.6, longitude: -58.4, // Buenos Aires (destinazione)
+      waypoints: [
+        { city: "Il Cairo", country: "Egitto", transport_mode: "car", lat: 30.06, lon: 31.25 },
+        { city: "Tokyo", country: "Giappone", transport_mode: "walk", lat: 35.68, lon: 139.69 },
+      ],
+    } as unknown as Trip;
+    const points = allVisitedPoints([trip]);
+    expect(points).toHaveLength(3);
+    expect(points).toContainEqual({ lat: 30.06, lon: 31.25 });
+    expect(points).toContainEqual({ lat: 35.68, lon: 139.69 });
+    expect(points).toContainEqual({ lat: -34.6, lon: -58.4 });
+  });
+
+  it("salta i waypoint senza coordinate (viaggi salvati prima che le tappe avessero lat/lon)", () => {
+    const trip = {
+      latitude: 41.9, longitude: 12.5,
+      waypoints: [{ city: "Sconosciuta", country: "?", transport_mode: "car" }],
+    } as unknown as Trip;
+    expect(allVisitedPoints([trip])).toEqual([{ lat: 41.9, lon: 12.5 }]);
+  });
+});
 
 describe("deriveCountryId", () => {
   it("usa l'id numerico se presente", () => {

@@ -43,6 +43,7 @@ describe("Stats page", () => {
       home_latitude: null, home_longitude: null, home_label: null,
       temperature_c: null, altitude_m: null, distance_from_home_km: null,
       max_distance_from_home_km: null, max_distance_city: null,
+      max_altitude_m: null, max_altitude_city: null,
       hottest_temp_c: null, hottest_city: null, coldest_temp_c: null,
       coldest_city: null, region: null,
     });

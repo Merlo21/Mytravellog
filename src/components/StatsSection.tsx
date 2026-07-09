@@ -20,28 +20,46 @@ export function StatsSection({ trips }: Props) {
   const [showAll, setShowAll] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
+  // Ogni viaggio "visita" non solo la destinazione finale ma anche ogni tappa
+  // intermedia (waypoint): ha una data, un mezzo di trasporto e coordinate
+  // proprie, quindi conta come paese visitato.
+  const countriesTouchedByTrip = useMemo(() => {
+    return trips.map((t) => {
+      const seen = new Map<string, { key: string; name: string; code?: string }>();
+      const add = (name: string, code?: string) => {
+        const key = code || name;
+        if (!seen.has(key)) seen.set(key, { key, name, code });
+      };
+      add(t.country, t.country_code);
+      for (const w of t.waypoints ?? []) add(w.country, w.country_code);
+      return { trip: t, countries: Array.from(seen.values()) };
+    });
+  }, [trips]);
+
   const tripsByCountry = useMemo(() => {
     const map = new Map<string, LocalTrip[]>();
-    for (const t of trips) {
-      const key = t.country_code || t.country;
-      const arr = map.get(key) ?? [];
-      arr.push(t);
-      map.set(key, arr);
+    for (const { trip: t, countries: cs } of countriesTouchedByTrip) {
+      for (const c of cs) {
+        const arr = map.get(c.key) ?? [];
+        arr.push(t);
+        map.set(c.key, arr);
+      }
     }
     return map;
-  }, [trips]);
+  }, [countriesTouchedByTrip]);
 
 
   const countries = useMemo(() => {
     const map = new Map<string, { key: string; name: string; code?: string; visits: number }>();
-    for (const t of trips) {
-      const key = t.country_code || t.country;
-      const existing = map.get(key);
-      if (existing) existing.visits += 1;
-      else map.set(key, { key, name: t.country, code: t.country_code, visits: 1 });
+    for (const { countries: cs } of countriesTouchedByTrip) {
+      for (const c of cs) {
+        const existing = map.get(c.key);
+        if (existing) existing.visits += 1;
+        else map.set(c.key, { ...c, visits: 1 });
+      }
     }
     return Array.from(map.values()).sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name, "it"));
-  }, [trips]);
+  }, [countriesTouchedByTrip]);
 
   const selectedCountry = selectedKey ? countries.find((c) => c.key === selectedKey) ?? null : null;
   const selectedTrips = selectedKey ? (tripsByCountry.get(selectedKey) ?? []).slice().sort((a, b) => b.trip_date.localeCompare(a.trip_date)) : [];

@@ -9,7 +9,7 @@ export type Trip = {
   rating: number | null; // 1-5 stelle
   notes: string | null;
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | null;
-  waypoints: { city: string; country: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk"; lat?: number; lon?: number }[];
+  waypoints: { city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk"; lat?: number; lon?: number }[];
   latitude: number;
   longitude: number;
   home_latitude: number | null;
@@ -17,6 +17,8 @@ export type Trip = {
   home_label: string | null;
   temperature_c: number | null;
   altitude_m: number | null;
+  max_altitude_m: number | null; // altitudine massima tra tutte le tappe (non solo la destinazione)
+  max_altitude_city: string | null; // nome della città più alta
   distance_from_home_km: number | null; // somma di tutti i segmenti (km totali percorsi)
   max_distance_from_home_km: number | null; // distanza massima raggiunta dalla città di residenza (per "più lontano")
   max_distance_city: string | null; // nome della città più lontana

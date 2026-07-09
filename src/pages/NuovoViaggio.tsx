@@ -537,25 +537,31 @@ const NuovoViaggio = () => {
       ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ city: w.city, lat: w.lat, lon: w.lon })),
       { city: dest.city, lat: dest.lat, lon: dest.lon },
     ];
-    const [alt, region, ...stopTemps] = await Promise.all([
-      fetchElevation(dest.lat, dest.lon),
+    const [region, ...rest] = await Promise.all([
       fetchRegion(dest.lat, dest.lon),
       ...allStopsWithCoords.map(s => fetchTemperature(s.lat, s.lon, dateStart)),
+      ...allStopsWithCoords.map(s => fetchElevation(s.lat, s.lon)),
     ]);
+    const n = allStopsWithCoords.length;
+    const stopTemps = rest.slice(0, n);
+    const stopAlts = rest.slice(n, 2 * n);
+    const alt = stopAlts[stopAlts.length - 1] ?? null; // altitudine della destinazione (per-trip badge)
     const temp = stopTemps[stopTemps.length - 1] ?? null;
     const tempsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, temp: stopTemps[i] as number | null })).filter(x => x.temp != null);
     const hottestStop = tempsWithCity.length ? tempsWithCity.reduce((a, b) => (b.temp! > a.temp! ? b : a)) : null;
     const coldestStop = tempsWithCity.length ? tempsWithCity.reduce((a, b) => (b.temp! < a.temp! ? b : a)) : null;
+    const altsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, alt: stopAlts[i] as number | null })).filter(x => x.alt != null);
+    const highestStop = altsWithCity.length ? altsWithCity.reduce((a, b) => (b.alt! > a.alt! ? b : a)) : null;
     addTrip({
       title: title.trim() || dest.city,
       country: dest.country, city: dest.city,
       trip_date: dateStart, date_end: dateEnd || null,
       notes: notes.trim() || null,
       transport_mode: dest.transport_mode,
-      waypoints: waypoints.slice(0, -1).map(w => ({ city: w.city, country: w.country, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon })),
+      waypoints: waypoints.slice(0, -1).map(w => ({ city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon })),
       latitude: dest.lat, longitude: dest.lon,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null,
       country_code: dest.country_code, rating: rating || null,
     });
     toast.success("Viaggio salvato!");

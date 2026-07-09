@@ -28,6 +28,8 @@ function baseTrip(mode: Mode): Omit<Trip, "id" | "created_at"> {
     distance_from_home_km: 480,
     max_distance_from_home_km: 480,
     max_distance_city: "Roma",
+    max_altitude_m: 20,
+    max_altitude_city: "Roma",
     hottest_temp_c: 22,
     hottest_city: "Roma",
     coldest_temp_c: 22,

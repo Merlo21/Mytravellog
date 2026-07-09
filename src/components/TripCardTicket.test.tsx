@@ -48,6 +48,8 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     distance_from_home_km: null,
     max_distance_from_home_km: null,
     max_distance_city: null,
+    max_altitude_m: null,
+    max_altitude_city: null,
     hottest_temp_c: null,
     hottest_city: null,
     coldest_temp_c: null,

@@ -11,6 +11,22 @@ const CONTINENTS: Continent[] = [
   "Africa", "Antartide", "Asia", "Europa", "Nord America", "Oceania", "Sud America",
 ];
 
+/**
+ * Un viaggio non tocca solo la destinazione finale: ogni waypoint intermedio
+ * ha coordinate proprie ed è una tappa effettivamente visitata (con data e
+ * mezzo di trasporto). Le raccogliamo tutte per il conteggio di paesi/continenti.
+ */
+export function allVisitedPoints(trips: LocalTrip[]): { lat: number; lon: number }[] {
+  const points: { lat: number; lon: number }[] = [];
+  for (const t of trips) {
+    points.push({ lat: t.latitude, lon: t.longitude });
+    for (const w of t.waypoints ?? []) {
+      if (w.lat != null && w.lon != null) points.push({ lat: w.lat, lon: w.lon });
+    }
+  }
+  return points;
+}
+
 function classifyContinent(lat: number, lon: number): Continent | null {
   if (lat < -60) return "Antartide";
   // Europe
@@ -88,28 +104,32 @@ export function ContinentsMap({ trips }: Props) {
     return () => { cancelled = true; };
   }, []);
 
+  // Ogni tappa (waypoint) attraversata conta come "visitata", non solo la
+  // destinazione finale del viaggio.
+  const visitedPoints = useMemo(() => allVisitedPoints(trips), [trips]);
+
   const visitedContinents = useMemo(() => {
     const set = new Set<Continent>();
-    for (const t of trips) {
-      const c = classifyContinent(t.latitude, t.longitude);
+    for (const p of visitedPoints) {
+      const c = classifyContinent(p.lat, p.lon);
       if (c) set.add(c);
     }
     return set;
-  }, [trips]);
+  }, [visitedPoints]);
 
   const visitedCountryIds = useMemo(() => {
     const set = new Set<string>();
     if (!countries.length) return set;
-    for (const t of trips) {
+    for (const p of visitedPoints) {
       for (const c of countries) {
-        if (pointInCountry(t.longitude, t.latitude, c.polygons)) {
+        if (pointInCountry(p.lon, p.lat, c.polygons)) {
           set.add(c.id);
           break;
         }
       }
     }
     return set;
-  }, [trips, countries]);
+  }, [visitedPoints, countries]);
 
   // Detect countries whose polygons cross the antimeridian and capture the
   // (projected) split points so we can highlight them in debug mode.
