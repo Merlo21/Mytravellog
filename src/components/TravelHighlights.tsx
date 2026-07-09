@@ -188,25 +188,31 @@ export function TravelHighlights({ trips }: Props) {
           </div>
         </div>
 
-        {/* 5 transport cards */}
+        {/* 5 transport cards — i mezzi non usati (0 km) sono attenuati per far
+            risaltare solo quelli effettivamente usati nei viaggi. */}
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-4">
           {([
-            { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
-            { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
-            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#639922", bg:"rgba(99,153,34,0.12)",   border:"rgba(99,153,34,0.3)",   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
-            { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
-            { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
-          ] as const).map(({ icon, color, bg, border, val, label }) => (
-            <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform" style={{background:bg, borderColor:border}}>
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
-                <span style={{color}}>{icon}</span>
+            { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  km: byPlane, val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
+            { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  km: byTrain, val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
+            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#639922", bg:"rgba(99,153,34,0.12)",   border:"rgba(99,153,34,0.3)",   km: byCar,   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
+            { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   km: byShip,  val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
+            { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   km: byWalk,  val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
+          ] as const).map(({ icon, color, bg, border, km, val, label }) => {
+            const used = km > 0;
+            return (
+              <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
+                style={used ? {background:bg, borderColor:border} : {background:"rgba(255,255,255,0.02)", borderColor:"rgba(255,255,255,0.06)"}}>
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
+                  <span style={{color: used ? color : "rgba(255,255,255,0.2)"}}>{icon}</span>
+                </div>
+                <div>
+                  <div className="text-lg font-extrabold font-mono leading-none" style={{color: used ? color : "rgba(255,255,255,0.25)"}}>{val}</div>
+                  <div className={`text-[11px] mt-1 ${used ? "text-muted-foreground" : ""}`}
+                    style={used ? undefined : {color:"rgba(255,255,255,0.2)"}}>{label}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-lg font-extrabold font-mono leading-none" style={{color}}>{val}</div>
-                <div className="text-[11px] text-muted-foreground mt-1">{label}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Proportional bar */}
