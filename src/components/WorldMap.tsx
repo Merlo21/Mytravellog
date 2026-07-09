@@ -210,10 +210,13 @@ export function WorldMap({
       };
 
       map.on("load", () => {
-        // Hide all text/symbol layers below zoom 2 so globe is clean when far
+        // Hide all text/symbol layers below zoom 3 so il globo è pulito da lontano
+        // (a zoom 1.5-2 default, l'area Europa/Medio Oriente ha così tante etichette
+        // di paesi piccoli e vicini tra loro da diventare rumore visivo, specialmente
+        // con la rotazione automatica che porta quella regione in vista da sola).
         map.getStyle().layers?.forEach((layer: any) => {
           if (layer.type === "symbol") {
-            map.setLayerZoomRange(layer.id, 2, 24);
+            map.setLayerZoomRange(layer.id, 3, 24);
           }
         });
 
