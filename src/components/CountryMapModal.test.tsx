@@ -240,6 +240,45 @@ describe("CountryMapModal — matching per codice ISO 3166-2 (region_details)", 
   });
 });
 
+describe("CountryMapModal — codici ISO 3166-2 presenti ma diversi (Nominatim vs geoBoundaries)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  // Kyiv (città, UA-30) e Kyiv Oblast (UA-32) hanno codici diversi ma nomi
+  // l'uno sottostringa dell'altro: il fallback per sottostringa, se applicato
+  // anche quando entrambi i lati hanno un codice, li confonderebbe.
+  const UKRAINE_FEATURES = [
+    makePolygon("Kyiv", "UA-30"),
+    makePolygon("Kyiv Oblast", "UA-32"),
+  ];
+
+  it("un viaggio a Kyiv (codice UA-30) conta solo 1 regione, non anche Kyiv Oblast", async () => {
+    mockGeoBoundaries(UKRAINE_FEATURES);
+    renderModal({
+      countryCode: "UA", countryName: "Ucraina",
+      trips: [makeTrip({ country: "Ucraina", country_code: "UA", region: "Kyiv", region_details: [{ name: "Kyiv", code: "UA-30" }] })],
+    });
+    await waitFor(() => expect(screen.getByText("1 regione su 2")).toBeInTheDocument());
+  });
+
+  // Nominatim e geoBoundaries usano a volte numerazioni ISO 3166-2 diverse
+  // per la stessa regione (es. Polonia: "PL-12" da Nominatim vs "PL-MA" da
+  // geoBoundaries per "Lesser Poland Voivodeship"): il mismatch di codice non
+  // deve, da solo, escludere un match quando il nome coincide esattamente.
+  const POLAND_FEATURES = [
+    makePolygon("Lesser Poland Voivodeship", "PL-MA"),
+    makePolygon("Masovian Voivodeship", "PL-MZ"),
+  ];
+
+  it("nome identico ma codice diverso tra le fonti trova comunque la regione", async () => {
+    mockGeoBoundaries(POLAND_FEATURES);
+    renderModal({
+      countryCode: "PL", countryName: "Polonia",
+      trips: [makeTrip({ country: "Polonia", country_code: "PL", region: "Lesser Poland Voivodeship", region_details: [{ name: "Lesser Poland Voivodeship", code: "PL-12" }] })],
+    });
+    await waitFor(() => expect(screen.getByText("1 regione su 2")).toBeInTheDocument());
+  });
+});
+
 describe("CountryMapModal — regionMatches per nome (fallback senza codice, viaggi vecchi)", () => {
   afterEach(() => vi.restoreAllMocks());
 

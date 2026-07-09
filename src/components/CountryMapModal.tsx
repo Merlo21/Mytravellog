@@ -229,13 +229,22 @@ function normalize(s: string): string {
 
 /**
  * Returns true if a visited region (name + eventuale codice ISO) matches un
- * feature del GeoJSON. Il codice, quando disponibile su entrambi i lati, è
- * indipendente dalla lingua e ha la priorità; altrimenti si ricade sul nome:
- * 1. Match esatto per codice ISO 3166-2
- * 2. Match esatto per nome dopo normalize
+ * feature del GeoJSON.
+ * 1. Match esatto per codice ISO 3166-2, quando presente su entrambi i lati
+ * 2. Match esatto per nome dopo normalize — resta valido anche quando i
+ *    codici sono entrambi presenti ma non coincidono: Nominatim e
+ *    geoBoundaries usano a volte numerazioni ISO 3166-2 diverse per la
+ *    stessa regione (es. Polonia: "PL-12" vs "PL-MA" per "Lesser Poland
+ *    Voivodeship"), quindi un mismatch di codice non è di per sé prova che
+ *    siano regioni diverse.
  * 3. Alias lookup (EN→locale) dopo normalize — solo fallback per viaggi
  *    salvati prima che il codice ISO venisse tracciato
- * 4. Substring containment dopo normalize
+ * 4. Substring containment dopo normalize — SOLO quando manca il codice su
+ *    almeno un lato. Se entrambi i lati hanno un codice e non coincidono, il
+ *    fallback per sottostringa va escluso: due regioni distinte possono
+ *    avere nomi l'una sottostringa dell'altra (es. "Kyiv" città, codice
+ *    UA-30, vs "Kyiv Oblast", codice UA-32 — la sottostringa le
+ *    confonderebbe, contando 2 regioni visitate invece di 1).
  */
 function regionMatches(
   visited: { name: string; code: string | null },
@@ -243,7 +252,8 @@ function regionMatches(
   geoCode: string | null,
   countryCode: string
 ): boolean {
-  if (visited.code && geoCode && visited.code.toUpperCase() === geoCode.toUpperCase()) return true;
+  const bothHaveCodes = !!visited.code && !!geoCode;
+  if (bothHaveCodes && visited.code!.toUpperCase() === geoCode!.toUpperCase()) return true;
 
   const t = normalize(visited.name);
   const g = normalize(geoName);
@@ -253,6 +263,8 @@ function regionMatches(
   const aliases = REGION_ALIASES[countryCode?.toUpperCase()] ?? {};
   const resolved = aliases[t];
   if (resolved && normalize(resolved) === g) return true;
+
+  if (bothHaveCodes) return false;
 
   if (t.length >= 4 && g.includes(t)) return true;
   if (g.length >= 4 && t.includes(g)) return true;
