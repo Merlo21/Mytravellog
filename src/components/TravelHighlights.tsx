@@ -4,6 +4,7 @@ import React from "react";
 import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, CalendarDays } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
+import { distanceKm } from "@/lib/geo";
 
 interface Props {
   trips: LocalTrip[];
@@ -11,6 +12,43 @@ interface Props {
 
 const EARTH_CIRCUMFERENCE_KM = 40075;
 const DISTANCE_TO_MOON_KM = 384400;
+
+type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
+type KmByMode = Record<TransportMode, number>;
+
+function guessMode(km: number): TransportMode {
+  return km > 1000 ? "plane" : km >= 200 ? "train" : km >= 20 ? "car" : "walk";
+}
+
+/**
+ * A trip's transport_mode/waypoints[].transport_mode each describe the leg
+ * ARRIVING at that stop, not the whole trip — a multi-stop trip can mix
+ * modes (e.g. train home->A, plane A->B). Walk the real stop sequence
+ * (home -> waypoints -> destination) and attribute each segment's distance
+ * to its own arrival mode, instead of dumping the trip's total distance
+ * onto a single mode.
+ */
+export function computeKmByTransportMode(trips: LocalTrip[]): KmByMode {
+  const acc: KmByMode = { plane: 0, train: 0, car: 0, ship: 0, walk: 0 };
+  for (const t of trips) {
+    const stops: { lat: number; lon: number; mode: TransportMode | null }[] = [];
+    if (t.home_latitude != null && t.home_longitude != null) {
+      stops.push({ lat: t.home_latitude, lon: t.home_longitude, mode: null });
+    }
+    for (const w of t.waypoints ?? []) {
+      if (w.lat == null || w.lon == null) continue;
+      stops.push({ lat: w.lat, lon: w.lon, mode: w.transport_mode });
+    }
+    stops.push({ lat: t.latitude, lon: t.longitude, mode: t.transport_mode });
+
+    for (let i = 1; i < stops.length; i++) {
+      const km = distanceKm(stops[i - 1].lat, stops[i - 1].lon, stops[i].lat, stops[i].lon);
+      const mode = stops[i].mode ?? guessMode(km);
+      acc[mode] += km;
+    }
+  }
+  return acc;
+}
 
 export function TravelHighlights({ trips }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
@@ -54,15 +92,7 @@ export function TravelHighlights({ trips }: Props) {
   );
   const aroundWorld = totalKm / EARTH_CIRCUMFERENCE_KM;
   const toMoon = totalKm / DISTANCE_TO_MOON_KM;
-  const byMode = useMemo(() => {
-    const acc = { plane:0, train:0, car:0, ship:0, walk:0 };
-    for (const t of trips) {
-      const d = t.distance_from_home_km ?? 0;
-      const mode = t.transport_mode ?? (d > 1000 ? "plane" : d >= 200 ? "train" : d >= 20 ? "car" : "walk");
-      acc[mode] = (acc[mode] ?? 0) + d;
-    }
-    return acc;
-  }, [trips]);
+  const byMode = useMemo(() => computeKmByTransportMode(trips), [trips]);
   const byPlane = byMode.plane;
   const byTrain = byMode.train;
   const byCar   = byMode.car;

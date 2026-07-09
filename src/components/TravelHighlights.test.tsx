@@ -173,37 +173,56 @@ describe("TravelHighlights — totalKm, aroundWorld, toMoon", () => {
 });
 
 describe("TravelHighlights — byMode breakdown", () => {
+  // home (Milano, 45.5/9.2) -> destinazione (Roma, 41.9/12.5): distanza reale ~480 km.
   it("assegna distanza a 'plane' con transport_mode='plane' esplicito", () => {
-    const trips = [makeTrip({ transport_mode: "plane", distance_from_home_km: 500 })];
+    const trips = [makeTrip({ transport_mode: "plane" })];
     renderHighlights(trips);
-    // "In aereo" label deve essere presente
     expect(screen.getByText("In aereo")).toBeInTheDocument();
+    expect(screen.getAllByText("480 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("assegna distanza a 'train' con transport_mode='train' esplicito", () => {
-    const trips = [makeTrip({ transport_mode: "train", distance_from_home_km: 300 })];
+    const trips = [makeTrip({ transport_mode: "train" })];
     renderHighlights(trips);
     expect(screen.getByText("In treno")).toBeInTheDocument();
+    expect(screen.getAllByText("480 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("fallback a 'plane' per distanza >1000 km senza transport_mode", () => {
-    // 1500 km senza modo → plane
-    const trips = [makeTrip({ transport_mode: null, distance_from_home_km: 1500 })];
+    // Milano -> Tokyo: ~9710 km, nessun transport_mode → plane
+    const trips = [makeTrip({ transport_mode: null, latitude: 35.68, longitude: 139.65 })];
     renderHighlights(trips);
-    // La card "In aereo" deve mostrare 1500 km
     expect(screen.getByText("In aereo")).toBeInTheDocument();
-    expect(screen.getAllByText("1500 km").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("9710 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("fallback a 'car' per distanza 20-200 km senza transport_mode", () => {
-    const trips = [makeTrip({ transport_mode: null, distance_from_home_km: 100 })];
+    // Milano -> Torino: ~128 km, nessun transport_mode → car
+    const trips = [makeTrip({ transport_mode: null, latitude: 45.07, longitude: 7.68 })];
     renderHighlights(trips);
     expect(screen.getByText("In auto")).toBeInTheDocument();
+    expect(screen.getAllByText("128 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("fallback a 'walk' per distanza <20 km senza transport_mode", () => {
-    const trips = [makeTrip({ transport_mode: null, distance_from_home_km: 5 })];
+    const trips = [makeTrip({ transport_mode: null, latitude: 45.51, longitude: 9.21 })];
     renderHighlights(trips);
     expect(screen.getByText("A piedi")).toBeInTheDocument();
+    expect(screen.getAllByText("1 km").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("viaggio multi-tappa: ripartisce la distanza per mezzo di ciascuna tratta, non tutto sull'ultimo", () => {
+    // home (Milano) --train--> waypoint (Torino) --plane--> destinazione (Roma)
+    const trips = [makeTrip({
+      transport_mode: "plane", // mezzo dell'ultima tratta: Torino -> Roma
+      waypoints: [
+        { city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 },
+      ],
+      latitude: 41.9, longitude: 12.5, // Roma
+    })];
+    renderHighlights(trips);
+    // Milano->Torino (train) ~128km, Torino->Roma (plane) ~525km — NON deve finire tutto su "In aereo"
+    expect(screen.getAllByText("128 km").length).toBeGreaterThanOrEqual(1); // In treno
+    expect(screen.getAllByText("525 km").length).toBeGreaterThanOrEqual(1); // In aereo
   });
 });
