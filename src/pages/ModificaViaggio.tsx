@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { searchPlaces, fetchElevation, fetchTemperature, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
 import { addTrip, updateTrip, loadTrips } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { toast } from "sonner";
@@ -27,6 +27,27 @@ function daysBetween(a: string, b: string) {
   if (!a || !b) return null;
   const d = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
   return d > 0 ? d : null;
+}
+
+async function fetchNominatimRegion(lat: number, lon: number): Promise<string | null> {
+  if (!lat || !lon) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
+    const r = await fetch(url, { headers: { "Accept-Language": "it", "User-Agent": "NAV-TA/1.0" } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Un viaggio multi-tappa può attraversare più regioni: raccoglie quelle di
+ * ogni tappa (deduplicate, unite con ", "), non solo quella della destinazione. */
+export async function fetchMultiRegion(points: { lat: number; lon: number }[]): Promise<string | null> {
+  const results = await Promise.all(points.map(p => fetchNominatimRegion(p.lat, p.lon)));
+  const unique = [...new Set(results.filter((r): r is string => !!r))];
+  return unique.length > 0 ? unique.join(", ") : null;
 }
 
 
@@ -588,6 +609,10 @@ const ModificaViaggio = () => {
     const coldestStop = tempsWithCity.length ? tempsWithCity.reduce((a, b) => (b.temp! < a.temp! ? b : a)) : null;
     const altsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, alt: stopAlts[i] as number | null })).filter(x => x.alt != null);
     const highestStop = altsWithCity.length ? altsWithCity.reduce((a, b) => (b.alt! > a.alt! ? b : a)) : null;
+    // Se la regione non è mai stata popolata (né al momento della creazione né
+    // con "Ricalcola"), proviamo a recuperarla ora su tutte le tappe, invece
+    // di lasciarla vuota per sempre finché l'utente non trova il pulsante.
+    const region = currentRegion ?? await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
     updateTrip(id!, {
       title: title.trim() || dest.city,
       country: dest.country, city: dest.city,
@@ -598,7 +623,7 @@ const ModificaViaggio = () => {
       latitude: dest.lat || trip?.latitude || 0,
       longitude: dest.lon || trip?.longitude || 0,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
-      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: currentRegion ?? null,
+      distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null,
       country_code: dest.country_code || trip?.country_code || "",
       rating: rating || null,
     });
@@ -612,20 +637,8 @@ const ModificaViaggio = () => {
     if (waypoints.length === 0) return;
     setRefetchingRegion(true);
     try {
-      // Fetch region for ALL stops (waypoints + destination), deduplicated
-      const fetchNominatim = async (lat: number, lon: number): Promise<string | null> => {
-        if (!lat || !lon) return null;
-        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
-        const r = await fetch(url, { headers: { "Accept-Language": "it", "User-Agent": "NAV-TA/1.0" } });
-        if (!r.ok) return null;
-        const d = await r.json();
-        return d?.address?.state ?? d?.address?.region ?? d?.address?.county ?? null;
-      };
-      const results = await Promise.all(
-        waypoints.map(w => fetchNominatim(w.lat, w.lon))
-      );
-      const unique = [...new Set(results.filter((r): r is string => !!r))];
-      const region = unique.length > 0 ? unique.join(", ") : null;
+      const region = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
+      const unique = region ? region.split(", ") : [];
       setCurrentRegion(region);
       if (id) updateTrip(id, { region });
       if (region) toast.success("Region" + (unique.length > 1 ? "i" : "e") + " salvat" + (unique.length > 1 ? "e" : "a") + ": " + region);

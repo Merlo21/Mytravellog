@@ -8,7 +8,56 @@ import { fmtDistance, useSettings } from "@/lib/settings";
 import { CalendarDays, Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
-import { TripCard } from "@/components/TripCard";
+
+/**
+ * Ogni viaggio tocca anche i paesi/città delle tappe intermedie (waypoint),
+ * non solo la destinazione finale (stessa logica di StatsSection.tsx).
+ */
+export function computeHomeStats(trips: Trip[]) {
+  const countries = new Set<string>();
+  const cities = new Set<string>();
+  for (const t of trips) {
+    countries.add(t.country_code || t.country);
+    cities.add(`${t.city}|${t.country}`);
+    for (const w of t.waypoints ?? []) {
+      countries.add(w.country_code || w.country);
+      cities.add(`${w.city}|${w.country}`);
+    }
+  }
+  const km = trips.reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0);
+  const days = trips.reduce((s, t) => {
+    if (!t.date_end || t.date_end === t.trip_date) return s + 1;
+    const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
+    return s + Math.max(1, d);
+  }, 0);
+  return { trips: trips.length, countries: countries.size, cities: cities.size, km, days };
+}
+
+/**
+ * Ricalcola la distanza da casa di un viaggio percorrendo home → tappa1 →
+ * tappa2 → ... → destinazione (non la linea retta home→destinazione, che
+ * ignorerebbe le tappe intermedie). Usata per il backfill dei viaggi creati
+ * prima che la città di residenza fosse impostata nelle Impostazioni.
+ */
+export function backfillDistanceFromHome(trip: Trip, homeCity: { lat: number; lon: number }) {
+  const waypointStops = (trip.waypoints ?? [])
+    .filter(w => w.lat != null && w.lon != null)
+    .map(w => ({ lat: w.lat as number, lon: w.lon as number, city: w.city }));
+  const allStops = [...waypointStops, { lat: trip.latitude, lon: trip.longitude, city: trip.city }];
+  let dist = 0;
+  let prev = { lat: homeCity.lat, lon: homeCity.lon };
+  for (const stop of allStops) {
+    dist += distanceKm(prev.lat, prev.lon, stop.lat, stop.lon);
+    prev = stop;
+  }
+  const distances = allStops.map(p => ({ city: p.city, d: distanceKm(homeCity.lat, homeCity.lon, p.lat, p.lon) }));
+  const max = distances.reduce((a, b) => (b.d > a.d ? b : a));
+  return {
+    distance_from_home_km: dist,
+    max_distance_from_home_km: trip.max_distance_from_home_km ?? max.d,
+    max_distance_city: trip.max_distance_city ?? max.city,
+  };
+}
 
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
   state = { error: null };
@@ -48,25 +97,14 @@ function HomeInner() {
     allTrips.forEach(t => {
       if (t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude) &&
           (t.distance_from_home_km == null || t.distance_from_home_km === 0)) {
-        const dist = distanceKm(homeCity.lat, homeCity.lon, t.latitude, t.longitude);
-        updateTrip(t.id, { distance_from_home_km: dist });
+        updateTrip(t.id, backfillDistanceFromHome(t, homeCity));
         changed = true;
       }
     });
     if (changed) refresh();
   }, [homeCity]);
 
-  const stats = useMemo(() => {
-    const countries = new Set(trips.map((t) => t.country_code || t.country));
-    const cities = new Set(trips.map((t) => `${t.city}|${t.country}`));
-    const km = trips.reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0);
-    const days = trips.reduce((s, t) => {
-      if (!t.date_end || t.date_end === t.trip_date) return s + 1;
-      const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
-      return s + Math.max(1, d);
-    }, 0);
-    return { trips: trips.length, countries: countries.size, cities: cities.size, km, days };
-  }, [trips]);
+  const stats = useMemo(() => computeHomeStats(trips), [trips]);
 
   const defaultHome = trips[0]
     ? { lat: trips[0].home_latitude, lon: trips[0].home_longitude, label: trips[0].home_label }

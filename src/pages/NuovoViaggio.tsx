@@ -537,14 +537,19 @@ const NuovoViaggio = () => {
       ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ city: w.city, lat: w.lat, lon: w.lon })),
       { city: dest.city, lat: dest.lat, lon: dest.lon },
     ];
-    const [region, ...rest] = await Promise.all([
-      fetchRegion(dest.lat, dest.lon),
+    const rest = await Promise.all([
+      ...allStopsWithCoords.map(s => fetchRegion(s.lat, s.lon)),
       ...allStopsWithCoords.map(s => fetchTemperature(s.lat, s.lon, dateStart)),
       ...allStopsWithCoords.map(s => fetchElevation(s.lat, s.lon)),
     ]);
     const n = allStopsWithCoords.length;
-    const stopTemps = rest.slice(0, n);
-    const stopAlts = rest.slice(n, 2 * n);
+    const stopRegions = rest.slice(0, n) as (string | null)[];
+    const stopTemps = rest.slice(n, 2 * n) as (number | null)[];
+    const stopAlts = rest.slice(2 * n, 3 * n) as (number | null)[];
+    // Un viaggio multi-tappa può attraversare più regioni: raccogliamo quelle di
+    // ogni tappa (deduplicate), non solo quella della destinazione finale.
+    const uniqueRegions = [...new Set(stopRegions.filter((r): r is string => !!r))];
+    const region = uniqueRegions.length > 0 ? uniqueRegions.join(", ") : null;
     const alt = stopAlts[stopAlts.length - 1] ?? null; // altitudine della destinazione (per-trip badge)
     const temp = stopTemps[stopTemps.length - 1] ?? null;
     const tempsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, temp: stopTemps[i] as number | null })).filter(x => x.temp != null);
