@@ -17,7 +17,7 @@ rootEl.style.minHeight = "100vh";
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <SettingsProvider>
-      <HashRouter>
+      <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/statistiche" element={<Stats />} />

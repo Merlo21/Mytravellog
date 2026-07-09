@@ -16,7 +16,7 @@ vi.mock("react-router-dom", async () => {
 
 function renderCard(trip: Trip, onDeleted?: () => void) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <SettingsProvider>
         <TripCardTicket trip={trip} onDeleted={onDeleted} />
       </SettingsProvider>

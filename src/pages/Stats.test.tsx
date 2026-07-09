@@ -18,7 +18,7 @@ vi.mock("@/components/TravelHighlights", () => ({
 function mount() {
   return render(
     <SettingsProvider>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Stats />
       </MemoryRouter>
     </SettingsProvider>

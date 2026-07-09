@@ -5,7 +5,7 @@ import { NavLink } from "./NavLink";
 
 function mount(initial: string) {
   return render(
-    <MemoryRouter initialEntries={[initial]}>
+    <MemoryRouter initialEntries={[initial]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route
           path="*"
