@@ -1,5 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { splitRingAtAntimeridian } from "./ContinentsMap";
+import { splitRingAtAntimeridian, deriveCountryId } from "./ContinentsMap";
+
+describe("deriveCountryId", () => {
+  it("usa l'id numerico se presente", () => {
+    expect(deriveCountryId({ id: 380 }, 0)).toBe("380");
+  });
+
+  it("ricade sul nome se l'id manca (es. Antartide nel world-atlas)", () => {
+    expect(deriveCountryId({ properties: { name: "Antarctica" } }, 7)).toBe("Antarctica");
+  });
+
+  it("ricade sull'indice se manca sia id che nome", () => {
+    expect(deriveCountryId({}, 3)).toBe("unknown-3");
+  });
+
+  it("due feature senza id ma con nomi diversi non collidono", () => {
+    const a = deriveCountryId({ properties: { name: "Antarctica" } }, 1);
+    const b = deriveCountryId({ properties: { name: "Somaliland" } }, 2);
+    expect(a).not.toBe(b);
+  });
+});
 
 describe("splitRingAtAntimeridian", () => {
   it("keeps a normal ring as a single segment", () => {

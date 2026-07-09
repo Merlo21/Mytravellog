@@ -75,11 +75,12 @@ export function ContinentsMap({ trips }: Props) {
       .then((topo: any) => {
         if (cancelled) return;
         const geo: any = feature(topo, topo.objects.countries);
-        const feats: CountryFeat[] = geo.features.map((f: any) => {
+        const feats: CountryFeat[] = geo.features.map((f: any, idx: number) => {
           const path = geoToPath(f.geometry);
           const c = polyCentroid(f.geometry);
           const polygons = extractPolygons(f.geometry);
-          return { id: String(f.id), name: f.properties?.name ?? String(f.id), path, centroid: c, polygons };
+          const id = deriveCountryId(f, idx);
+          return { id, name: f.properties?.name ?? id, path, centroid: c, polygons };
         });
         setCountries(feats);
       })
@@ -224,6 +225,19 @@ export function ContinentsMap({ trips }: Props) {
 }
 
 // --- Geometry helpers ---
+
+/**
+ * Some world-atlas TopoJSON features (e.g. Antarctica, a few disputed
+ * territories) have no numeric `id`. String(undefined) === "undefined" for
+ * all of them, which made every such feature share the same React key.
+ * Fall back to the feature name, then to the array index, to guarantee
+ * uniqueness.
+ */
+export function deriveCountryId(f: { id?: unknown; properties?: { name?: string } }, index: number): string {
+  if (f.id != null) return String(f.id);
+  if (f.properties?.name) return f.properties.name;
+  return `unknown-${index}`;
+}
 
 function geoToPath(geom: any): string {
   if (!geom) return "";
