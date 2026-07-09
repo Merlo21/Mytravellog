@@ -77,6 +77,18 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
     "centre-val de loire": "centre-val de loire",
     "pays de la loire": "pays de la loire",
   },
+  AT: {
+    // Inglese (Nominatim) → Tedesco (nomi usati nel GeoJSON austriaco)
+    "vienna": "wien",
+    "tyrol": "tirol",
+    "styria": "steiermark",
+    "upper austria": "oberösterreich",
+    "lower austria": "niederösterreich",
+    "carinthia": "kärnten",
+    "burgenland": "burgenland",
+    "salzburg": "salzburg",
+    "vorarlberg": "vorarlberg",
+  },
 };
 
 // Cache loaded GeoJSON in memory

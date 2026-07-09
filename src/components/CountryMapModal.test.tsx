@@ -37,6 +37,21 @@ const ITALY_FEATURES = [
 ];
 const ITALY_GEOJSON = makeGeoJSON(ITALY_FEATURES);
 
+// Le 9 regioni austriache nel loro nome tedesco (come nel GeoJSON reale).
+// L'Austria usa nameProp="name" (non "reg_name" come l'Italia, il default di makePolygon).
+const AUSTRIA_FEATURES = [
+  makePolygon("Wien", "name"),
+  makePolygon("Tirol", "name"),
+  makePolygon("Steiermark", "name"),
+  makePolygon("Oberösterreich", "name"),
+  makePolygon("Niederösterreich", "name"),
+  makePolygon("Kärnten", "name"),
+  makePolygon("Burgenland", "name"),
+  makePolygon("Salzburg", "name"),
+  makePolygon("Vorarlberg", "name"),
+];
+const AUSTRIA_GEOJSON = makeGeoJSON(AUSTRIA_FEATURES);
+
 function mockFetch(body: string, ok = true) {
   global.fetch = vi.fn().mockResolvedValue({
     ok,
@@ -236,6 +251,57 @@ describe("CountryMapModal — regionMatches (via render)", () => {
     renderModal({ trips: [makeTrip({ region: "XYZ" })] });
     await waitFor(() => expect(screen.getByText(/regioni? su 5/)).toBeInTheDocument());
     expect(screen.getByText("0%")).toBeInTheDocument();
+  });
+});
+
+describe("CountryMapModal — alias EN→DE per l'Austria", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function renderAustria(region: string) {
+    mockFetch(AUSTRIA_GEOJSON);
+    return renderModal({
+      countryCode: "AT", countryName: "Austria",
+      trips: [makeTrip({ region, country: "Austria", country_code: "AT" })],
+    });
+  }
+
+  it("'Vienna' (Nominatim EN) trova 'Wien' (GeoJSON DE)", async () => {
+    renderAustria("Vienna");
+    await waitFor(() => expect(screen.getByText("1 regione su 9")).toBeInTheDocument());
+  });
+
+  it("'Tyrol' trova 'Tirol'", async () => {
+    renderAustria("Tyrol");
+    await waitFor(() => expect(screen.getByText("1 regione su 9")).toBeInTheDocument());
+  });
+
+  it("'Styria' trova 'Steiermark'", async () => {
+    renderAustria("Styria");
+    await waitFor(() => expect(screen.getByText("1 regione su 9")).toBeInTheDocument());
+  });
+
+  it("'Upper Austria' trova 'Oberösterreich'", async () => {
+    renderAustria("Upper Austria");
+    await waitFor(() => expect(screen.getByText("1 regione su 9")).toBeInTheDocument());
+  });
+
+  it("'Lower Austria' trova 'Niederösterreich'", async () => {
+    renderAustria("Lower Austria");
+    await waitFor(() => expect(screen.getByText("1 regione su 9")).toBeInTheDocument());
+  });
+
+  it("'Carinthia' trova 'Kärnten'", async () => {
+    renderAustria("Carinthia");
+    await waitFor(() => expect(screen.getByText("1 regione su 9")).toBeInTheDocument());
+  });
+
+  it("'Salzburg', 'Burgenland', 'Vorarlberg' (stesso nome in EN e DE) continuano a funzionare", async () => {
+    mockFetch(AUSTRIA_GEOJSON);
+    renderModal({
+      countryCode: "AT", countryName: "Austria",
+      trips: [makeTrip({ region: "Salzburg, Burgenland, Vorarlberg", country: "Austria", country_code: "AT" })],
+    });
+    await waitFor(() => expect(screen.getByText("3 regioni su 9")).toBeInTheDocument());
   });
 });
 
