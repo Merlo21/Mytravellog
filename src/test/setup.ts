@@ -1,4 +1,21 @@
 import "@testing-library/jest-dom";
+import { JSDOM } from "jsdom";
+
+// Node 22.4+ ships an experimental global `localStorage` that shadows the one
+// jsdom provides on `window`, and throws/returns undefined without a
+// --localstorage-file flag. Force-install a real, working Storage impl
+// (the descriptor is configurable, so this is safe on every Node version).
+const storageDom = new JSDOM("", { url: "http://localhost" });
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  enumerable: true,
+  value: storageDom.window.localStorage,
+});
+Object.defineProperty(globalThis, "sessionStorage", {
+  configurable: true,
+  enumerable: true,
+  value: storageDom.window.sessionStorage,
+});
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,
