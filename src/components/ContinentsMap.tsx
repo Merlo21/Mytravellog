@@ -1,5 +1,6 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, X } from "lucide-react";
 import { feature } from "topojson-client";
 import { Trip as LocalTrip } from "@/lib/storage";
 
@@ -226,16 +227,20 @@ export function ContinentsMap({ trips }: Props) {
         </div>
       )}
 
-      <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+      <div className="mt-5 flex flex-wrap gap-2">
         {CONTINENTS.map((c) => {
           const v = visitedContinents.has(c);
           return (
             <div
               key={c}
-              className={`flex items-center gap-2 ${v ? "text-primary font-semibold" : "text-muted-foreground"}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium ${
+                v
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "bg-muted/20 border-border text-muted-foreground"
+              }`}
             >
               <span>{c}</span>
-              <span aria-hidden>{v ? "✓" : "✕"}</span>
+              {v ? <Check className="w-3.5 h-3.5" aria-hidden /> : <X className="w-3.5 h-3.5 opacity-50" aria-hidden />}
             </div>
           );
         })}
