@@ -10,6 +10,7 @@ const DELETE_ANIM_MS = 200;
 export default function MieiViaggi() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [search, setSearch] = useState("");
+  const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -28,14 +29,20 @@ export default function MieiViaggi() {
     }, DELETE_ANIM_MS);
   };
 
+  const tripYear = (t: Trip) => t.trip_date ? new Date(t.trip_date).getFullYear().toString() : "—";
+
+  // Anni disponibili calcolati su tutti i viaggi (non sui filtrati): i chip
+  // restano stabili mentre si scrive nella ricerca, invece di sparire.
+  const allYears = Array.from(new Set(trips.map(tripYear))).sort((a, b) => b.localeCompare(a));
+
   const filtered = trips.filter(t =>
-    !search || [t.title, t.city, t.country].some(s =>
+    (!search || [t.title, t.city, t.country].some(s =>
       s?.toLowerCase().includes(search.toLowerCase())
-    )
+    )) && (!yearFilter || tripYear(t) === yearFilter)
   );
 
   const byYear = filtered.reduce((acc, t) => {
-    const year = t.trip_date ? new Date(t.trip_date).getFullYear().toString() : "—";
+    const year = tripYear(t);
     if (!acc[year]) acc[year] = [];
     acc[year].push(t);
     return acc;
@@ -75,12 +82,47 @@ export default function MieiViaggi() {
               </button>
             )}
           </div>
+
+          {allYears.length > 1 && (
+            <div style={{display:"flex",gap:6,marginTop:10,overflowX:"auto",paddingBottom:2}}>
+              <button
+                type="button"
+                onClick={() => setYearFilter(null)}
+                style={{
+                  flexShrink:0, fontSize:12, fontWeight:600, padding:"5px 12px", borderRadius:999,
+                  border: yearFilter === null ? "1px solid #60a5fa" : "1px solid #1a2d4a",
+                  background: yearFilter === null ? "rgba(96,165,250,0.15)" : "transparent",
+                  color: yearFilter === null ? "#60a5fa" : "rgba(255,255,255,0.5)",
+                  cursor:"pointer",
+                }}
+              >
+                Tutti
+              </button>
+              {allYears.map(year => (
+                <button
+                  key={year}
+                  type="button"
+                  onClick={() => setYearFilter(yearFilter === year ? null : year)}
+                  aria-pressed={yearFilter === year}
+                  style={{
+                    flexShrink:0, fontSize:12, fontWeight:600, padding:"5px 12px", borderRadius:999,
+                    border: yearFilter === year ? "1px solid #60a5fa" : "1px solid #1a2d4a",
+                    background: yearFilter === year ? "rgba(96,165,250,0.15)" : "transparent",
+                    color: yearFilter === year ? "#60a5fa" : "rgba(255,255,255,0.5)",
+                    cursor:"pointer",
+                  }}
+                >
+                  {year}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Trips */}
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-16">
-            {search ? "Nessun risultato." : "Nessun viaggio ancora. Aggiungine uno!"}
+            {search || yearFilter ? "Nessun risultato." : "Nessun viaggio ancora. Aggiungine uno!"}
           </p>
         ) : (
           <div className="space-y-8">

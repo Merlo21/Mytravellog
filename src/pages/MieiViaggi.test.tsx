@@ -114,8 +114,9 @@ describe("MieiViaggi — raggruppamento per anno", () => {
     addTrip(baseTrip({ trip_date: "2023-03-10" }));
     addTrip(baseTrip({ trip_date: "2024-07-15" }));
     renderPage();
-    expect(screen.getByText("2023")).toBeInTheDocument();
-    expect(screen.getByText("2024")).toBeInTheDocument();
+    // "2023"/"2024" compaiono sia nel chip filtro anno che nell'intestazione di sezione
+    expect(screen.getAllByText("2023").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("2024").length).toBeGreaterThanOrEqual(1);
   });
 
   it("ordina gli anni in modo decrescente (più recente prima)", () => {
@@ -204,5 +205,59 @@ describe("MieiViaggi — ricerca", () => {
     expect(screen.getAllByTestId("trip-card")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "" })); // X button
     expect(screen.getAllByTestId("trip-card")).toHaveLength(2);
+  });
+});
+
+describe("MieiViaggi — filtro per anno", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("non mostra i chip degli anni se c'è un solo anno", () => {
+    addTrip(baseTrip({ trip_date: "2024-01-01", city: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-06-15", city: "Milano" }));
+    renderPage();
+    expect(screen.queryByRole("button", { name: "Tutti" })).not.toBeInTheDocument();
+  });
+
+  it("filtra i viaggi cliccando un chip anno", () => {
+    addTrip(baseTrip({ trip_date: "2023-03-10", city: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-07-15", city: "Milano" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "2023" }));
+    const cards = screen.getAllByTestId("trip-card");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveAttribute("data-city", "Roma");
+  });
+
+  it("cliccare di nuovo lo stesso chip anno rimuove il filtro", () => {
+    addTrip(baseTrip({ trip_date: "2023-03-10", city: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-07-15", city: "Milano" }));
+    renderPage();
+    const chip2023 = screen.getByRole("button", { name: "2023" });
+    fireEvent.click(chip2023);
+    expect(screen.getAllByTestId("trip-card")).toHaveLength(1);
+    fireEvent.click(chip2023);
+    expect(screen.getAllByTestId("trip-card")).toHaveLength(2);
+  });
+
+  it("il chip 'Tutti' resetta il filtro per anno", () => {
+    addTrip(baseTrip({ trip_date: "2023-03-10", city: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-07-15", city: "Milano" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "2023" }));
+    expect(screen.getAllByTestId("trip-card")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Tutti" }));
+    expect(screen.getAllByTestId("trip-card")).toHaveLength(2);
+  });
+
+  it("combina ricerca testuale e filtro per anno", () => {
+    addTrip(baseTrip({ trip_date: "2023-03-10", city: "Roma", title: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-07-15", city: "Roma", title: "Roma" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "2023" }));
+    const input = screen.getByPlaceholderText(/cerca città/i);
+    fireEvent.change(input, { target: { value: "roma" } });
+    const cards = screen.getAllByTestId("trip-card");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveAttribute("data-year", "2023");
   });
 });
