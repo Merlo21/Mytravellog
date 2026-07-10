@@ -1,16 +1,32 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCardTicket } from "@/components/TripCardTicket";
 import { loadTrips, Trip } from "@/lib/storage";
 import { Search, X } from "lucide-react";
 
+const DELETE_ANIM_MS = 200;
+
 export default function MieiViaggi() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [search, setSearch] = useState("");
+  const [leavingId, setLeavingId] = useState<string | null>(null);
+  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => { setTrips(loadTrips()); }, []);
+  useEffect(() => () => clearTimeout(deleteTimeoutRef.current), []);
   const refresh = () => setTrips(loadTrips());
+
+  // Mostra prima la card che sta uscendo (opacity+scale via CSS), poi la
+  // rimuove davvero dalla lista — senza questo la card scomparirebbe di
+  // scatto non appena TripCardTicket chiama onDeleted.
+  const handleDeleted = (id: string) => {
+    setLeavingId(id);
+    deleteTimeoutRef.current = setTimeout(() => {
+      refresh();
+      setLeavingId(null);
+    }, DELETE_ANIM_MS);
+  };
 
   const filtered = trips.filter(t =>
     !search || [t.title, t.city, t.country].some(s =>
@@ -77,7 +93,13 @@ export default function MieiViaggi() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {byYear[year].map(t => (
-                    <TripCardTicket key={t.id} trip={t} onDeleted={refresh}/>
+                    <div key={t.id} style={{
+                      transition: `opacity ${DELETE_ANIM_MS}ms ease, transform ${DELETE_ANIM_MS}ms ease`,
+                      opacity: leavingId === t.id ? 0 : 1,
+                      transform: leavingId === t.id ? "scale(0.95)" : "scale(1)",
+                    }}>
+                      <TripCardTicket trip={t} onDeleted={() => handleDeleted(t.id)}/>
+                    </div>
                   ))}
                 </div>
               </div>
