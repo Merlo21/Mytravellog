@@ -1,0 +1,119 @@
+import { describe, it, expect } from "vitest";
+import { computeMonthlyTravelDays, daysSinceLastTrip, TravelHeatmap } from "./TravelHeatmap";
+import type { Trip } from "@/lib/storage";
+import { render, screen } from "@testing-library/react";
+import React from "react";
+
+function makeTrip(overrides: Partial<Trip> = {}): Trip {
+  return {
+    id: "t1", created_at: "2024-01-01T00:00:00.000Z", title: "Test", country: "Italia", city: "Roma",
+    country_code: "IT", trip_date: "2024-06-01", date_end: null, rating: null, notes: null,
+    transport_mode: null, waypoints: [], latitude: 41.9, longitude: 12.5,
+    home_latitude: null, home_longitude: null, home_label: null, route_geometry: null,
+    temperature_c: null, altitude_m: null, distance_from_home_km: null,
+    max_distance_from_home_km: null, max_distance_city: null, max_altitude_m: null,
+    max_altitude_city: null, hottest_temp_c: null, hottest_city: null,
+    coldest_temp_c: null, coldest_city: null, region: null, region_details: null,
+    ...overrides,
+  };
+}
+
+function daysAgoISO(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+describe("computeMonthlyTravelDays", () => {
+  it("un viaggio di un giorno conta 1 nel suo mese", () => {
+    const map = computeMonthlyTravelDays([makeTrip({ trip_date: "2024-06-15", date_end: null })]);
+    expect(map.get("2024-5")).toBe(1); // giugno = mese indice 5
+  });
+
+  it("un viaggio multi-giorno nello stesso mese conta tutti i giorni inclusi gli estremi", () => {
+    const map = computeMonthlyTravelDays([makeTrip({ trip_date: "2024-06-01", date_end: "2024-06-05" })]);
+    expect(map.get("2024-5")).toBe(5);
+  });
+
+  it("un viaggio a cavallo tra due mesi divide i giorni tra entrambi", () => {
+    const map = computeMonthlyTravelDays([makeTrip({ trip_date: "2024-06-28", date_end: "2024-07-03" })]);
+    expect(map.get("2024-5")).toBe(3); // 28, 29, 30 giugno
+    expect(map.get("2024-6")).toBe(3); // 1, 2, 3 luglio
+  });
+
+  it("un viaggio a cavallo tra due anni divide i giorni tra entrambi", () => {
+    const map = computeMonthlyTravelDays([makeTrip({ trip_date: "2024-12-30", date_end: "2025-01-02" })]);
+    expect(map.get("2024-11")).toBe(2); // 30, 31 dicembre
+    expect(map.get("2025-0")).toBe(2); // 1, 2 gennaio
+  });
+
+  it("somma i giorni di più viaggi nello stesso mese", () => {
+    const map = computeMonthlyTravelDays([
+      makeTrip({ trip_date: "2024-06-01", date_end: "2024-06-02" }),
+      makeTrip({ trip_date: "2024-06-10", date_end: "2024-06-10" }),
+    ]);
+    expect(map.get("2024-5")).toBe(3);
+  });
+
+  it("ignora un viaggio con date incoerenti (date_end prima di trip_date)", () => {
+    const map = computeMonthlyTravelDays([makeTrip({ trip_date: "2024-06-10", date_end: "2024-06-01" })]);
+    expect(map.size).toBe(0);
+  });
+
+  it("ritorna una mappa vuota senza viaggi", () => {
+    expect(computeMonthlyTravelDays([]).size).toBe(0);
+  });
+});
+
+describe("daysSinceLastTrip", () => {
+  it("ritorna null senza viaggi", () => {
+    expect(daysSinceLastTrip([])).toBeNull();
+  });
+
+  it("ritorna 0 se l'ultimo viaggio finisce oggi", () => {
+    expect(daysSinceLastTrip([makeTrip({ trip_date: daysAgoISO(3), date_end: daysAgoISO(0) })])).toBe(0);
+  });
+
+  it("ritorna il numero corretto di giorni trascorsi dalla fine dell'ultimo viaggio", () => {
+    expect(daysSinceLastTrip([makeTrip({ trip_date: daysAgoISO(10), date_end: daysAgoISO(7) })])).toBe(7);
+  });
+
+  it("usa la data di fine più recente tra più viaggi", () => {
+    const trips = [
+      makeTrip({ trip_date: daysAgoISO(30), date_end: daysAgoISO(25) }),
+      makeTrip({ trip_date: daysAgoISO(10), date_end: daysAgoISO(5) }),
+    ];
+    expect(daysSinceLastTrip(trips)).toBe(5);
+  });
+
+  it("usa trip_date come fine quando date_end è null", () => {
+    expect(daysSinceLastTrip([makeTrip({ trip_date: daysAgoISO(4), date_end: null })])).toBe(4);
+  });
+
+  it("non ritorna un numero negativo per un viaggio ancora in corso (date_end futura)", () => {
+    const future = new Date();
+    future.setDate(future.getDate() + 5);
+    const trip = makeTrip({ trip_date: daysAgoISO(1), date_end: future.toISOString().slice(0, 10) });
+    expect(daysSinceLastTrip([trip])).toBe(0);
+  });
+});
+
+describe("TravelHeatmap — render", () => {
+  it("renderizza senza crash e mostra i giorni di astinenza senza viaggi", () => {
+    render(React.createElement(TravelHeatmap, { trips: [] }));
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("giorni senza viaggiare")).toBeInTheDocument();
+  });
+
+  it("mostra il numero corretto di giorni di astinenza con un viaggio passato", () => {
+    render(React.createElement(TravelHeatmap, { trips: [makeTrip({ trip_date: daysAgoISO(9), date_end: daysAgoISO(6) })] }));
+    expect(screen.getByText("6")).toBeInTheDocument();
+  });
+
+  it("mostra una riga per ogni anno da quello del primo viaggio all'anno corrente", () => {
+    const oldYear = new Date().getFullYear() - 2;
+    render(React.createElement(TravelHeatmap, { trips: [makeTrip({ trip_date: `${oldYear}-03-01`, date_end: null })] }));
+    expect(screen.getByText(String(oldYear))).toBeInTheDocument();
+    expect(screen.getByText(String(new Date().getFullYear()))).toBeInTheDocument();
+  });
+});

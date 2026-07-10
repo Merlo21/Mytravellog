@@ -6,6 +6,7 @@ import { Trip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
 import { ContinentsMap } from "@/components/ContinentsMap";
 import { TravelHighlights } from "@/components/TravelHighlights";
+import { TravelHeatmap } from "@/components/TravelHeatmap";
 
 const Stats = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -26,6 +27,8 @@ const Stats = () => {
         <ContinentsMap trips={trips} />
 
         <TravelHighlights trips={trips} />
+
+        <TravelHeatmap trips={trips} />
       </div>
     </main>
   );
