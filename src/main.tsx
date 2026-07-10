@@ -1,16 +1,26 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
+import { Loader2 } from "lucide-react";
 import { SettingsProvider } from "./lib/settings";
 import "./index.css";
-import Home from "./pages/Index";
-import Stats from "./pages/Stats";
-import NuovoViaggio from "./pages/NuovoViaggio";
-import ModificaViaggio from "./pages/ModificaViaggio";
-import SettingsPage from "./pages/Settings";
-import MieiViaggi from "./pages/MieiViaggi";
-import NotFound from "./pages/NotFound";
+
+const Home = lazy(() => import("./pages/Index"));
+const Stats = lazy(() => import("./pages/Stats"));
+const NuovoViaggio = lazy(() => import("./pages/NuovoViaggio"));
+const ModificaViaggio = lazy(() => import("./pages/ModificaViaggio"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+const MieiViaggi = lazy(() => import("./pages/MieiViaggi"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+function RouteFallback() {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Loader2 className="w-6 h-6 animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />
+    </div>
+  );
+}
 
 const rootEl = document.getElementById("root")!;
 rootEl.style.backgroundColor = "#060e1e";
@@ -19,15 +29,17 @@ ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <SettingsProvider>
       <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/statistiche" element={<Stats />} />
-          <Route path="/impostazioni" element={<SettingsPage />} />
-          <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
-          <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
-          <Route path="/miei-viaggi" element={<MieiViaggi />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/statistiche" element={<Stats />} />
+            <Route path="/impostazioni" element={<SettingsPage />} />
+            <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
+            <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
+            <Route path="/miei-viaggi" element={<MieiViaggi />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
         <Toaster richColors position="top-right" />
       </HashRouter>
     </SettingsProvider>
