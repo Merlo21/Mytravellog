@@ -122,6 +122,34 @@ describe("tripsTouchingMonth", () => {
   });
 });
 
+describe("TravelHeatmap — legenda e scroll mobile", () => {
+  it("mostra 0 e il massimo di giorni effettivo nella legenda", () => {
+    render(React.createElement(TravelHeatmap, {
+      trips: [
+        makeTrip({ id: "a", trip_date: "2024-06-01", date_end: "2024-06-05" }), // 5 giorni
+        makeTrip({ id: "b", trip_date: "2024-08-01", date_end: null }),          // 1 giorno
+      ],
+    }));
+    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getByText("5 giorni")).toBeInTheDocument();
+  });
+
+  it("non mostra la legenda quando non c'è nessun viaggio (nessun massimo da mostrare)", () => {
+    render(React.createElement(TravelHeatmap, { trips: [] }));
+    expect(screen.queryByText(/giorni$/)).not.toBeInTheDocument();
+  });
+
+  it("la griglia ha una larghezza minima e sta in un contenitore con scroll orizzontale", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-06-01", date_end: null });
+    const { container } = render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const cell = container.querySelector('[title="Giu 2024: 1 giorno di viaggio"]')!;
+    const grid = cell.parentElement!;
+    const scrollWrapper = grid.parentElement!;
+    expect(grid.style.minWidth).toBe("460px");
+    expect(scrollWrapper.style.overflowX).toBe("auto");
+  });
+});
+
 describe("TravelHeatmap — render", () => {
   it("renderizza senza crash e mostra 0 giorni in viaggio e '—' di astinenza senza viaggi", () => {
     render(React.createElement(TravelHeatmap, { trips: [] }));

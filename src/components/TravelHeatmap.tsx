@@ -121,47 +121,54 @@ export function TravelHeatmap({ trips }: Props) {
 
       <h2 className="text-lg font-bold mb-4">Anni e mesi di viaggio</h2>
 
-      <div style={{ display: "grid", gridTemplateColumns: "34px repeat(12,1fr)", gap: 4, alignItems: "center" }}>
-        <div />
-        {MONTH_LABELS.map(m => (
-          <div key={m} style={{ fontSize: 9, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>{m}</div>
-        ))}
-        {years.map(year => (
-          <Fragment key={year}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{year}</div>
-            {MONTH_LABELS.map((label, m) => {
-              const days = monthlyDays.get(`${year}-${m}`) ?? 0;
-              const isSelected = selectedCell?.year === year && selectedCell?.month === m;
-              const cellLabel = `${label} ${year}: ${days} giorn${days === 1 ? "o" : "i"} di viaggio`;
-              const cellStyle = {
-                aspectRatio: "1", borderRadius: 4, background: cellColor(days),
-                outline: isSelected ? "1.5px solid #60a5fa" : "none", outlineOffset: 1,
-              } as const;
-              // Le celle senza giorni non sono interattive: restano <div>, non
-              // fanno parte del focus da tastiera. Quelle con giorni sono
-              // <button> reali (non solo div con onClick) così Tab/Enter/Spazio
-              // funzionano e uno screen reader le annuncia come tali.
-              if (days === 0) {
-                return <div key={`${year}-${m}`} title={cellLabel} style={{ ...cellStyle, cursor: "default" }} />;
-              }
-              return (
-                <button key={`${year}-${m}`} type="button"
-                  onClick={() => setSelectedCell(isSelected ? null : { year, month: m })}
-                  title={cellLabel} aria-label={cellLabel} aria-pressed={isSelected}
-                  style={{ ...cellStyle, cursor: "pointer", border: "none", padding: 0, font: "inherit" }} />
-              );
-            })}
-          </Fragment>
-        ))}
+      {/* Larghezza minima + scroll orizzontale: su schermi stretti le celle
+          altrimenti si comprimono sotto i ~17px, troppo piccole per un tap
+          preciso — meglio scorrere che rimpicciolire all'infinito. */}
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "34px repeat(12,1fr)", gap: 4, alignItems: "center", minWidth: 460 }}>
+          <div />
+          {MONTH_LABELS.map(m => (
+            <div key={m} style={{ fontSize: 9, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>{m}</div>
+          ))}
+          {years.map(year => (
+            <Fragment key={year}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{year}</div>
+              {MONTH_LABELS.map((label, m) => {
+                const days = monthlyDays.get(`${year}-${m}`) ?? 0;
+                const isSelected = selectedCell?.year === year && selectedCell?.month === m;
+                const cellLabel = `${label} ${year}: ${days} giorn${days === 1 ? "o" : "i"} di viaggio`;
+                const cellStyle = {
+                  aspectRatio: "1", borderRadius: 4, background: cellColor(days),
+                  outline: isSelected ? "1.5px solid #60a5fa" : "none", outlineOffset: 1,
+                } as const;
+                // Le celle senza giorni non sono interattive: restano <div>, non
+                // fanno parte del focus da tastiera. Quelle con giorni sono
+                // <button> reali (non solo div con onClick) così Tab/Enter/Spazio
+                // funzionano e uno screen reader le annuncia come tali.
+                if (days === 0) {
+                  return <div key={`${year}-${m}`} title={cellLabel} style={{ ...cellStyle, cursor: "default" }} />;
+                }
+                return (
+                  <button key={`${year}-${m}`} type="button"
+                    onClick={() => setSelectedCell(isSelected ? null : { year, month: m })}
+                    title={cellLabel} aria-label={cellLabel} aria-pressed={isSelected}
+                    style={{ ...cellStyle, cursor: "pointer", border: "none", padding: 0, font: "inherit" }} />
+                );
+              })}
+            </Fragment>
+          ))}
+        </div>
       </div>
 
+      {years.length > 0 && (
       <div className="flex items-center justify-end gap-1.5 mt-3.5">
-        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>meno</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>0</span>
         {[0, 0.25, 0.5, 0.75, 1].map(a => (
           <div key={a} style={{ width: 10, height: 10, borderRadius: 3, background: a === 0 ? "rgba(255,255,255,0.06)" : `rgba(96,165,250,${a})` }} />
         ))}
-        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>più</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{maxDays} giorni</span>
       </div>
+      )}
 
       {selectedCell && (
         <div style={{ marginTop: 14, padding: "12px 14px", background: "#0a1e38", border: "0.5px solid #1a2d4a", borderRadius: 10 }}>
