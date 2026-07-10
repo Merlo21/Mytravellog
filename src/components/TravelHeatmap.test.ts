@@ -99,10 +99,22 @@ describe("daysSinceLastTrip", () => {
 });
 
 describe("TravelHeatmap — render", () => {
-  it("renderizza senza crash e mostra i giorni di astinenza senza viaggi", () => {
+  it("renderizza senza crash e mostra 0 giorni in viaggio e '—' di astinenza senza viaggi", () => {
     render(React.createElement(TravelHeatmap, { trips: [] }));
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.getByText("giorni senza viaggiare")).toBeInTheDocument();
+    expect(screen.getByText("giorni in viaggio")).toBeInTheDocument();
+    expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
+  it("mostra il totale corretto di giorni in viaggio (conteggio inclusivo, non differenza di date)", () => {
+    render(React.createElement(TravelHeatmap, {
+      trips: [
+        makeTrip({ trip_date: "2024-06-01", date_end: "2024-06-05" }), // 5 giorni inclusi gli estremi
+        makeTrip({ trip_date: "2024-08-10", date_end: null }),          // 1 giorno
+      ],
+    }));
+    expect(screen.getByText("6")).toBeInTheDocument();
   });
 
   it("mostra il numero corretto di giorni di astinenza con un viaggio passato", () => {

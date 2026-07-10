@@ -119,13 +119,13 @@ export function TravelHighlights({ trips }: Props) {
           card qui sotto non aveva alcun titolo. Stesso stile delle altre. */}
       <h2 className="text-lg font-bold">Highlights di viaggio</h2>
 
-      {/* Highlights 3+2 grid */}
+      {/* Highlights grid — "Giorni in viaggio" è ora nella sezione Anni e mesi
+          di viaggio, insieme a "giorni senza viaggiare" (metrica complementare) */}
       {(() => {
         type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType };
         const items: HlItem[] = [
           { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain    },
           { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2 },
-          { label:"Giorni in viaggio",    value: String(totalDays), sub: trips.length > 0 ? ("in " + trips.length + (trips.length === 1 ? " viaggio" : " viaggi")) : undefined, color:"#fbbf24", bg:"rgba(251,191,36,0.12)", Icon:CalendarDays },
           { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun      },
           { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.coldest_temp_c ?? coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.coldest_city ?? coldest?.city,  color:"#93c5fd", bg:"rgba(147,197,253,0.12)", Icon:Snowflake },
         ];
@@ -140,13 +140,8 @@ export function TravelHighlights({ trips }: Props) {
           </div>
         );
         return (
-          <div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
-              {items.slice(0,3).map(item => <Card key={item.label} item={item}/>)}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,maxWidth:"66.6%",margin:"0 auto"}}>
-              {items.slice(3).map(item => <Card key={item.label} item={item}/>)}
-            </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+            {items.map(item => <Card key={item.label} item={item}/>)}
           </div>
         );
       })()}

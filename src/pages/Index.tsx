@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { CalendarDays, Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 
@@ -115,13 +115,12 @@ function HomeInner() {
       <AppHeader/>
 
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {([
             { icon: <Plane       className="w-[18px] h-[18px]"/>, label: "Viaggi",   value: stats.trips.toString(),     accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
             { icon: <Globe       className="w-[18px] h-[18px]"/>, label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
             { icon: <MapPin      className="w-[18px] h-[18px]"/>, label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
             { icon: <Compass     className="w-[18px] h-[18px]"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-            { icon: <CalendarDays className="w-[18px] h-[18px]"/>, label: "Giorni",  value: stats.days.toString(),      accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
           ]).map(({ icon, label, value, accent, bg }) => (
             <div key={label} style={{
               background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12,

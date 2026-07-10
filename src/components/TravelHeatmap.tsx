@@ -1,6 +1,6 @@
 import { useMemo, Fragment } from "react";
 import { Trip, parseLocalDate } from "@/lib/storage";
-import { Hourglass } from "lucide-react";
+import { Hourglass, CalendarDays } from "lucide-react";
 
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
@@ -46,6 +46,14 @@ interface Props {
 export function TravelHeatmap({ trips }: Props) {
   const monthlyDays = useMemo(() => computeMonthlyTravelDays(trips), [trips]);
   const abstinence = useMemo(() => daysSinceLastTrip(trips), [trips]);
+  // Somma dei giorni di calendario effettivamente coperti dai viaggi (estremi
+  // inclusi) — stessa fonte della heatmap, quindi coerente con le sue celle.
+  // Diverso (più corretto) del vecchio calcolo per differenza di date usato
+  // in TravelHighlights/Index: un viaggio 1-5 giugno conta 5 giorni, non 4.
+  const totalTravelDays = useMemo(
+    () => Array.from(monthlyDays.values()).reduce((sum, d) => sum + d, 0),
+    [monthlyDays]
+  );
 
   // Solo gli anni con almeno un giorno di viaggio: niente righe vuote per gli
   // anni senza nessun viaggio, anche se sono "in mezzo" tra due anni con
@@ -66,15 +74,26 @@ export function TravelHeatmap({ trips }: Props) {
 
   return (
     <div className="glass-card p-5 animate-fade-up">
-      <div className="flex items-center gap-3 mb-5">
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(96,165,250,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Hourglass className="w-5 h-5" style={{ color: "#60a5fa" }} />
-        </div>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>
-            {abstinence == null ? "—" : abstinence}
+      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(96,165,250,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <CalendarDays className="w-5 h-5" style={{ color: "#60a5fa" }} />
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>giorni senza viaggiare</div>
+          <div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>{totalTravelDays}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>giorni in viaggio</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(96,165,250,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Hourglass className="w-5 h-5" style={{ color: "#60a5fa" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>
+              {abstinence == null ? "—" : abstinence}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>giorni senza viaggiare</div>
+          </div>
         </div>
       </div>
 

@@ -58,10 +58,6 @@ describe("TravelHighlights — empty state", () => {
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("mostra totalDays=0 con trips=[]", () => {
-    renderHighlights([]);
-    expect(screen.getByText("0")).toBeInTheDocument();
-  });
 });
 
 describe("TravelHighlights — highest (altitudine)", () => {
@@ -148,29 +144,6 @@ describe("TravelHighlights — hottest / coldest", () => {
     ];
     renderHighlights(trips);
     expect(screen.getByText("-10.0°C")).toBeInTheDocument();
-  });
-});
-
-describe("TravelHighlights — totalDays", () => {
-  it("conta 1 giorno se date_end è null", () => {
-    const trips = [makeTrip({ trip_date: "2024-01-01", date_end: null })];
-    renderHighlights(trips);
-    expect(screen.getByText("1")).toBeInTheDocument();
-  });
-
-  it("conta 1 giorno se date_end === trip_date", () => {
-    const trips = [makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-01" })];
-    renderHighlights(trips);
-    expect(screen.getByText("1")).toBeInTheDocument();
-  });
-
-  it("somma correttamente i giorni di più viaggi", () => {
-    const trips = [
-      makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-06" }), // 5 giorni
-      makeTrip({ trip_date: "2024-03-01", date_end: "2024-03-04" }), // 3 giorni
-    ];
-    renderHighlights(trips);
-    expect(screen.getByText("8")).toBeInTheDocument();
   });
 });
 
