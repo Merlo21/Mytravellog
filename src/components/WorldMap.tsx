@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Trip } from "@/lib/storage";
 import { AutoRotate } from "@/lib/settings";
-import { Play, Square } from "lucide-react";
+import { Play, Square, Hand } from "lucide-react";
 
 export interface CityInfo {
   name: string;
@@ -22,6 +22,8 @@ interface Props {
 }
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
+const GLOBE_HINT_SEEN_KEY = "navta.globe_hint_seen";
+const GLOBE_HINT_FADE_MS = 400;
 
 // Lo style.json di MapTiler non cambia mai a runtime, ma senza cache verrebbe
 // ri-scaricato (una chiamata a un'API a consumo, non gratuita come Nominatim
@@ -177,12 +179,35 @@ export function WorldMap({
   const rotTimerRef   = useRef<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  // Hint "Trascina per ruotare" al primo caricamento: "visible" → "fading"
+  // (CSS opacity transition) → "hidden" (rimosso dal DOM). Il flag in
+  // localStorage viene salvato non appena si decide di nasconderlo (timeout
+  // o primo drag), non a fine transizione, così un refresh immediato dopo
+  // il dismiss non lo rimostra.
+  const [globeHint, setGlobeHint] = useState<"visible" | "fading" | "hidden">(
+    () => (typeof localStorage !== "undefined" && localStorage.getItem(GLOBE_HINT_SEEN_KEY)) ? "hidden" : "visible"
+  );
+  const dismissGlobeHintRef = useRef<() => void>(() => {});
+  dismissGlobeHintRef.current = () => {
+    setGlobeHint(prev => {
+      if (prev !== "visible") return prev;
+      try { localStorage.setItem(GLOBE_HINT_SEEN_KEY, "1"); } catch { /* localStorage non disponibile */ }
+      setTimeout(() => setGlobeHint("hidden"), GLOBE_HINT_FADE_MS);
+      return "fading";
+    });
+  };
   const playingRef    = useRef(false);
   const onSelectCityRef = useRef(onSelectCity);
   const onSelectTripRef = useRef(onSelectTrip);
   const cityMarkerRefs = useRef<{marker:any;el:HTMLElement;city:CityInfo}[]>([]);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
+
+  useEffect(() => {
+    if (globeHint !== "visible") return;
+    const t = setTimeout(() => dismissGlobeHintRef.current(), 3000);
+    return () => clearTimeout(t);
+  }, [globeHint]);
 
   const ordered = useMemo(() =>
     [...trips]
@@ -289,6 +314,8 @@ export function WorldMap({
       // Stop rotation on interaction
       map.on("mousedown", stopRotation);
       map.on("touchstart", stopRotation);
+      map.on("mousedown", () => dismissGlobeHintRef.current());
+      map.on("touchstart", () => dismissGlobeHintRef.current());
 
       setTimeout(() => { map.resize(); }, 100);
     };
@@ -693,6 +720,17 @@ export function WorldMap({
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{background:"#f472b6"}}/>Destinazione</div>
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400"/>Multi-tappa</div>
       </div>
+
+      {/* Hint drag-per-ruotare: solo al primo caricamento (flag in localStorage) */}
+      {globeHint !== "hidden" && (
+        <div
+          className="absolute bottom-3 left-3 z-40 flex items-center gap-2 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 text-[11px] text-white/70"
+          style={{ transition: `opacity ${GLOBE_HINT_FADE_MS}ms ease`, opacity: globeHint === "fading" ? 0 : 1, pointerEvents: "none" }}
+        >
+          <Hand className="w-3.5 h-3.5" aria-hidden/>
+          Trascina per ruotare
+        </div>
+      )}
     </div>
   );
 }
