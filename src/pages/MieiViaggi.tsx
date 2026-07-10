@@ -40,8 +40,11 @@ export default function MieiViaggi() {
           </p>
         </div>
 
-        {/* Search */}
-        <div className="mb-6">
+        {/* Search — sticky sotto l'AppHeader (sticky top:0, alto 65px) mentre si
+            scorre l'elenco, con sfondo pieno per non far intravedere il
+            contenuto che scorre sotto. top:65 è accoppiato all'altezza reale
+            di AppHeader.tsx (FROZEN): se quella cambia, va rimisurato. */}
+        <div className="mb-6" style={{position:"sticky",top:65,zIndex:10,background:"#060e1e",paddingTop:8,paddingBottom:8}}>
           <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.05)",borderRadius:10,padding:"8px 14px",maxWidth:400}}>
             <Search className="w-4 h-4" style={{color:"rgba(255,255,255,0.3)",flexShrink:0}}/>
             <input
