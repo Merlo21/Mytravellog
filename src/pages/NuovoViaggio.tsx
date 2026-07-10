@@ -129,7 +129,7 @@ function RouteHero({
   waypoints, home, onEditHome, editingHome,
   homeQuery, setHomeQuery, homeResults, onSelectHome, onRemoveWaypoint,
   wpTransport, setWpTransport, wpOpen, setWpOpen, wpQuery, setWpQuery,
-  wpResults, wpLoading, onAddWaypoint
+  wpResults, wpLoading, onAddWaypoint, destinationError
 }: {
   waypoints: Waypoint[];
   home: { lat: number; lon: number; label: string } | null;
@@ -149,6 +149,7 @@ function RouteHero({
   wpResults: GeoResult[];
   wpLoading: boolean;
   onAddWaypoint: (r: GeoResult) => void;
+  destinationError?: boolean;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerW, setContainerW] = React.useState(600);
@@ -418,13 +419,17 @@ function RouteHero({
             ))}
           </div>
         ) : (
-          <div style={{ display:"flex", justifyContent:"center" }}>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
             <button type="button" onClick={() => setWpOpen(true)}
               style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12,
-                color:"rgba(255,255,255,0.4)", border:"1.5px dashed #1a2d4a",
+                color: destinationError ? "#f87171" : "rgba(255,255,255,0.4)",
+                border: `1.5px dashed ${destinationError ? "#f87171" : "#1a2d4a"}`,
                 borderRadius:99, padding:"6px 20px", cursor:"pointer", background:"transparent" }}>
               + Aggiungi tappa
             </button>
+            {destinationError && (
+              <span style={{ fontSize:11, color:"#f87171" }}>Seleziona una destinazione</span>
+            )}
           </div>
         )}
       </div>
@@ -473,6 +478,7 @@ const NuovoViaggio = () => {
   const [homeQuery, setHomeQuery] = useState(homeCity?.label ?? "");
   const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
   const [saving, setSaving] = useState(false);
+  const [destinationError, setDestinationError] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -498,12 +504,17 @@ const NuovoViaggio = () => {
       lat: r.latitude, lon: r.longitude, transport_mode: wpTransport,
     }]);
     setWpQuery(""); setWpResults([]); setWpOpen(false);
+    setDestinationError(false);
   };
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
 
   const handleSave = async () => {
-    if (waypoints.length === 0) { toast.error("Aggiungi almeno una città all'itinerario"); return; }
+    if (waypoints.length === 0) {
+      setDestinationError(true);
+      toast.error("Aggiungi almeno una città all'itinerario");
+      return;
+    }
     setSaving(true);
     const dest = waypoints[waypoints.length - 1];
     const settHome = s.homeCity;
@@ -640,6 +651,7 @@ const NuovoViaggio = () => {
             wpQuery={wpQuery} setWpQuery={setWpQuery}
             wpResults={wpResults} wpLoading={wpLoading}
             onAddWaypoint={addWaypoint}
+            destinationError={destinationError}
           />
           </div>
         </div>
