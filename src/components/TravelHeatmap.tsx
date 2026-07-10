@@ -1,6 +1,6 @@
-import { useMemo, Fragment } from "react";
-import { Trip, parseLocalDate } from "@/lib/storage";
-import { Hourglass, CalendarDays } from "lucide-react";
+import { useMemo, useState, Fragment } from "react";
+import { Trip, parseLocalDate, formatTripDate } from "@/lib/storage";
+import { Hourglass, CalendarDays, X } from "lucide-react";
 
 const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 
@@ -23,6 +23,20 @@ export function computeMonthlyTravelDays(trips: Trip[]): Map<string, number> {
     }
   }
   return map;
+}
+
+/** Viaggi che toccano almeno un giorno del mese indicato (month = 0-11),
+ * anche solo parzialmente (es. un viaggio 28 giugno-3 luglio compare sia in
+ * giugno che in luglio) — stesso criterio di sovrapposizione usato per
+ * calcolare i giorni della cella corrispondente. */
+export function tripsTouchingMonth(trips: Trip[], year: number, month: number): Trip[] {
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  return trips.filter(t => {
+    const start = parseLocalDate(t.trip_date);
+    const end = t.date_end ? parseLocalDate(t.date_end) : start;
+    return start <= monthEnd && end >= monthStart;
+  });
 }
 
 /** Giorni trascorsi dalla fine dell'ultimo viaggio (0 se in corso oggi). */
@@ -72,6 +86,14 @@ export function TravelHeatmap({ trips }: Props) {
     return `rgba(96,165,250,${alpha.toFixed(2)})`;
   };
 
+  // Riassunto del mese: si apre/chiude cliccando una cella (niente hover —
+  // su touch non esiste, e così l'interazione è identica su ogni dispositivo).
+  const [selectedCell, setSelectedCell] = useState<{ year: number; month: number } | null>(null);
+  const selectedMonthTrips = useMemo(
+    () => selectedCell ? tripsTouchingMonth(trips, selectedCell.year, selectedCell.month) : [],
+    [trips, selectedCell]
+  );
+
   return (
     <div className="glass-card p-5 animate-fade-up">
       <div className="flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
@@ -109,10 +131,16 @@ export function TravelHeatmap({ trips }: Props) {
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{year}</div>
             {MONTH_LABELS.map((label, m) => {
               const days = monthlyDays.get(`${year}-${m}`) ?? 0;
+              const isSelected = selectedCell?.year === year && selectedCell?.month === m;
               return (
                 <div key={`${year}-${m}`}
+                  onClick={days > 0 ? () => setSelectedCell(isSelected ? null : { year, month: m }) : undefined}
                   title={`${label} ${year}: ${days} giorn${days === 1 ? "o" : "i"} di viaggio`}
-                  style={{ aspectRatio: "1", borderRadius: 4, background: cellColor(days) }} />
+                  style={{
+                    aspectRatio: "1", borderRadius: 4, background: cellColor(days),
+                    cursor: days > 0 ? "pointer" : "default",
+                    outline: isSelected ? "1.5px solid #60a5fa" : "none", outlineOffset: 1,
+                  }} />
               );
             })}
           </Fragment>
@@ -126,6 +154,34 @@ export function TravelHeatmap({ trips }: Props) {
         ))}
         <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>più</span>
       </div>
+
+      {selectedCell && (
+        <div style={{ marginTop: 14, padding: "12px 14px", background: "#0a1e38", border: "0.5px solid #1a2d4a", borderRadius: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#f0f4ff" }}>
+              {(() => {
+                const d = monthlyDays.get(`${selectedCell.year}-${selectedCell.month}`) ?? 0;
+                return `${MONTH_LABELS[selectedCell.month]} ${selectedCell.year} — ${d} giorn${d === 1 ? "o" : "i"}`;
+              })()}
+            </span>
+            <button onClick={() => setSelectedCell(null)}
+              style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", display: "flex" }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {selectedMonthTrips.map(t => (
+              <div key={t.id} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                {t.city}
+                <span style={{ color: "rgba(255,255,255,0.35)" }}>
+                  {" · " + formatTripDate(t.trip_date)}
+                  {t.date_end && t.date_end !== t.trip_date ? ` → ${formatTripDate(t.date_end)}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

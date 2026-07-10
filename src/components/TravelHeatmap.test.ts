@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { computeMonthlyTravelDays, daysSinceLastTrip, TravelHeatmap } from "./TravelHeatmap";
+import { computeMonthlyTravelDays, daysSinceLastTrip, tripsTouchingMonth, TravelHeatmap } from "./TravelHeatmap";
 import type { Trip } from "@/lib/storage";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -98,6 +98,30 @@ describe("daysSinceLastTrip", () => {
   });
 });
 
+describe("tripsTouchingMonth", () => {
+  it("include un viaggio che inizia e finisce nel mese richiesto", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-06-10", date_end: "2024-06-12" });
+    expect(tripsTouchingMonth([trip], 2024, 5)).toEqual([trip]); // giugno = mese 5
+  });
+
+  it("esclude un viaggio in un mese diverso", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-05-10", date_end: "2024-05-12" });
+    expect(tripsTouchingMonth([trip], 2024, 5)).toEqual([]);
+  });
+
+  it("include un viaggio a cavallo che tocca solo parzialmente il mese richiesto", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-06-28", date_end: "2024-07-03" });
+    expect(tripsTouchingMonth([trip], 2024, 5)).toEqual([trip]); // giugno
+    expect(tripsTouchingMonth([trip], 2024, 6)).toEqual([trip]); // luglio
+    expect(tripsTouchingMonth([trip], 2024, 7)).toEqual([]);     // agosto: non toccato
+  });
+
+  it("esclude lo stesso mese di un anno diverso", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2023-06-10", date_end: null });
+    expect(tripsTouchingMonth([trip], 2024, 5)).toEqual([]);
+  });
+});
+
 describe("TravelHeatmap — render", () => {
   it("renderizza senza crash e mostra 0 giorni in viaggio e '—' di astinenza senza viaggi", () => {
     render(React.createElement(TravelHeatmap, { trips: [] }));
@@ -145,5 +169,64 @@ describe("TravelHeatmap — render", () => {
   it("non mostra nessuna riga anno senza viaggi", () => {
     render(React.createElement(TravelHeatmap, { trips: [] }));
     expect(screen.queryByText(String(new Date().getFullYear()))).not.toBeInTheDocument();
+  });
+});
+
+describe("TravelHeatmap — riepilogo del mese al click", () => {
+  it("il click su una cella con giorni apre il riepilogo con città e date del viaggio", () => {
+    const trip = makeTrip({ id: "a", city: "Palermo", trip_date: "2024-06-01", date_end: "2024-06-05" });
+    const { container } = render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const cell = container.querySelector('[title="Giu 2024: 5 giorni di viaggio"]')!;
+    fireEvent.click(cell);
+    expect(screen.getByText("Giu 2024 — 5 giorni")).toBeInTheDocument();
+    expect(screen.getByText("Palermo")).toBeInTheDocument();
+  });
+
+  it("usa il singolare '1 giorno' nell'intestazione del riepilogo, non '1 giorni'", () => {
+    const trip = makeTrip({ id: "a", city: "Palermo", trip_date: "2024-06-01", date_end: null });
+    const { container } = render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const cell = container.querySelector('[title="Giu 2024: 1 giorno di viaggio"]')!;
+    fireEvent.click(cell);
+    expect(screen.getByText("Giu 2024 — 1 giorno")).toBeInTheDocument();
+  });
+
+  it("un secondo click sulla stessa cella chiude il riepilogo", () => {
+    const trip = makeTrip({ id: "a", city: "Palermo", trip_date: "2024-06-01", date_end: null });
+    const { container } = render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const cell = container.querySelector('[title="Giu 2024: 1 giorno di viaggio"]')!;
+    fireEvent.click(cell);
+    expect(screen.getByText("Palermo")).toBeInTheDocument();
+    fireEvent.click(cell);
+    expect(screen.queryByText("Palermo")).not.toBeInTheDocument();
+  });
+
+  it("il pulsante × chiude il riepilogo", () => {
+    const trip = makeTrip({ id: "a", city: "Palermo", trip_date: "2024-06-01", date_end: null });
+    const { container } = render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const cell = container.querySelector('[title="Giu 2024: 1 giorno di viaggio"]')!;
+    fireEvent.click(cell);
+    expect(screen.getByText("Palermo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button"));
+    expect(screen.queryByText("Palermo")).not.toBeInTheDocument();
+  });
+
+  it("una cella senza giorni non apre nessun riepilogo", () => {
+    const trip = makeTrip({ id: "a", city: "Palermo", trip_date: "2024-06-01", date_end: null });
+    const { container } = render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const emptyCell = container.querySelector('[title="Lug 2024: 0 giorni di viaggio"]')!;
+    fireEvent.click(emptyCell);
+    expect(screen.queryByText("Palermo")).not.toBeInTheDocument();
+  });
+
+  it("mostra tutti i viaggi che toccano il mese, anche più di uno", () => {
+    const trips = [
+      makeTrip({ id: "a", city: "Palermo", trip_date: "2024-06-01", date_end: null }),
+      makeTrip({ id: "b", city: "Catania", trip_date: "2024-06-15", date_end: null }),
+    ];
+    const { container } = render(React.createElement(TravelHeatmap, { trips }));
+    const cell = container.querySelector('[title="Giu 2024: 2 giorni di viaggio"]')!;
+    fireEvent.click(cell);
+    expect(screen.getByText("Palermo")).toBeInTheDocument();
+    expect(screen.getByText("Catania")).toBeInTheDocument();
   });
 });
