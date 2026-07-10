@@ -196,9 +196,8 @@ describe("TripCardTicket — edit e delete", () => {
   it("click edit naviga a /modifica-viaggio/:id", () => {
     const trip = makeTrip({ id: "abc123" });
     renderCard(trip);
-    const buttons = screen.getAllByRole("button");
-    const editBtn = buttons.find(b => b.querySelector("svg")); // pencil icon button
-    fireEvent.click(editBtn!);
+    const editBtn = screen.getByRole("button", { name: "Modifica viaggio" });
+    fireEvent.click(editBtn);
     expect(mockNavigate).toHaveBeenCalledWith("/modifica-viaggio/abc123");
   });
 
@@ -248,5 +247,22 @@ describe("TripCardTicket — distanza e temperatura", () => {
     renderCard(makeTrip({ transport_mode: "plane", distance_from_home_km: null, temperature_c: 24 }));
     expect(screen.getByText("Aereo")).toBeInTheDocument();
     expect(screen.getByText("24.0°C")).toBeInTheDocument();
+  });
+});
+
+describe("TripCardTicket — flyover 3D", () => {
+  it("click sul bottone flyover apre la modale", () => {
+    // home_latitude/longitude sono null di default in makeTrip: nessuna
+    // tratta disponibile, ma la modale si apre comunque (mostra lo stato "empty").
+    renderCard(makeTrip());
+    fireEvent.click(screen.getByRole("button", { name: "Vedi il flyover 3D" }));
+    expect(screen.getByRole("button", { name: "Chiudi" })).toBeInTheDocument();
+  });
+
+  it("il bottone Chiudi chiude la modale", () => {
+    renderCard(makeTrip());
+    fireEvent.click(screen.getByRole("button", { name: "Vedi il flyover 3D" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chiudi" }));
+    expect(screen.queryByRole("button", { name: "Chiudi" })).not.toBeInTheDocument();
   });
 });

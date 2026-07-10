@@ -2,8 +2,9 @@
 import { useState } from "react";
 import { Trip, deleteTrip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
-import { Plane, Train, Car, Ship, Footprints, Pencil, Trash2 } from "lucide-react";
+import { Plane, Train, Car, Ship, Footprints, Pencil, Trash2, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { TripFlyover } from "@/components/TripFlyover";
 
 const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string; Icon: React.ElementType }> = {
   plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", label: "Aereo",   Icon: Plane      },
@@ -36,6 +37,7 @@ interface Props {
 export function TripCardTicket({ trip, onDeleted }: Props) {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showFlyover, setShowFlyover] = useState(false);
   const { distanceUnit, temperatureUnit } = useSettings();
   const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_TRANSPORT;
 
@@ -57,6 +59,7 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
   };
 
   return (
+    <>
     <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderRadius:16,overflow:"hidden"}}>
 
       {/* Top */}
@@ -79,7 +82,11 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
             ))}
           </div>
           <div style={{display:"flex",gap:4,flexShrink:0}}>
-            <button onClick={() => navigate("/modifica-viaggio/"+trip.id)}
+            <button onClick={() => setShowFlyover(true)} aria-label="Vedi il flyover 3D"
+              style={{width:26,height:26,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Video style={{width:13,height:13}}/>
+            </button>
+            <button onClick={() => navigate("/modifica-viaggio/"+trip.id)} aria-label="Modifica viaggio"
               style={{width:26,height:26,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <Pencil style={{width:13,height:13}}/>
             </button>
@@ -176,5 +183,7 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
         )}
       </div>
     </div>
+    {showFlyover && <TripFlyover trips={[trip]} onClose={() => setShowFlyover(false)} />}
+    </>
   );
 }

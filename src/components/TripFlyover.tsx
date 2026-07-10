@@ -99,11 +99,19 @@ export function TripFlyover({ trips, onClose }: Props) {
 
   const playFrom = async (startIndex: number, map: any) => {
     const legs = legsRef.current;
-    for (let i = startIndex; i < legs.length; i++) {
+    let i = startIndex;
+    while (i < legs.length) {
       if (!playingRef.current) { legIndexRef.current = i; return; }
       if (!mountedRef.current) return;
       setLegIndex(i);
       await flyLeg(map, legs[i]);
+      if (!mountedRef.current) return;
+      // Se nel frattempo è arrivata una pausa, map.stop() ha già interrotto
+      // il volo e fatto risolvere questa promise in anticipo: la tratta non
+      // è davvero conclusa, quindi alla ripresa va rifatta (non saltata),
+      // proseguendo dalla posizione in cui la camera si è fermata.
+      if (!playingRef.current) { legIndexRef.current = i; return; }
+      i++;
     }
     if (!mountedRef.current) return;
     legIndexRef.current = legs.length;
@@ -119,6 +127,7 @@ export function TripFlyover({ trips, onClose }: Props) {
     if (playing) {
       playingRef.current = false;
       setPlaying(false);
+      map.stop();
     } else {
       playingRef.current = true;
       setPlaying(true);
