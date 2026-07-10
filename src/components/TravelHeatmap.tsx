@@ -132,15 +132,23 @@ export function TravelHeatmap({ trips }: Props) {
             {MONTH_LABELS.map((label, m) => {
               const days = monthlyDays.get(`${year}-${m}`) ?? 0;
               const isSelected = selectedCell?.year === year && selectedCell?.month === m;
+              const cellLabel = `${label} ${year}: ${days} giorn${days === 1 ? "o" : "i"} di viaggio`;
+              const cellStyle = {
+                aspectRatio: "1", borderRadius: 4, background: cellColor(days),
+                outline: isSelected ? "1.5px solid #60a5fa" : "none", outlineOffset: 1,
+              } as const;
+              // Le celle senza giorni non sono interattive: restano <div>, non
+              // fanno parte del focus da tastiera. Quelle con giorni sono
+              // <button> reali (non solo div con onClick) così Tab/Enter/Spazio
+              // funzionano e uno screen reader le annuncia come tali.
+              if (days === 0) {
+                return <div key={`${year}-${m}`} title={cellLabel} style={{ ...cellStyle, cursor: "default" }} />;
+              }
               return (
-                <div key={`${year}-${m}`}
-                  onClick={days > 0 ? () => setSelectedCell(isSelected ? null : { year, month: m }) : undefined}
-                  title={`${label} ${year}: ${days} giorn${days === 1 ? "o" : "i"} di viaggio`}
-                  style={{
-                    aspectRatio: "1", borderRadius: 4, background: cellColor(days),
-                    cursor: days > 0 ? "pointer" : "default",
-                    outline: isSelected ? "1.5px solid #60a5fa" : "none", outlineOffset: 1,
-                  }} />
+                <button key={`${year}-${m}`} type="button"
+                  onClick={() => setSelectedCell(isSelected ? null : { year, month: m })}
+                  title={cellLabel} aria-label={cellLabel} aria-pressed={isSelected}
+                  style={{ ...cellStyle, cursor: "pointer", border: "none", padding: 0, font: "inherit" }} />
               );
             })}
           </Fragment>
@@ -164,7 +172,7 @@ export function TravelHeatmap({ trips }: Props) {
                 return `${MONTH_LABELS[selectedCell.month]} ${selectedCell.year} — ${d} giorn${d === 1 ? "o" : "i"}`;
               })()}
             </span>
-            <button onClick={() => setSelectedCell(null)}
+            <button type="button" onClick={() => setSelectedCell(null)} aria-label="Chiudi"
               style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", display: "flex" }}>
               <X className="w-3.5 h-3.5" />
             </button>

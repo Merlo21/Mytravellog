@@ -172,6 +172,37 @@ describe("TravelHeatmap — render", () => {
   });
 });
 
+describe("TravelHeatmap — accessibilità delle celle", () => {
+  it("una cella con giorni è un <button> reale, raggiungibile da tastiera", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-06-01", date_end: null });
+    render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const cell = screen.getByRole("button", { name: "Giu 2024: 1 giorno di viaggio" });
+    expect(cell.tagName).toBe("BUTTON");
+  });
+
+  it("una cella senza giorni non è un button (resta un div non interattivo)", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-06-01", date_end: null });
+    render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    expect(screen.queryByRole("button", { name: /Lug 2024/ })).not.toBeInTheDocument();
+  });
+
+  it("aria-pressed riflette lo stato selezionato della cella", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-06-01", date_end: null });
+    render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    const cell = screen.getByRole("button", { name: "Giu 2024: 1 giorno di viaggio" });
+    expect(cell).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(cell);
+    expect(cell).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("il pulsante di chiusura ha un nome accessibile", () => {
+    const trip = makeTrip({ id: "a", trip_date: "2024-06-01", date_end: null });
+    render(React.createElement(TravelHeatmap, { trips: [trip] }));
+    fireEvent.click(screen.getByRole("button", { name: "Giu 2024: 1 giorno di viaggio" }));
+    expect(screen.getByRole("button", { name: "Chiudi" })).toBeInTheDocument();
+  });
+});
+
 describe("TravelHeatmap — riepilogo del mese al click", () => {
   it("il click su una cella con giorni apre il riepilogo con città e date del viaggio", () => {
     const trip = makeTrip({ id: "a", city: "Palermo", trip_date: "2024-06-01", date_end: "2024-06-05" });
@@ -206,7 +237,7 @@ describe("TravelHeatmap — riepilogo del mese al click", () => {
     const cell = container.querySelector('[title="Giu 2024: 1 giorno di viaggio"]')!;
     fireEvent.click(cell);
     expect(screen.getByText("Palermo")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(screen.getByRole("button", { name: "Chiudi" }));
     expect(screen.queryByText("Palermo")).not.toBeInTheDocument();
   });
 
