@@ -30,6 +30,13 @@ function daysBetween(a: string, b: string) {
   return d > 0 ? d : null;
 }
 
+/** Chiave che identifica l'insieme ordinato di coordinate di un itinerario:
+ * usata per capire se le tappe sono cambiate rispetto a quando la regione
+ * è stata calcolata l'ultima volta (vedi handleSave). */
+function waypointsCoordsKey(wps: { lat: number; lon: number }[]): string {
+  return wps.map(w => `${w.lat},${w.lon}`).join("|");
+}
+
 async function fetchNominatimRegion(lat: number, lon: number): Promise<RegionInfo> {
   if (!lat || !lon) return { name: null, code: null };
   try {
@@ -532,6 +539,11 @@ const ModificaViaggio = () => {
         transport_mode: (trip.transport_mode ?? "plane") as TransportMode }
     ] : []
   );
+  // Istantanea delle coordinate al mount (prima di qualsiasi modifica
+  // dell'utente in questa sessione di editing): se al salvataggio non
+  // coincidono più con quelle attuali, la destinazione/le tappe sono
+  // cambiate e la regione salvata va ricalcolata, anche se non è null.
+  const originalCoordsKeyRef = useRef(waypointsCoordsKey(waypoints));
   const [wpQuery, setWpQuery] = useState("");
   const [wpResults, setWpResults] = useState<GeoResult[]>([]);
   const [wpLoading, setWpLoading] = useState(false);
@@ -649,12 +661,14 @@ const ModificaViaggio = () => {
     const coldestStop = tempsWithCity.length ? tempsWithCity.reduce((a, b) => (b.temp! < a.temp! ? b : a)) : null;
     const altsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, alt: stopAlts[i] as number | null })).filter(x => x.alt != null);
     const highestStop = altsWithCity.length ? altsWithCity.reduce((a, b) => (b.alt! > a.alt! ? b : a)) : null;
-    // Se la regione non è mai stata popolata (né al momento della creazione né
-    // con "Ricalcola"), proviamo a recuperarla ora su tutte le tappe, invece
-    // di lasciarla vuota per sempre finché l'utente non trova il pulsante.
+    // Ricalcola la regione se non è mai stata popolata, o se le coordinate
+    // dell'itinerario sono cambiate rispetto a quando è stata calcolata
+    // l'ultima volta (destinazione o tappe modificate in questa sessione di
+    // editing) — altrimenti resterebbe quella vecchia, non più corretta.
     let region = currentRegion;
     let regionDetails = currentRegionDetails;
-    if (region == null) {
+    const coordsChanged = waypointsCoordsKey(waypoints) !== originalCoordsKeyRef.current;
+    if (region == null || coordsChanged) {
       const fetched = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
       region = fetched.region;
       regionDetails = fetched.details.length > 0 ? fetched.details : null;
