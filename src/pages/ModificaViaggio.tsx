@@ -30,13 +30,6 @@ function daysBetween(a: string, b: string) {
   return d > 0 ? d : null;
 }
 
-/** Chiave che identifica l'insieme ordinato di coordinate di un itinerario:
- * usata per capire se le tappe sono cambiate rispetto a quando la regione
- * è stata calcolata l'ultima volta (vedi handleSave). */
-function waypointsCoordsKey(wps: { lat: number; lon: number }[]): string {
-  return wps.map(w => `${w.lat},${w.lon}`).join("|");
-}
-
 async function fetchNominatimRegion(lat: number, lon: number): Promise<RegionInfo> {
   if (!lat || !lon) return { name: null, code: null };
   try {
@@ -539,11 +532,6 @@ const ModificaViaggio = () => {
         transport_mode: (trip.transport_mode ?? "plane") as TransportMode }
     ] : []
   );
-  // Istantanea delle coordinate al mount (prima di qualsiasi modifica
-  // dell'utente in questa sessione di editing): se al salvataggio non
-  // coincidono più con quelle attuali, la destinazione/le tappe sono
-  // cambiate e la regione salvata va ricalcolata, anche se non è null.
-  const originalCoordsKeyRef = useRef(waypointsCoordsKey(waypoints));
   const [wpQuery, setWpQuery] = useState("");
   const [wpResults, setWpResults] = useState<GeoResult[]>([]);
   const [wpLoading, setWpLoading] = useState(false);
@@ -559,9 +547,6 @@ const ModificaViaggio = () => {
   const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
   const [saving, setSaving] = useState(false);
   const [destinationError, setDestinationError] = useState(false);
-  const [refetchingRegion, setRefetchingRegion] = useState(false);
-  const [currentRegion, setCurrentRegion] = useState<string | null>(trip?.region ?? null);
-  const [currentRegionDetails, setCurrentRegionDetails] = useState<{ name: string; code: string | null }[] | null>(trip?.region_details ?? null);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -661,18 +646,12 @@ const ModificaViaggio = () => {
     const coldestStop = tempsWithCity.length ? tempsWithCity.reduce((a, b) => (b.temp! < a.temp! ? b : a)) : null;
     const altsWithCity = allStopsWithCoords.map((s, i) => ({ city: s.city, alt: stopAlts[i] as number | null })).filter(x => x.alt != null);
     const highestStop = altsWithCity.length ? altsWithCity.reduce((a, b) => (b.alt! > a.alt! ? b : a)) : null;
-    // Ricalcola la regione se non è mai stata popolata, o se le coordinate
-    // dell'itinerario sono cambiate rispetto a quando è stata calcolata
-    // l'ultima volta (destinazione o tappe modificate in questa sessione di
-    // editing) — altrimenti resterebbe quella vecchia, non più corretta.
-    let region = currentRegion;
-    let regionDetails = currentRegionDetails;
-    const coordsChanged = waypointsCoordsKey(waypoints) !== originalCoordsKeyRef.current;
-    if (region == null || coordsChanged) {
-      const fetched = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
-      region = fetched.region;
-      regionDetails = fetched.details.length > 0 ? fetched.details : null;
-    }
+    // La regione non è mai mostrata all'utente in questa pagina: viene
+    // ricalcolata ad ogni salvataggio, senza condizioni, così è sempre
+    // aggiornata senza bisogno di un pulsante manuale.
+    const fetchedRegion = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
+    const region = fetchedRegion.region;
+    const regionDetails = fetchedRegion.details.length > 0 ? fetchedRegion.details : null;
     updateTrip(id!, {
       title: title.trim() || dest.city,
       country: dest.country, city: dest.city,
@@ -693,23 +672,6 @@ const ModificaViaggio = () => {
     navigate("/");
   };
 
-
-  const handleRefetchRegion = async () => {
-    if (waypoints.length === 0) return;
-    setRefetchingRegion(true);
-    try {
-      const { region, details } = await fetchMultiRegion(waypoints.map(w => ({ lat: w.lat, lon: w.lon })));
-      const regionDetails = details.length > 0 ? details : null;
-      setCurrentRegion(region);
-      setCurrentRegionDetails(regionDetails);
-      if (id) updateTrip(id, { region, region_details: regionDetails });
-      if (region) toast.success("Region" + (details.length > 1 ? "i" : "e") + " salvat" + (details.length > 1 ? "e" : "a") + ": " + region);
-      else toast.error("Regione non trovata");
-    } catch {
-      toast.error("Errore nel recupero della regione");
-    }
-    setRefetchingRegion(false);
-  };
 
   const days = daysBetween(dateStart, dateEnd);
 
@@ -892,32 +854,6 @@ const ModificaViaggio = () => {
             {(hoverRating||rating) > 0 && (
               <div style={{ fontSize:11, color:"#fbbf24", marginTop:6 }}>{RATING_LABELS[hoverRating||rating]}</div>
             )}
-          </div>
-
-          {/* Regione */}
-          <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <div>
-                <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase", display:"block", marginBottom:4 }}>Regione</label>
-                <div style={{ fontSize:13, color: currentRegion ? "#f0f4ff" : "rgba(255,255,255,0.25)" }}>
-                  {currentRegion || "Non rilevata"}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleRefetchRegion}
-                disabled={refetchingRegion || waypoints.length === 0}
-                style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, padding:"6px 12px",
-                  borderRadius:8, cursor: waypoints.length === 0 ? "not-allowed" : "pointer",
-                  background:"rgba(96,165,250,0.1)", border:"1px solid rgba(96,165,250,0.3)",
-                  color:"#60a5fa", opacity: waypoints.length === 0 ? 0.4 : 1 }}>
-                {refetchingRegion
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin"/>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-                }
-                Ricalcola
-              </button>
-            </div>
           </div>
 
           {/* Actions */}
