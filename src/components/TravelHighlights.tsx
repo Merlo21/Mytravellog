@@ -114,6 +114,11 @@ export function TravelHighlights({ trips }: Props) {
   return (
     <div className="space-y-6 animate-fade-up">
 
+      {/* A differenza delle altre sezioni della pagina Statistiche (che hanno
+          già un proprio h2 interno, es. "Distanze" più sotto), la griglia di
+          card qui sotto non aveva alcun titolo. */}
+      <div style={{fontSize:10,letterSpacing:"1.5px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)"}}>Highlights di viaggio</div>
+
       {/* Highlights 3+2 grid */}
       {(() => {
         type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType };
