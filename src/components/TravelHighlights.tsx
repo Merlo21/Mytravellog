@@ -116,8 +116,8 @@ export function TravelHighlights({ trips }: Props) {
 
       {/* A differenza delle altre sezioni della pagina Statistiche (che hanno
           già un proprio h2 interno, es. "Distanze" più sotto), la griglia di
-          card qui sotto non aveva alcun titolo. */}
-      <div style={{fontSize:10,letterSpacing:"1.5px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)"}}>Highlights di viaggio</div>
+          card qui sotto non aveva alcun titolo. Stesso stile delle altre. */}
+      <h2 className="text-lg font-bold">Highlights di viaggio</h2>
 
       {/* Highlights 3+2 grid */}
       {(() => {
