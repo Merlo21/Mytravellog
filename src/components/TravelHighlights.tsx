@@ -1,7 +1,7 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useMemo } from "react";
 import React from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, CalendarDays } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { distanceKm } from "@/lib/geo";
@@ -68,14 +68,6 @@ export function TravelHighlights({ trips }: Props) {
       )[0],
     [trips]
   );
-  const totalDays = useMemo(
-    () => trips.reduce((s, t) => {
-      if (!t.date_end || t.date_end === t.trip_date) return s + 1;
-      const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
-      return s + Math.max(1, d);
-    }, 0),
-    [trips]
-  );
   const hottest = useMemo(
     () => trips
       .filter(t => (t.hottest_temp_c ?? t.temperature_c) != null)
@@ -101,15 +93,6 @@ export function TravelHighlights({ trips }: Props) {
   const byShip  = byMode.ship;
   const byWalk  = byMode.walk;
   const byRoad  = byCar;
-
-  type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType; angle: number };
-  const hlItems: HlItem[] = [
-    { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain,    angle:-90 },
-    { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2, angle:-18 },
-    { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun,         angle:54  },
-    { label:"Giorni in viaggio",    value: String(totalDays), sub: trips.length > 0 ? ("in " + trips.length + (trips.length === 1 ? " viaggio" : " viaggi")) : undefined, color:"#fbbf24", bg:"rgba(251,191,36,0.12)",  Icon:CalendarDays, angle:126 },
-    { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.coldest_temp_c ?? coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.coldest_city ?? coldest?.city,  color:"#93c5fd", bg:"rgba(147,197,253,0.12)", Icon:Snowflake,   angle:198 },
-  ];
 
   return (
     <div className="space-y-6 animate-fade-up">
