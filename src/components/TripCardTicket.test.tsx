@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { TripCardTicket } from "./TripCardTicket";
+import { TripCardTicket, seasonColor } from "./TripCardTicket";
 import { SettingsProvider } from "@/lib/settings";
 import { addTrip } from "@/lib/storage";
 import type { Trip } from "@/lib/storage";
@@ -111,6 +111,41 @@ describe("TripCardTicket — date e giorni", () => {
   });
 });
 
+describe("seasonColor", () => {
+  it("inverno (gennaio, dicembre) è blu", () => {
+    expect(seasonColor("2024-01-15")).toBe("#60a5fa");
+    expect(seasonColor("2024-12-20")).toBe("#60a5fa");
+  });
+
+  it("primavera (aprile) è verde", () => {
+    expect(seasonColor("2024-04-10")).toBe("#4ade80");
+  });
+
+  it("estate (luglio) è arancio", () => {
+    expect(seasonColor("2024-07-09")).toBe("#fb923c");
+  });
+
+  it("autunno (ottobre) è ruggine", () => {
+    expect(seasonColor("2024-10-01")).toBe("#c2410c");
+  });
+});
+
+describe("TripCardTicket — colore stagionale della data", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("la data di un viaggio estivo usa il colore estate", () => {
+    renderCard(makeTrip({ trip_date: "2024-07-09" }));
+    const dateEl = screen.getByText("09 lug 2024");
+    expect(dateEl).toHaveStyle({ color: "rgb(251, 146, 60)" });
+  });
+
+  it("la data di un viaggio invernale usa il colore inverno", () => {
+    renderCard(makeTrip({ trip_date: "2024-01-15" }));
+    const dateEl = screen.getByText("15 gen 2024");
+    expect(dateEl).toHaveStyle({ color: "rgb(96, 165, 250)" });
+  });
+});
+
 describe("TripCardTicket — transport mode", () => {
   beforeEach(() => localStorage.clear());
 
@@ -206,6 +241,12 @@ describe("TripCardTicket — distanza e temperatura", () => {
 
   it("mostra la temperatura se temperature_c è presente", () => {
     renderCard(makeTrip({ temperature_c: 24 }));
+    expect(screen.getByText("24.0°C")).toBeInTheDocument();
+  });
+
+  it("mostra sia il mezzo che la temperatura quando la distanza manca", () => {
+    renderCard(makeTrip({ transport_mode: "plane", distance_from_home_km: null, temperature_c: 24 }));
+    expect(screen.getByText("Aereo")).toBeInTheDocument();
     expect(screen.getByText("24.0°C")).toBeInTheDocument();
   });
 });

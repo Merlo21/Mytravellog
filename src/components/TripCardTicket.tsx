@@ -1,6 +1,6 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useState } from "react";
-import { Trip, deleteTrip, formatTripDate } from "@/lib/storage";
+import { Trip, deleteTrip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
 import { Plane, Train, Car, Ship, Footprints, Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +13,16 @@ const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string
   walk:  { color: "#D85A30", bg: "rgba(216,90,48,0.12)",  label: "A piedi", Icon: Footprints },
 };
 const DEFAULT_TRANSPORT = { color: "#60a5fa", bg: "rgba(96,165,250,0.12)", label: "Viaggio", Icon: Plane };
+
+// Colore stagionale della data (emisfero nord): inverno freddo, estate caldo,
+// mezze stagioni nei toni intermedi. Indice = mese (0=gennaio … 11=dicembre).
+const SEASON_COLOR_BY_MONTH = [
+  "#60a5fa", "#60a5fa", "#4ade80", "#4ade80", "#4ade80", "#fb923c",
+  "#fb923c", "#fb923c", "#c2410c", "#c2410c", "#c2410c", "#60a5fa",
+];
+export function seasonColor(tripDateISO: string): string {
+  return SEASON_COLOR_BY_MONTH[parseLocalDate(tripDateISO).getMonth()];
+}
 
 function abbr(city: string) {
   return city.slice(0, 3).toUpperCase();
@@ -133,13 +143,15 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
 
       {/* Bottom */}
       <div style={{padding:"10px 20px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-        <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>
-          {formatTripDate(trip.trip_date)}
+        <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+          <span style={{fontSize:13,fontWeight:600,color:seasonColor(trip.trip_date)}}>
+            {formatTripDate(trip.trip_date)}
+          </span>
           {trip.date_end && trip.date_end !== trip.trip_date && (
-            <span> → {formatTripDate(trip.date_end)}</span>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}> → {formatTripDate(trip.date_end)}</span>
           )}
           {days && days > 0 && (
-            <span style={{color:ts.color,fontWeight:600}}> · {days}g</span>
+            <span style={{fontSize:11,color:ts.color,fontWeight:600}}> · {days}g</span>
           )}
         </div>
         {trip.transport_mode && (
@@ -153,11 +165,14 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
         {trip.distance_from_home_km != null && (
           <>
             <div style={{width:1,height:10,background:"#1a2d4a"}}/>
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>{fmtDistance(trip.distance_from_home_km, distanceUnit)}</span>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}>{fmtDistance(trip.distance_from_home_km, distanceUnit)}</span>
           </>
         )}
         {trip.temperature_c != null && (
-          <span style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>{fmtTemp(trip.temperature_c, temperatureUnit)}</span>
+          <>
+            <div style={{width:1,height:10,background:"#1a2d4a"}}/>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}>{fmtTemp(trip.temperature_c, temperatureUnit)}</span>
+          </>
         )}
       </div>
     </div>
