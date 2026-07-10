@@ -110,10 +110,28 @@ describe("TravelHeatmap — render", () => {
     expect(screen.getByText("6")).toBeInTheDocument();
   });
 
-  it("mostra una riga per ogni anno da quello del primo viaggio all'anno corrente", () => {
+  it("mostra solo l'anno del viaggio, non l'anno corrente se non c'è nessun viaggio quest'anno", () => {
     const oldYear = new Date().getFullYear() - 2;
     render(React.createElement(TravelHeatmap, { trips: [makeTrip({ trip_date: `${oldYear}-03-01`, date_end: null })] }));
     expect(screen.getByText(String(oldYear))).toBeInTheDocument();
-    expect(screen.getByText(String(new Date().getFullYear()))).toBeInTheDocument();
+    expect(screen.queryByText(String(new Date().getFullYear()))).not.toBeInTheDocument();
+  });
+
+  it("salta un anno senza nessun viaggio anche se è compreso tra due anni con viaggi", () => {
+    const gapYear = new Date().getFullYear() - 3;
+    render(React.createElement(TravelHeatmap, {
+      trips: [
+        makeTrip({ trip_date: `${gapYear}-03-01`, date_end: null }),
+        makeTrip({ trip_date: `${gapYear + 2}-03-01`, date_end: null }),
+      ],
+    }));
+    expect(screen.getByText(String(gapYear))).toBeInTheDocument();
+    expect(screen.getByText(String(gapYear + 2))).toBeInTheDocument();
+    expect(screen.queryByText(String(gapYear + 1))).not.toBeInTheDocument();
+  });
+
+  it("non mostra nessuna riga anno senza viaggi", () => {
+    render(React.createElement(TravelHeatmap, { trips: [] }));
+    expect(screen.queryByText(String(new Date().getFullYear()))).not.toBeInTheDocument();
   });
 });

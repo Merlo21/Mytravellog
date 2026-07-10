@@ -47,14 +47,14 @@ export function TravelHeatmap({ trips }: Props) {
   const monthlyDays = useMemo(() => computeMonthlyTravelDays(trips), [trips]);
   const abstinence = useMemo(() => daysSinceLastTrip(trips), [trips]);
 
+  // Solo gli anni con almeno un giorno di viaggio: niente righe vuote per gli
+  // anni senza nessun viaggio, anche se sono "in mezzo" tra due anni con
+  // viaggi o se coincidono con l'anno corrente.
   const years = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    if (trips.length === 0) return [currentYear];
-    const earliest = trips.reduce((min, t) => Math.min(min, parseLocalDate(t.trip_date).getFullYear()), currentYear);
-    const out: number[] = [];
-    for (let y = earliest; y <= currentYear; y++) out.push(y);
-    return out;
-  }, [trips]);
+    const withTravel = new Set<number>();
+    for (const key of monthlyDays.keys()) withTravel.add(Number(key.split("-")[0]));
+    return Array.from(withTravel).sort((a, b) => a - b);
+  }, [monthlyDays]);
 
   const maxDays = useMemo(() => Math.max(1, ...Array.from(monthlyDays.values())), [monthlyDays]);
 
