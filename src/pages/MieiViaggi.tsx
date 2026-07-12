@@ -146,7 +146,7 @@ export default function MieiViaggi() {
                     <div key={t.id} style={{
                       transition: `opacity ${DELETE_ANIM_MS}ms ease, transform ${DELETE_ANIM_MS}ms ease`,
                       opacity: leavingId === t.id ? 0 : 1,
-                      transform: leavingId === t.id ? "scale(0.95)" : "scale(1)",
+                      transform: leavingId === t.id ? "scale(0.95)" : "none",
                     }}>
                       <TripCardTicket trip={t} onDeleted={() => handleDeleted(t.id)}/>
                     </div>
