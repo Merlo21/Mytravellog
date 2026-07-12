@@ -14,6 +14,11 @@ vi.mock("react-router-dom", async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+const mockDeletePhotosForTrip = vi.fn();
+vi.mock("@/lib/photoStorage", () => ({
+  deletePhotosForTrip: (...args: unknown[]) => mockDeletePhotosForTrip(...args),
+}));
+
 function renderCard(trip: Trip, onDeleted?: () => void) {
   return render(
     <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -191,7 +196,7 @@ describe("TripCardTicket — rotta waypoints", () => {
 });
 
 describe("TripCardTicket — edit e delete", () => {
-  beforeEach(() => { localStorage.clear(); mockNavigate.mockClear(); });
+  beforeEach(() => { localStorage.clear(); mockNavigate.mockClear(); mockDeletePhotosForTrip.mockClear(); });
 
   it("click edit naviga a /modifica-viaggio/:id", () => {
     const trip = makeTrip({ id: "abc123" });
@@ -222,6 +227,17 @@ describe("TripCardTicket — edit e delete", () => {
     fireEvent.click(deleteBtn); // primo click → confirm
     fireEvent.click(deleteBtn); // secondo click → delete
     expect(onDeleted).toHaveBeenCalledTimes(1);
+  });
+
+  it("secondo click delete elimina anche le foto del viaggio", () => {
+    const trip = makeTrip({ id: "del-test-2" });
+    localStorage.setItem("atlas.trips.v1", JSON.stringify([trip]));
+    renderCard(trip);
+    const buttons = screen.getAllByRole("button");
+    const deleteBtn = buttons[buttons.length - 1];
+    fireEvent.click(deleteBtn);
+    fireEvent.click(deleteBtn);
+    expect(mockDeletePhotosForTrip).toHaveBeenCalledWith("del-test-2");
   });
 });
 

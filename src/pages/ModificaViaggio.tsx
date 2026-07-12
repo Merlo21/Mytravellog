@@ -8,6 +8,7 @@ import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
+import { TripPhotos } from "@/components/TripPhotos";
 
 type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
 type Waypoint = { city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
@@ -855,6 +856,9 @@ const ModificaViaggio = () => {
               <div style={{ fontSize:11, color:"#fbbf24", marginTop:6 }}>{RATING_LABELS[hoverRating||rating]}</div>
             )}
           </div>
+
+          {/* Foto */}
+          {id && <TripPhotos tripId={id}/>}
 
           {/* Actions */}
           <div style={{ display:"flex", gap:8, paddingTop:4 }}>

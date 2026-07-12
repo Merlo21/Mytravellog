@@ -5,6 +5,7 @@ import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
 import { Plane, Train, Car, Ship, Footprints, Pencil, Trash2, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { TripFlyover } from "@/components/TripFlyover";
+import { deletePhotosForTrip } from "@/lib/photoStorage";
 
 const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string; Icon: React.ElementType }> = {
   plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", label: "Aereo",   Icon: Plane      },
@@ -55,6 +56,7 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
   const handleDelete = () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     deleteTrip(trip.id);
+    deletePhotosForTrip(trip.id);
     onDeleted?.();
   };
 
