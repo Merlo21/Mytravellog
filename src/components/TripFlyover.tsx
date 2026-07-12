@@ -1,10 +1,42 @@
 import { useEffect, useRef, useState } from "react";
 import { Trip } from "@/lib/storage";
-import { buildFlightPath, buildFlightLegs, FlightLeg } from "@/lib/flyover";
+import { buildFlightPath, buildFlightLegs, pointAlongPath, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
+import { getPhotosForTrip, photoToBlob } from "@/lib/photoStorage";
 import { X, Play, Pause, Download, Loader2 } from "lucide-react";
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
+
+// Stessa palette di TripCardTicket.tsx/WorldMap.tsx per il mezzo di trasporto.
+const TRANSPORT_STYLE: Record<string, { color: string; emoji: string }> = {
+  plane: { color: "#378ADD", emoji: "✈️" },
+  train: { color: "#BA7517", emoji: "🚆" },
+  car: { color: "#A855F7", emoji: "🚗" },
+  ship: { color: "#0F6E56", emoji: "🚢" },
+  walk: { color: "#D85A30", emoji: "🚶" },
+};
+const DEFAULT_TRANSPORT_STYLE = { color: "#60a5fa", emoji: "✈️" };
+
+function createFlyoverMarkerEl(): HTMLDivElement {
+  const el = document.createElement("div");
+  el.style.cssText =
+    "width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;" +
+    "font-size:14px;line-height:1;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,0.5);";
+  return el;
+}
+
+function styleMarkerForMode(el: HTMLDivElement, mode: string | null) {
+  const style = (mode && TRANSPORT_STYLE[mode]) || DEFAULT_TRANSPORT_STYLE;
+  el.style.backgroundColor = style.color;
+  el.textContent = style.emoji;
+}
+
+/** Coordinate [lon,lat] dell'intera rotta, tratto stradale reale quando disponibile. */
+function buildFlyoverRouteCoords(stops: { lat: number; lon: number }[], legs: FlightLeg[]): [number, number][] {
+  const coords: [number, number][] = [[stops[0].lon, stops[0].lat]];
+  for (const leg of legs) coords.push(...leg.pathCoords.slice(1));
+  return coords;
+}
 
 /**
  * Registrare il canvas della mappa richiede captureStream() + MediaRecorder:
@@ -26,9 +58,34 @@ export function canRecordVideo(): boolean {
   }
 }
 
-function flyLeg(map: any, leg: FlightLeg): Promise<void> {
+/**
+ * Vola verso `leg.to` mentre anima in parallelo il marker del mezzo lungo
+ * `leg.pathCoords` (tracciato stradale reale se disponibile), a velocità
+ * costante per l'intera durata della flyTo. La telecamera vola sempre dritta
+ * verso `to` (non segue le curve): solo il marker e la linea disegnata
+ * seguono la strada, per scelta esplicita (vedi flyover.ts).
+ */
+function flyLeg(map: any, leg: FlightLeg, marker: any, rafIdRef: { current: number | null }, mountedRef: { current: boolean }): Promise<void> {
   return new Promise(resolve => {
-    const onMoveEnd = () => { map.off("moveend", onMoveEnd); resolve(); };
+    if (marker) {
+      styleMarkerForMode(marker.getElement(), leg.to.transportMode);
+      marker.setLngLat(leg.pathCoords[0]);
+    }
+
+    const start = performance.now();
+    const tick = () => {
+      if (!mountedRef.current || !marker) return;
+      const t = Math.min(1, (performance.now() - start) / leg.camera.durationMs);
+      marker.setLngLat(pointAlongPath(leg.pathCoords, t));
+      if (t < 1) rafIdRef.current = requestAnimationFrame(tick);
+    };
+    rafIdRef.current = requestAnimationFrame(tick);
+
+    const onMoveEnd = () => {
+      map.off("moveend", onMoveEnd);
+      if (rafIdRef.current != null) { cancelAnimationFrame(rafIdRef.current); rafIdRef.current = null; }
+      resolve();
+    };
     map.on("moveend", onMoveEnd);
     map.flyTo({
       center: [leg.to.lon, leg.to.lat],
@@ -39,6 +96,13 @@ function flyLeg(map: any, leg: FlightLeg): Promise<void> {
       essential: true,
     });
   });
+}
+
+const STOP_PHOTO_LIMIT = 3;
+const STOP_PHOTO_DISPLAY_MS = 1500;
+
+function wait(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 interface Props {
@@ -55,14 +119,41 @@ export function TripFlyover({ trips, onClose }: Props) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const objectUrlRef = useRef<string | null>(null);
+  const markerRef = useRef<any>(null);
+  const markerRafIdRef = useRef<number | null>(null);
 
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [playing, setPlaying] = useState(false);
   const [legIndex, setLegIndex] = useState(0);
   const [finished, setFinished] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [stopPhotos, setStopPhotos] = useState<{ label: string; urls: string[] } | null>(null);
+  const [stopPhotoIndex, setStopPhotoIndex] = useState(0);
+  const stopPhotoUrlsRef = useRef<string[]>([]);
 
   const legsRef = useRef<FlightLeg[]>([]);
+
+  /** Alla fine di una tratta, se la tappa raggiunta ha foto le mostra brevemente. */
+  const maybeShowStopPhotos = async (stopLabel: string, photoKey: string) => {
+    const raw = (await getPhotosForTrip(photoKey)).slice(0, STOP_PHOTO_LIMIT);
+    if (raw.length === 0 || !mountedRef.current || !playingRef.current) return;
+    const urls = raw.map(p => URL.createObjectURL(photoToBlob(p)));
+    stopPhotoUrlsRef.current = urls;
+    setStopPhotoIndex(0);
+    setStopPhotos({ label: stopLabel, urls });
+    await wait(urls.length * STOP_PHOTO_DISPLAY_MS);
+    urls.forEach(u => URL.revokeObjectURL(u));
+    stopPhotoUrlsRef.current = [];
+    if (mountedRef.current) setStopPhotos(null);
+  };
+
+  useEffect(() => {
+    if (!stopPhotos || stopPhotos.urls.length <= 1) return;
+    const id = setInterval(() => {
+      setStopPhotoIndex(i => (i + 1) % stopPhotos.urls.length);
+    }, STOP_PHOTO_DISPLAY_MS);
+    return () => clearInterval(id);
+  }, [stopPhotos]);
 
   const startRecording = () => {
     if (!canRecordVideo() || !containerRef.current) return;
@@ -104,13 +195,15 @@ export function TripFlyover({ trips, onClose }: Props) {
       if (!playingRef.current) { legIndexRef.current = i; return; }
       if (!mountedRef.current) return;
       setLegIndex(i);
-      await flyLeg(map, legs[i]);
+      await flyLeg(map, legs[i], markerRef.current, markerRafIdRef, mountedRef);
       if (!mountedRef.current) return;
       // Se nel frattempo è arrivata una pausa, map.stop() ha già interrotto
       // il volo e fatto risolvere questa promise in anticipo: la tratta non
       // è davvero conclusa, quindi alla ripresa va rifatta (non saltata),
       // proseguendo dalla posizione in cui la camera si è fermata.
       if (!playingRef.current) { legIndexRef.current = i; return; }
+      await maybeShowStopPhotos(legs[i].to.label, legs[i].to.photoKey);
+      if (!mountedRef.current || !playingRef.current) { legIndexRef.current = i; return; }
       i++;
     }
     if (!mountedRef.current) return;
@@ -192,7 +285,7 @@ export function TripFlyover({ trips, onClose }: Props) {
 
           map.addSource("flyover-route", {
             type: "geojson",
-            data: { type: "Feature", geometry: { type: "LineString", coordinates: stops.map(s => [s.lon, s.lat]) } },
+            data: { type: "Feature", geometry: { type: "LineString", coordinates: buildFlyoverRouteCoords(stops, legs) } },
           });
           map.addLayer({
             id: "flyover-route", type: "line", source: "flyover-route",
@@ -207,6 +300,12 @@ export function TripFlyover({ trips, onClose }: Props) {
             id: "flyover-stops", type: "circle", source: "flyover-stops",
             paint: { "circle-radius": 5, "circle-color": "#fbbf24", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 },
           });
+
+          const markerEl = createFlyoverMarkerEl();
+          styleMarkerForMode(markerEl, null);
+          markerRef.current = new maplibregl.Marker({ element: markerEl })
+            .setLngLat([stops[0].lon, stops[0].lat])
+            .addTo(map);
 
           setPhase("ready");
           setTimeout(() => { map.resize(); }, 100);
@@ -235,6 +334,10 @@ export function TripFlyover({ trips, onClose }: Props) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = null;
       }
+      if (markerRafIdRef.current != null) { cancelAnimationFrame(markerRafIdRef.current); markerRafIdRef.current = null; }
+      if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
+      stopPhotoUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
+      stopPhotoUrlsRef.current = [];
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,6 +409,23 @@ export function TripFlyover({ trips, onClose }: Props) {
                 <Download className="w-3.5 h-3.5" /> Scarica video
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {stopPhotos && (
+        <div style={{
+          position: "absolute", top: 16, left: 16, width: 220, aspectRatio: "1",
+          borderRadius: 10, overflow: "hidden", background: "#060e1e",
+          border: "1px solid #1a2d4a", boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+        }}>
+          <img src={stopPhotos.urls[stopPhotoIndex]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 10px",
+            background: "linear-gradient(transparent, rgba(0,0,0,0.75))",
+            fontSize: 11, color: "#fff", fontWeight: 600,
+          }}>
+            {stopPhotos.label}
           </div>
         </div>
       )}

@@ -1,11 +1,20 @@
 import { Trip } from "./storage";
 import { distanceKm } from "./geo";
+import { destinationPhotoKey, homePhotoKey, waypointPhotoKey } from "./photoStorage";
+
+export type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
 
 export interface FlightStop {
   lat: number;
   lon: number;
   label: string;
   tripId: string;
+  /** Chiave IndexedDB delle foto di questa tappa (destinazione/casa/waypoint). */
+  photoKey: string;
+  /** Mezzo usato per ARRIVARE a questa tappa (null per la prima, es. casa). */
+  transportMode: TransportMode | null;
+  /** Percorso stradale reale per arrivare qui, se disponibile (solo mezzo "car"). */
+  routeGeometry: [number, number][] | null;
 }
 
 export interface LegCamera {
@@ -19,6 +28,14 @@ export interface FlightLeg {
   from: FlightStop;
   to: FlightStop;
   camera: LegCamera;
+  /**
+   * Punti [lon,lat] da percorrere per questa tratta: il tracciato stradale
+   * reale (from `to.routeGeometry`) quando disponibile, altrimenti una linea
+   * retta da `from` a `to`. Usata per disegnare il percorso e per animare
+   * l'icona del mezzo — la telecamera invece vola sempre dritta verso `to`
+   * (vedi computeLegCamera), non segue le curve.
+   */
+  pathCoords: [number, number][];
 }
 
 const COORD_EPSILON = 1e-6;
@@ -39,20 +56,26 @@ export function buildFlightPath(trips: Trip[]): FlightStop[] {
   const sorted = [...trips].sort((a, b) => a.trip_date.localeCompare(b.trip_date));
   const stops: FlightStop[] = [];
 
-  const push = (lat: number, lon: number, label: string, tripId: string) => {
+  const push = (
+    lat: number, lon: number, label: string, tripId: string,
+    photoKey: string, transportMode: TransportMode | null, routeGeometry: [number, number][] | null,
+  ) => {
     const last = stops[stops.length - 1];
     if (last && sameCoords(last, lat, lon)) return;
-    stops.push({ lat, lon, label, tripId });
+    stops.push({ lat, lon, label, tripId, photoKey, transportMode, routeGeometry });
   };
 
   for (const t of sorted) {
     if (t.home_latitude != null && t.home_longitude != null) {
-      push(t.home_latitude, t.home_longitude, t.home_label ?? "Casa", t.id);
+      push(t.home_latitude, t.home_longitude, t.home_label ?? "Casa", t.id, homePhotoKey(t.id), null, null);
     }
     for (const w of t.waypoints ?? []) {
-      if (w.lat != null && w.lon != null) push(w.lat, w.lon, w.city, t.id);
+      if (w.lat != null && w.lon != null) {
+        const photoKey = w.id ? waypointPhotoKey(t.id, w.id) : destinationPhotoKey(t.id);
+        push(w.lat, w.lon, w.city, t.id, photoKey, w.transport_mode, w.route_geometry ?? null);
+      }
     }
-    push(t.latitude, t.longitude, t.city, t.id);
+    push(t.latitude, t.longitude, t.city, t.id, destinationPhotoKey(t.id), t.transport_mode, t.route_geometry ?? null);
   }
 
   return stops;
@@ -77,7 +100,7 @@ export function bearingBetween(a: { lat: number; lon: number }, b: { lat: number
  * (intercontinentale) più si sale di quota restando sul globo. La durata
  * è proporzionale alla distanza ma restA in un range godibile (2.5-6s).
  */
-export function computeLegCamera(from: FlightStop, to: FlightStop): LegCamera {
+export function computeLegCamera(from: { lat: number; lon: number }, to: { lat: number; lon: number }): LegCamera {
   const bearing = bearingBetween(from, to);
   const km = distanceKm(from.lat, from.lon, to.lat, to.lon);
 
@@ -93,11 +116,62 @@ export function computeLegCamera(from: FlightStop, to: FlightStop): LegCamera {
   return { zoom, pitch, bearing, durationMs };
 }
 
-/** Spezza la sequenza di tappe in tratte, ciascuna con la propria camera. */
+/**
+ * Punti da percorrere per arrivare a `to`: il tracciato stradale reale se
+ * presente (solo tratte in auto con route_geometry salvata), altrimenti la
+ * linea retta from→to.
+ */
+function legPathCoords(from: FlightStop, to: FlightStop): [number, number][] {
+  if (to.routeGeometry && to.routeGeometry.length > 1) return to.routeGeometry;
+  return [[from.lon, from.lat], [to.lon, to.lat]];
+}
+
+/** Spezza la sequenza di tappe in tratte, ciascuna con la propria camera e il proprio percorso. */
 export function buildFlightLegs(stops: FlightStop[]): FlightLeg[] {
   const legs: FlightLeg[] = [];
   for (let i = 0; i < stops.length - 1; i++) {
-    legs.push({ from: stops[i], to: stops[i + 1], camera: computeLegCamera(stops[i], stops[i + 1]) });
+    const from = stops[i];
+    const to = stops[i + 1];
+    legs.push({ from, to, camera: computeLegCamera(from, to), pathCoords: legPathCoords(from, to) });
   }
   return legs;
+}
+
+/** Lunghezza approssimata (km) di un percorso [lon,lat][], sommando ogni segmento. */
+function pathLengthKm(path: [number, number][]): number {
+  let total = 0;
+  for (let i = 1; i < path.length; i++) {
+    total += distanceKm(path[i - 1][1], path[i - 1][0], path[i][1], path[i][0]);
+  }
+  return total;
+}
+
+/**
+ * Punto [lon,lat] alla frazione `t` (0-1) di un percorso, camminando a
+ * velocità costante lungo i suoi segmenti (non semplicemente interpolando
+ * tra il primo e l'ultimo punto) — usata per animare l'icona del mezzo
+ * lungo un tracciato stradale con molti punti ravvicinati in modo ineguale.
+ */
+export function pointAlongPath(path: [number, number][], t: number): [number, number] {
+  if (path.length === 0) return [0, 0];
+  if (path.length === 1 || t <= 0) return path[0];
+  if (t >= 1) return path[path.length - 1];
+
+  const total = pathLengthKm(path);
+  if (total === 0) return path[0];
+
+  const targetKm = total * t;
+  let covered = 0;
+  for (let i = 1; i < path.length; i++) {
+    const segKm = distanceKm(path[i - 1][1], path[i - 1][0], path[i][1], path[i][0]);
+    if (covered + segKm >= targetKm || i === path.length - 1) {
+      const segT = segKm === 0 ? 0 : (targetKm - covered) / segKm;
+      const clampedT = Math.min(1, Math.max(0, segT));
+      const [lon1, lat1] = path[i - 1];
+      const [lon2, lat2] = path[i];
+      return [lon1 + (lon2 - lon1) * clampedT, lat1 + (lat2 - lat1) * clampedT];
+    }
+    covered += segKm;
+  }
+  return path[path.length - 1];
 }

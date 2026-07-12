@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs } from "./flyover";
+import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs, pointAlongPath, FlightStop } from "./flyover";
 import type { Trip } from "./storage";
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -39,18 +39,60 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
   };
 }
 
+function makeStop(overrides: Partial<FlightStop> = {}): FlightStop {
+  return {
+    lat: 0, lon: 0, label: "Tappa", tripId: "1",
+    photoKey: "1", transportMode: null, routeGeometry: null,
+    ...overrides,
+  };
+}
+
 describe("buildFlightPath", () => {
   it("produce casa → destinazione per un viaggio senza waypoint", () => {
     const stops = buildFlightPath([makeTrip()]);
-    expect(stops).toEqual([
-      { lat: 45.5, lon: 9.2, label: "Milano", tripId: expect.any(String) },
-      { lat: 41.9, lon: 12.5, label: "Roma", tripId: expect.any(String) },
-    ]);
+    expect(stops.map(s => s.label)).toEqual(["Milano", "Roma"]);
+  });
+
+  it("la casa ha photoKey 'idViaggio:home' e transportMode/routeGeometry null", () => {
+    const trip = makeTrip();
+    const [home] = buildFlightPath([trip]);
+    expect(home.photoKey).toBe(`${trip.id}:home`);
+    expect(home.transportMode).toBeNull();
+    expect(home.routeGeometry).toBeNull();
+  });
+
+  it("la destinazione ha photoKey = id del viaggio nudo, e riporta transportMode/route_geometry del viaggio", () => {
+    const trip = makeTrip({ transport_mode: "car", route_geometry: [[12.5, 41.9], [12.6, 42.0]] });
+    const stops = buildFlightPath([trip]);
+    const dest = stops[stops.length - 1];
+    expect(dest.photoKey).toBe(trip.id);
+    expect(dest.transportMode).toBe("car");
+    expect(dest.routeGeometry).toEqual([[12.5, 41.9], [12.6, 42.0]]);
+  });
+
+  it("un waypoint con id ha photoKey 'idViaggio:waypoint:idTappa' e riporta il proprio transportMode/route_geometry", () => {
+    const trip = makeTrip({
+      waypoints: [{ id: "wp-1", city: "Torino", country: "Italia", transport_mode: "car", lat: 45.07, lon: 7.68, route_geometry: [[9.19, 45.46], [7.68, 45.07]] }],
+    });
+    const stops = buildFlightPath([trip]);
+    const wp = stops.find(s => s.label === "Torino")!;
+    expect(wp.photoKey).toBe(`${trip.id}:waypoint:wp-1`);
+    expect(wp.transportMode).toBe("car");
+    expect(wp.routeGeometry).toEqual([[9.19, 45.46], [7.68, 45.07]]);
+  });
+
+  it("un waypoint senza id (viaggio salvato prima del backfill) ricade sulla photoKey della destinazione", () => {
+    const trip = makeTrip({
+      waypoints: [{ city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 }],
+    });
+    const stops = buildFlightPath([trip]);
+    const wp = stops.find(s => s.label === "Torino")!;
+    expect(wp.photoKey).toBe(trip.id);
   });
 
   it("inserisce i waypoint tra casa e destinazione, nell'ordine dato", () => {
     const stops = buildFlightPath([makeTrip({
-      waypoints: [{ city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 }],
+      waypoints: [{ id: "wp-1", city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 }],
     })]);
     expect(stops.map(s => s.label)).toEqual(["Milano", "Torino", "Roma"]);
   });
@@ -109,28 +151,28 @@ describe("bearingBetween", () => {
 
 describe("computeLegCamera", () => {
   it("usa zoom alto e pitch marcato per tratte brevi (<50km)", () => {
-    const cam = computeLegCamera({ lat: 45.5, lon: 9.2, label: "A", tripId: "1" }, { lat: 45.51, lon: 9.21, label: "B", tripId: "1" });
+    const cam = computeLegCamera({ lat: 45.5, lon: 9.2 }, { lat: 45.51, lon: 9.21 });
     expect(cam.zoom).toBe(11);
     expect(cam.pitch).toBe(60);
   });
 
   it("usa zoom basso e pitch ridotto per tratte intercontinentali (>3000km)", () => {
     // Milano -> Tokyo, ~9700km
-    const cam = computeLegCamera({ lat: 45.46, lon: 9.19, label: "Milano", tripId: "1" }, { lat: 35.68, lon: 139.65, label: "Tokyo", tripId: "1" });
+    const cam = computeLegCamera({ lat: 45.46, lon: 9.19 }, { lat: 35.68, lon: 139.65 });
     expect(cam.zoom).toBe(2.5);
     expect(cam.pitch).toBe(30);
   });
 
   it("la durata resta clampata tra 2.5s e 6s", () => {
-    const short = computeLegCamera({ lat: 45.5, lon: 9.2, label: "A", tripId: "1" }, { lat: 45.5001, lon: 9.2001, label: "B", tripId: "1" });
-    const long = computeLegCamera({ lat: 45.46, lon: 9.19, label: "Milano", tripId: "1" }, { lat: 35.68, lon: 139.65, label: "Tokyo", tripId: "1" });
+    const short = computeLegCamera({ lat: 45.5, lon: 9.2 }, { lat: 45.5001, lon: 9.2001 });
+    const long = computeLegCamera({ lat: 45.46, lon: 9.19 }, { lat: 35.68, lon: 139.65 });
     expect(short.durationMs).toBe(2500);
     expect(long.durationMs).toBe(6000);
   });
 
   it("il bearing della camera coincide con bearingBetween per la stessa tratta", () => {
-    const from = { lat: 45.5, lon: 9.2, label: "A", tripId: "1" };
-    const to = { lat: 41.9, lon: 12.5, label: "B", tripId: "1" };
+    const from = { lat: 45.5, lon: 9.2 };
+    const to = { lat: 41.9, lon: 12.5 };
     expect(computeLegCamera(from, to).bearing).toBe(bearingBetween(from, to));
   });
 });
@@ -138,7 +180,7 @@ describe("computeLegCamera", () => {
 describe("buildFlightLegs", () => {
   it("produce N-1 tratte per N tappe", () => {
     const stops = buildFlightPath([makeTrip({
-      waypoints: [{ city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 }],
+      waypoints: [{ id: "wp-1", city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 }],
     })]);
     const legs = buildFlightLegs(stops);
     expect(legs).toHaveLength(2);
@@ -149,11 +191,65 @@ describe("buildFlightLegs", () => {
   });
 
   it("nessuna tratta con una sola tappa", () => {
-    const legs = buildFlightLegs([{ lat: 0, lon: 0, label: "Solo", tripId: "1" }]);
+    const legs = buildFlightLegs([makeStop({ label: "Solo" })]);
     expect(legs).toHaveLength(0);
   });
 
   it("nessuna tratta con lista vuota", () => {
     expect(buildFlightLegs([])).toHaveLength(0);
+  });
+
+  it("pathCoords è una linea retta from→to quando non c'è un percorso stradale", () => {
+    const from = makeStop({ lat: 45.5, lon: 9.2 });
+    const to = makeStop({ lat: 41.9, lon: 12.5, routeGeometry: null });
+    const [leg] = buildFlightLegs([from, to]);
+    expect(leg.pathCoords).toEqual([[9.2, 45.5], [12.5, 41.9]]);
+  });
+
+  it("pathCoords usa il percorso stradale reale quando presente sulla tappa di arrivo", () => {
+    const road: [number, number][] = [[9.2, 45.5], [10, 44], [12.5, 41.9]];
+    const from = makeStop({ lat: 45.5, lon: 9.2 });
+    const to = makeStop({ lat: 41.9, lon: 12.5, transportMode: "car", routeGeometry: road });
+    const [leg] = buildFlightLegs([from, to]);
+    expect(leg.pathCoords).toEqual(road);
+  });
+
+  it("ignora un percorso stradale con un solo punto (non è un percorso valido)", () => {
+    const from = makeStop({ lat: 45.5, lon: 9.2 });
+    const to = makeStop({ lat: 41.9, lon: 12.5, routeGeometry: [[12.5, 41.9]] });
+    const [leg] = buildFlightLegs([from, to]);
+    expect(leg.pathCoords).toEqual([[9.2, 45.5], [12.5, 41.9]]);
+  });
+});
+
+describe("pointAlongPath", () => {
+  it("t=0 ritorna il primo punto", () => {
+    expect(pointAlongPath([[0, 0], [10, 10]], 0)).toEqual([0, 0]);
+  });
+
+  it("t=1 ritorna l'ultimo punto", () => {
+    expect(pointAlongPath([[0, 0], [10, 10]], 1)).toEqual([10, 10]);
+  });
+
+  it("t=0.5 su un percorso a due punti ritorna circa il punto medio", () => {
+    const [lon, lat] = pointAlongPath([[0, 0], [10, 0]], 0.5);
+    expect(lon).toBeCloseTo(5, 0);
+    expect(lat).toBeCloseTo(0, 5);
+  });
+
+  it("su un percorso con segmenti di lunghezza diversa avanza in proporzione alla distanza reale, non al numero di punti", () => {
+    // Primo segmento molto più lungo del secondo: a metà percorso (per distanza)
+    // il punto deve trovarsi ancora dentro il primo segmento, non al secondo vertice.
+    const path: [number, number][] = [[0, 0], [10, 0], [10.1, 0]];
+    const [lon] = pointAlongPath(path, 0.5);
+    expect(lon).toBeLessThan(10);
+  });
+
+  it("un percorso con un solo punto ritorna sempre quel punto", () => {
+    expect(pointAlongPath([[5, 5]], 0.3)).toEqual([5, 5]);
+  });
+
+  it("un percorso vuoto non lancia un errore", () => {
+    expect(pointAlongPath([], 0.5)).toEqual([0, 0]);
   });
 });
