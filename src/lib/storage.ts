@@ -9,7 +9,7 @@ export type Trip = {
   rating: number | null; // 1-5 stelle
   notes: string | null;
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | null;
-  waypoints: { city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
+  waypoints: { id?: string; city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
   latitude: number;
   longitude: number;
   home_latitude: number | null;

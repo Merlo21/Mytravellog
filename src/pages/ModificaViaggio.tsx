@@ -9,9 +9,10 @@ import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
 import { TripPhotos } from "@/components/TripPhotos";
+import { homePhotoKey, waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
 
 type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
-type Waypoint = { city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
+type Waypoint = { id: string; city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
 
 const TRANSPORT: { value: TransportMode; label: string; color: string; bg: string }[] = [
   { value: "plane", label: "Aereo",   color: "#378ADD", bg: "rgba(55,138,221,0.15)"  },
@@ -525,10 +526,15 @@ const ModificaViaggio = () => {
   const [waypoints, setWaypoints] = useState<Waypoint[]>(
     trip ? [
       ...(trip.waypoints ?? []).map(w => ({
+        // w.id manca sui viaggi salvati prima che le tappe avessero un id
+        // stabile (serve per collegare le foto alla tappa giusta): ne
+        // generiamo uno nuovo qui, e un effect subito dopo lo salva davvero
+        // (altrimenti resterebbe solo in memoria finché non si preme "Salva").
+        id: w.id ?? crypto.randomUUID(),
         city: w.city, country: w.country, country_code: "",
         lat: w.lat ?? 0, lon: w.lon ?? 0, transport_mode: w.transport_mode as TransportMode,
       })),
-      { city: trip.city, country: trip.country, country_code: trip.country_code ?? "",
+      { id: crypto.randomUUID(), city: trip.city, country: trip.country, country_code: trip.country_code ?? "",
         lat: trip.latitude, lon: trip.longitude,
         transport_mode: (trip.transport_mode ?? "plane") as TransportMode }
     ] : []
@@ -548,6 +554,21 @@ const ModificaViaggio = () => {
   const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
   const [saving, setSaving] = useState(false);
   const [destinationError, setDestinationError] = useState(false);
+
+  // Le tappe salvate prima che avessero un id stabile lo ricevono al volo
+  // sopra (in waypoints ?? crypto.randomUUID()), ma solo in memoria: se
+  // l'utente aggiunge foto a una tappa senza mai premere "Salva viaggio",
+  // quell'id andrebbe perso e le foto orfane. Lo persistiamo subito qui,
+  // usando esattamente gli stessi id già generati in waypoints (stesso
+  // ordine), non nuovi — altrimenti in-memory e salvato andrebbero fuori sync.
+  useEffect(() => {
+    if (!id || !trip) return;
+    const original = trip.waypoints ?? [];
+    if (original.every(w => w.id)) return;
+    const withIds = original.map((w, i) => ({ ...w, id: waypoints[i]?.id ?? w.id ?? crypto.randomUUID() }));
+    updateTrip(id, { waypoints: withIds });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -569,6 +590,7 @@ const ModificaViaggio = () => {
 
   const addWaypoint = (r: GeoResult) => {
     setWaypoints(prev => [...prev, {
+      id: crypto.randomUUID(),
       city: r.name, country: r.country, country_code: r.country_code ?? "",
       lat: r.latitude, lon: r.longitude, transport_mode: wpTransport,
     }]);
@@ -659,7 +681,7 @@ const ModificaViaggio = () => {
       trip_date: dateStart, date_end: dateEnd || null,
       notes: notes.trim() || null,
       transport_mode: dest.transport_mode,
-      waypoints: waypoints.slice(0, -1).map((w, i) => ({ city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon, route_geometry: routeGeometries[i] ?? null })),
+      waypoints: waypoints.slice(0, -1).map((w, i) => ({ id: w.id, city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon, route_geometry: routeGeometries[i] ?? null })),
       latitude: dest.lat || trip?.latitude || 0,
       longitude: dest.lon || trip?.longitude || 0,
       route_geometry: routeGeometries[routeGeometries.length - 1] ?? null,
@@ -857,8 +879,17 @@ const ModificaViaggio = () => {
             )}
           </div>
 
-          {/* Foto */}
-          {id && <TripPhotos tripId={id}/>}
+          {/* Foto — una sezione per tappa (casa, ogni tappa intermedia, destinazione),
+              non più un'unica galleria per l'intero viaggio. */}
+          {id && (
+            <>
+              {home && <TripPhotos photoKey={homePhotoKey(id)} label={home.label || "Casa"}/>}
+              {waypoints.slice(0, -1).map(w => (
+                <TripPhotos key={w.id} photoKey={waypointPhotoKey(id, w.id)} label={w.city}/>
+              ))}
+              <TripPhotos photoKey={destinationPhotoKey(id)} label={waypoints[waypoints.length - 1]?.city}/>
+            </>
+          )}
 
           {/* Actions */}
           <div style={{ display:"flex", gap:8, paddingTop:4 }}>

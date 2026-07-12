@@ -15,9 +15,13 @@ vi.mock("react-router-dom", async () => {
 });
 
 const mockDeletePhotosForTrip = vi.fn();
-vi.mock("@/lib/photoStorage", () => ({
-  deletePhotosForTrip: (...args: unknown[]) => mockDeletePhotosForTrip(...args),
-}));
+vi.mock("@/lib/photoStorage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/photoStorage")>();
+  return {
+    ...actual,
+    deletePhotosForTrip: (...args: unknown[]) => mockDeletePhotosForTrip(...args),
+  };
+});
 
 function renderCard(trip: Trip, onDeleted?: () => void) {
   return render(
@@ -237,7 +241,7 @@ describe("TripCardTicket — edit e delete", () => {
     const deleteBtn = buttons[buttons.length - 1];
     fireEvent.click(deleteBtn);
     fireEvent.click(deleteBtn);
-    expect(mockDeletePhotosForTrip).toHaveBeenCalledWith("del-test-2");
+    expect(mockDeletePhotosForTrip).toHaveBeenCalledWith(expect.objectContaining({ id: "del-test-2" }));
   });
 });
 

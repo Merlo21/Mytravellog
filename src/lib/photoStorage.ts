@@ -1,11 +1,43 @@
 import { openDB, DBSchema, IDBPDatabase } from "idb";
+import type { Trip } from "./storage";
 
 export interface Photo {
   id: string;
+  /**
+   * Non è (più) sempre l'id del viaggio in senso stretto: è la chiave della
+   * "tappa" a cui la foto è associata. Per compatibilità con le foto già
+   * salvate prima che esistesse il concetto di tappa, la destinazione usa
+   * ancora l'id del viaggio nudo — casa e ogni tappa intermedia usano invece
+   * destinationPhotoKey/homePhotoKey/waypointPhotoKey qui sotto.
+   */
   tripId: string;
   data: ArrayBuffer;
   type: string;
   createdAt: string;
+}
+
+/** Chiave foto della destinazione — invariata (id del viaggio) per restare compatibile con le foto già salvate. */
+export function destinationPhotoKey(tripId: string): string {
+  return tripId;
+}
+
+/** Chiave foto della tappa "casa" (partenza) di un viaggio. */
+export function homePhotoKey(tripId: string): string {
+  return `${tripId}:home`;
+}
+
+/** Chiave foto di una singola tappa intermedia, identificata dal suo id stabile. */
+export function waypointPhotoKey(tripId: string, waypointId: string): string {
+  return `${tripId}:waypoint:${waypointId}`;
+}
+
+/** Tutte le possibili chiavi foto di un viaggio (destinazione, casa, ogni tappa con id). */
+export function stopPhotoKeys(trip: Pick<Trip, "id" | "waypoints">): string[] {
+  const keys = [destinationPhotoKey(trip.id), homePhotoKey(trip.id)];
+  for (const w of trip.waypoints ?? []) {
+    if (w.id) keys.push(waypointPhotoKey(trip.id, w.id));
+  }
+  return keys;
 }
 
 interface PhotoDB extends DBSchema {
@@ -70,16 +102,19 @@ export async function deletePhoto(id: string): Promise<void> {
   await db.delete(STORE_NAME, id);
 }
 
-export async function deletePhotosForTrip(tripId: string): Promise<void> {
+/** Cancella le foto di tutte le tappe del viaggio (casa, ogni waypoint, destinazione). */
+export async function deletePhotosForTrip(trip: Pick<Trip, "id" | "waypoints">): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const index = tx.store.index("by-trip");
-  let cursor = await index.openCursor(tripId);
-  while (cursor) {
-    await cursor.delete();
-    cursor = await cursor.continue();
+  for (const key of stopPhotoKeys(trip)) {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const index = tx.store.index("by-trip");
+    let cursor = await index.openCursor(key);
+    while (cursor) {
+      await cursor.delete();
+      cursor = await cursor.continue();
+    }
+    await tx.done;
   }
-  await tx.done;
 }
 
 /** Test-only: forza una nuova connessione al DB (utile tra i test con fake-indexeddb). */

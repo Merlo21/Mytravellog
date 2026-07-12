@@ -1,5 +1,5 @@
 import { Trip } from "./storage";
-import { getPhotosForTrip, savePhoto, photoToBlob } from "./photoStorage";
+import { getPhotosForTrip, savePhoto, photoToBlob, stopPhotoKeys } from "./photoStorage";
 
 const LAST_BACKUP_AT_KEY = "navta.last_backup_at";
 const LAST_BACKUP_COUNT_KEY = "navta.last_backup_trip_count";
@@ -45,22 +45,24 @@ export function isBackupStale(currentTripCount: number, now: Date = new Date()):
 
 /**
  * Backup manuale (non sync in tempo reale): carica tutte le foto di ogni
- * viaggio nel bucket Storage e l'intero elenco viaggi come JSON in
- * `backups`. Ricarica sempre tutte le foto correnti (upsert) invece di
- * tracciare quali sono già state caricate — più semplice, accettabile per
- * un'azione manuale e non frequente.
+ * tappa di ogni viaggio (casa, ogni waypoint, destinazione) nel bucket
+ * Storage e l'intero elenco viaggi come JSON in `backups`. Ricarica sempre
+ * tutte le foto correnti (upsert) invece di tracciare quali sono già state
+ * caricate — più semplice, accettabile per un'azione manuale e non frequente.
  */
 export async function backupNow(userId: string, trips: Trip[]): Promise<BackupResult> {
   const supabase = await getSupabase();
 
   for (const trip of trips) {
-    const photos = await getPhotosForTrip(trip.id);
-    for (const photo of photos) {
-      const path = `${userId}/${trip.id}/${photo.id}`;
-      const { error } = await supabase.storage
-        .from("trip-photos")
-        .upload(path, photoToBlob(photo), { upsert: true, contentType: photo.type });
-      if (error) return { error: `Errore nel caricamento di una foto: ${error.message}` };
+    for (const stopKey of stopPhotoKeys(trip)) {
+      const photos = await getPhotosForTrip(stopKey);
+      for (const photo of photos) {
+        const path = `${userId}/${stopKey}/${photo.id}`;
+        const { error } = await supabase.storage
+          .from("trip-photos")
+          .upload(path, photoToBlob(photo), { upsert: true, contentType: photo.type });
+        if (error) return { error: `Errore nel caricamento di una foto: ${error.message}` };
+      }
     }
   }
 
@@ -71,7 +73,7 @@ export async function backupNow(userId: string, trips: Trip[]): Promise<BackupRe
   return {};
 }
 
-/** Scarica l'ultimo backup (viaggi + foto) per l'utente indicato. */
+/** Scarica l'ultimo backup (viaggi + foto di tutte le tappe) per l'utente indicato. */
 export async function restoreBackup(userId: string): Promise<RestoreResult> {
   const supabase = await getSupabase();
 
@@ -82,10 +84,12 @@ export async function restoreBackup(userId: string): Promise<RestoreResult> {
   const trips = data.trips_json as unknown as Trip[];
 
   for (const trip of trips) {
-    const { data: files } = await supabase.storage.from("trip-photos").list(`${userId}/${trip.id}`);
-    for (const file of files ?? []) {
-      const { data: blob } = await supabase.storage.from("trip-photos").download(`${userId}/${trip.id}/${file.name}`);
-      if (blob) await savePhoto(trip.id, blob);
+    for (const stopKey of stopPhotoKeys(trip)) {
+      const { data: files } = await supabase.storage.from("trip-photos").list(`${userId}/${stopKey}`);
+      for (const file of files ?? []) {
+        const { data: blob } = await supabase.storage.from("trip-photos").download(`${userId}/${stopKey}/${file.name}`);
+        if (blob) await savePhoto(stopKey, blob);
+      }
     }
   }
 

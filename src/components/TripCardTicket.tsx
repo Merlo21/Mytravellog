@@ -56,7 +56,7 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
   const handleDelete = () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
     deleteTrip(trip.id);
-    deletePhotosForTrip(trip.id);
+    deletePhotosForTrip(trip);
     onDeleted?.();
   };
 

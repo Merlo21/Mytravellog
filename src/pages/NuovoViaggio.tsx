@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
 
 type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
-type Waypoint = { city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
+type Waypoint = { id: string; city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
 
 const TRANSPORT: { value: TransportMode; label: string; color: string; bg: string }[] = [
   { value: "plane", label: "Aereo",   color: "#378ADD", bg: "rgba(55,138,221,0.15)"  },
@@ -456,6 +456,7 @@ const NuovoViaggio = () => {
       const city = JSON.parse(raw);
       sessionStorage.removeItem("navta.prefill.city");
       return [{
+        id: crypto.randomUUID(),
         city: city.name,
         country: city.country,
         country_code: city.country_code ?? "",
@@ -500,6 +501,7 @@ const NuovoViaggio = () => {
 
   const addWaypoint = (r: GeoResult) => {
     setWaypoints(prev => [...prev, {
+      id: crypto.randomUUID(),
       city: r.name, country: r.country, country_code: r.country_code ?? "",
       lat: r.latitude, lon: r.longitude, transport_mode: wpTransport,
     }]);
@@ -592,7 +594,7 @@ const NuovoViaggio = () => {
       trip_date: dateStart, date_end: dateEnd || null,
       notes: notes.trim() || null,
       transport_mode: dest.transport_mode,
-      waypoints: waypoints.slice(0, -1).map((w, i) => ({ city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon, route_geometry: routeGeometries[i] ?? null })),
+      waypoints: waypoints.slice(0, -1).map((w, i) => ({ id: w.id, city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon, route_geometry: routeGeometries[i] ?? null })),
       latitude: dest.lat, longitude: dest.lon,
       route_geometry: routeGeometries[routeGeometries.length - 1] ?? null,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,

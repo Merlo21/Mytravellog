@@ -20,12 +20,12 @@ describe("TripPhotos", () => {
   });
 
   it("mostra 'Nessuna foto ancora' quando il viaggio non ha foto", async () => {
-    render(<TripPhotos tripId="trip-1"/>);
+    render(<TripPhotos photoKey="trip-1"/>);
     expect(await screen.findByText(/nessuna foto ancora/i)).toBeInTheDocument();
   });
 
   it("aggiunge una foto tramite l'input file e la mostra in galleria", async () => {
-    render(<TripPhotos tripId="trip-1"/>);
+    render(<TripPhotos photoKey="trip-1"/>);
     await screen.findByText(/nessuna foto ancora/i);
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -38,7 +38,7 @@ describe("TripPhotos", () => {
   });
 
   it("ignora file non immagine selezionati insieme ad altri", async () => {
-    render(<TripPhotos tripId="trip-1"/>);
+    render(<TripPhotos photoKey="trip-1"/>);
     await screen.findByText(/nessuna foto ancora/i);
 
     const notAnImage = new File(["testo"], "doc.txt", { type: "text/plain" });
@@ -51,7 +51,7 @@ describe("TripPhotos", () => {
   });
 
   it("click su elimina rimuove la foto dalla galleria", async () => {
-    render(<TripPhotos tripId="trip-1"/>);
+    render(<TripPhotos photoKey="trip-1"/>);
     await screen.findByText(/nessuna foto ancora/i);
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -66,7 +66,17 @@ describe("TripPhotos", () => {
     const { savePhoto } = await import("@/lib/photoStorage");
     await savePhoto("altro-viaggio", makeImageFile());
 
-    render(<TripPhotos tripId="trip-1"/>);
+    render(<TripPhotos photoKey="trip-1"/>);
     expect(await screen.findByText(/nessuna foto ancora/i)).toBeInTheDocument();
+  });
+
+  it("mostra il nome della tappa nell'intestazione quando passato via label", async () => {
+    render(<TripPhotos photoKey="trip-1:waypoint:wp-1" label="Torino"/>);
+    expect(await screen.findByText(/Foto — Torino/)).toBeInTheDocument();
+  });
+
+  it("usa solo 'Foto' come intestazione se label non è passato", async () => {
+    render(<TripPhotos photoKey="trip-1"/>);
+    expect(await screen.findByText("Foto")).toBeInTheDocument();
   });
 });

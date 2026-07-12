@@ -3,14 +3,17 @@ import { Photo, savePhoto, getPhotosForTrip, deletePhoto, photoToBlob } from "@/
 import { Camera, Trash2, Loader2 } from "lucide-react";
 
 interface Props {
-  tripId: string;
+  /** Chiave di IndexedDB per questa tappa (vedi destinationPhotoKey/homePhotoKey/waypointPhotoKey in photoStorage.ts). */
+  photoKey: string;
+  /** Nome della tappa mostrato nell'intestazione (es. la città) — "Foto" da solo se omesso. */
+  label?: string;
 }
 
 interface PhotoWithUrl extends Photo {
   url: string;
 }
 
-export function TripPhotos({ tripId }: Props) {
+export function TripPhotos({ photoKey, label }: Props) {
   const [photos, setPhotos] = useState<PhotoWithUrl[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -18,7 +21,7 @@ export function TripPhotos({ tripId }: Props) {
   const urlsRef = useRef<string[]>([]);
 
   const refresh = async () => {
-    const raw = await getPhotosForTrip(tripId);
+    const raw = await getPhotosForTrip(photoKey);
     // Revoca gli object URL vecchi solo dopo aver creato quelli nuovi: se lo
     // facessimo prima, un <img> ancora montato con il vecchio src lampeggerebbe.
     const oldUrls = urlsRef.current;
@@ -36,14 +39,14 @@ export function TripPhotos({ tripId }: Props) {
     refresh();
     return () => { urlsRef.current.forEach(u => URL.revokeObjectURL(u)); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripId]);
+  }, [photoKey]);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
-      await savePhoto(tripId, file);
+      await savePhoto(photoKey, file);
     }
     await refresh();
     setUploading(false);
@@ -59,7 +62,7 @@ export function TripPhotos({ tripId }: Props) {
     <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
         <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase" }}>
-          Foto <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
+          Foto{label ? ` — ${label}` : ""} <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
         </label>
         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
           style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, fontWeight:600, padding:"5px 10px",
