@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs, pointAlongPath, FlightStop } from "./flyover";
+import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, FlightStop } from "./flyover";
 import type { Trip } from "./storage";
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -163,11 +163,11 @@ describe("computeLegCamera", () => {
     expect(cam.pitch).toBe(30);
   });
 
-  it("la durata resta clampata tra 2.5s e 6s", () => {
+  it("la durata resta clampata tra 3.5s e 7.5s", () => {
     const short = computeLegCamera({ lat: 45.5, lon: 9.2 }, { lat: 45.5001, lon: 9.2001 });
     const long = computeLegCamera({ lat: 45.46, lon: 9.19 }, { lat: 35.68, lon: 139.65 });
-    expect(short.durationMs).toBe(2500);
-    expect(long.durationMs).toBe(6000);
+    expect(short.durationMs).toBe(3500);
+    expect(long.durationMs).toBe(7500);
   });
 
   it("il bearing della camera coincide con bearingBetween per la stessa tratta", () => {
@@ -219,6 +219,64 @@ describe("buildFlightLegs", () => {
     const to = makeStop({ lat: 41.9, lon: 12.5, routeGeometry: [[12.5, 41.9]] });
     const [leg] = buildFlightLegs([from, to]);
     expect(leg.pathCoords).toEqual([[9.2, 45.5], [12.5, 41.9]]);
+  });
+});
+
+describe("easeInOutCubic", () => {
+  it("t=0 ritorna 0 e t=1 ritorna 1", () => {
+    expect(easeInOutCubic(0)).toBe(0);
+    expect(easeInOutCubic(1)).toBe(1);
+  });
+
+  it("t=0.5 ritorna 0.5 (simmetrica)", () => {
+    expect(easeInOutCubic(0.5)).toBeCloseTo(0.5, 5);
+  });
+
+  it("è crescente monotona su tutto l'intervallo", () => {
+    const samples = Array.from({ length: 11 }, (_, i) => easeInOutCubic(i / 10));
+    for (let i = 1; i < samples.length; i++) expect(samples[i]).toBeGreaterThan(samples[i - 1]);
+  });
+
+  it("parte più lenta della velocità costante (accelerazione in apertura)", () => {
+    // Nella prima metà la curva ease-in-out deve restare sotto la retta t=t
+    // (parte piano), altrimenti non risolverebbe il problema misurato dal
+    // vivo (la camera che scatta subito quasi a destinazione).
+    expect(easeInOutCubic(0.2)).toBeLessThan(0.2);
+  });
+
+  it("clampa input fuori range [0,1]", () => {
+    expect(easeInOutCubic(-1)).toBe(0);
+    expect(easeInOutCubic(2)).toBe(1);
+  });
+});
+
+describe("lerpBearing", () => {
+  it("t=0 ritorna from, t=1 ritorna to", () => {
+    expect(lerpBearing(10, 100, 0)).toBe(10);
+    expect(lerpBearing(10, 100, 1)).toBe(100);
+  });
+
+  it("interpola nel verso corto quando non attraversa 0/360", () => {
+    expect(lerpBearing(10, 100, 0.5)).toBeCloseTo(55, 5);
+  });
+
+  it("attraversa il giro 0/360 nel verso più breve invece di fare il giro lungo", () => {
+    // Da 350° a 10°: il verso breve passa per 0/360 (20° totali), non per 180° (340° il lungo giro)
+    const mid = lerpBearing(350, 10, 0.5);
+    expect(mid).toBeCloseTo(0, 5);
+  });
+
+  it("da 10° a 350° (verso breve all'indietro attraverso 0)", () => {
+    const mid = lerpBearing(10, 350, 0.5);
+    expect(mid).toBeCloseTo(0, 5);
+  });
+
+  it("il risultato resta sempre in [0, 360)", () => {
+    for (let t = 0; t <= 1; t += 0.1) {
+      const b = lerpBearing(350, 20, t);
+      expect(b).toBeGreaterThanOrEqual(0);
+      expect(b).toBeLessThan(360);
+    }
   });
 });
 

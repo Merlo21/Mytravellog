@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Trip } from "@/lib/storage";
-import { buildFlightPath, buildFlightLegs, pointAlongPath, FlightLeg } from "@/lib/flyover";
+import { buildFlightPath, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob } from "@/lib/photoStorage";
 import { X, Play, Pause, Download, Loader2 } from "lucide-react";
@@ -60,41 +60,59 @@ export function canRecordVideo(): boolean {
 
 /**
  * Vola verso `leg.to` mentre anima in parallelo il marker del mezzo lungo
- * `leg.pathCoords` (tracciato stradale reale se disponibile), a velocità
- * costante per l'intera durata della flyTo. La telecamera vola sempre dritta
- * verso `to` (non segue le curve): solo il marker e la linea disegnata
- * seguono la strada, per scelta esplicita (vedi flyover.ts).
+ * `leg.pathCoords` (tracciato stradale reale se disponibile). La telecamera
+ * vola sempre dritta verso `to` (non segue le curve): solo il marker e la
+ * linea disegnata seguono la strada, per scelta esplicita (vedi flyover.ts).
+ *
+ * La camera NON usa il `flyTo` nativo di MapLibre: viene pilotata a mano,
+ * frame per frame via `jumpTo`, interpolando linearmente centro/zoom/pitch
+ * (e il bearing con `lerpBearing`, che gestisce il giro 360°) tra la
+ * posizione corrente e quella target. È l'unico modo per restare sincronizzata
+ * con il marker — la curva di volo predefinita di MapLibre non avanza in modo
+ * geograficamente lineare (nemmeno passandole un easing custom, perché lo
+ * zoom-out/in intermedio distorce comunque il progresso): misurato dal vivo,
+ * a metà durata la camera nativa era già al 97% del tragitto mentre un
+ * marker a velocità costante era solo al 50%. Qui camera e marker leggono
+ * esattamente lo stesso `t` (con lo stesso `easeInOutCubic`) ogni frame,
+ * quindi restano allineati per costruzione.
  */
-function flyLeg(map: any, leg: FlightLeg, marker: any, rafIdRef: { current: number | null }, mountedRef: { current: boolean }): Promise<void> {
+function flyLeg(
+  map: any, leg: FlightLeg, marker: any,
+  rafIdRef: { current: number | null }, mountedRef: { current: boolean }, playingRef: { current: boolean },
+): Promise<void> {
   return new Promise(resolve => {
     if (marker) {
       styleMarkerForMode(marker.getElement(), leg.to.transportMode);
       marker.setLngLat(leg.pathCoords[0]);
     }
 
+    const fromCenter = map.getCenter();
+    const fromZoom = map.getZoom();
+    const fromPitch = map.getPitch();
+    const fromBearing = map.getBearing();
+    const { zoom: toZoom, pitch: toPitch, bearing: toBearing } = leg.camera;
+
     const start = performance.now();
     const tick = () => {
-      if (!mountedRef.current || !marker) return;
-      const t = Math.min(1, (performance.now() - start) / leg.camera.durationMs);
-      marker.setLngLat(pointAlongPath(leg.pathCoords, t));
-      if (t < 1) rafIdRef.current = requestAnimationFrame(tick);
+      if (!mountedRef.current || !playingRef.current) { resolve(); return; }
+      const rawT = Math.min(1, (performance.now() - start) / leg.camera.durationMs);
+      const t = easeInOutCubic(rawT);
+
+      map.jumpTo({
+        center: [
+          fromCenter.lng + (leg.to.lon - fromCenter.lng) * t,
+          fromCenter.lat + (leg.to.lat - fromCenter.lat) * t,
+        ],
+        zoom: fromZoom + (toZoom - fromZoom) * t,
+        pitch: fromPitch + (toPitch - fromPitch) * t,
+        bearing: lerpBearing(fromBearing, toBearing, t),
+      });
+      if (marker) marker.setLngLat(pointAlongPath(leg.pathCoords, t));
+
+      if (rawT < 1) { rafIdRef.current = requestAnimationFrame(tick); }
+      else { rafIdRef.current = null; resolve(); }
     };
     rafIdRef.current = requestAnimationFrame(tick);
-
-    const onMoveEnd = () => {
-      map.off("moveend", onMoveEnd);
-      if (rafIdRef.current != null) { cancelAnimationFrame(rafIdRef.current); rafIdRef.current = null; }
-      resolve();
-    };
-    map.on("moveend", onMoveEnd);
-    map.flyTo({
-      center: [leg.to.lon, leg.to.lat],
-      zoom: leg.camera.zoom,
-      pitch: leg.camera.pitch,
-      bearing: leg.camera.bearing,
-      duration: leg.camera.durationMs,
-      essential: true,
-    });
   });
 }
 
@@ -195,12 +213,12 @@ export function TripFlyover({ trips, onClose }: Props) {
       if (!playingRef.current) { legIndexRef.current = i; return; }
       if (!mountedRef.current) return;
       setLegIndex(i);
-      await flyLeg(map, legs[i], markerRef.current, markerRafIdRef, mountedRef);
+      await flyLeg(map, legs[i], markerRef.current, markerRafIdRef, mountedRef, playingRef);
       if (!mountedRef.current) return;
-      // Se nel frattempo è arrivata una pausa, map.stop() ha già interrotto
-      // il volo e fatto risolvere questa promise in anticipo: la tratta non
+      // Se nel frattempo è arrivata una pausa, il tick loop di flyLeg l'ha
+      // già rilevata e ha risolto questa promise in anticipo: la tratta non
       // è davvero conclusa, quindi alla ripresa va rifatta (non saltata),
-      // proseguendo dalla posizione in cui la camera si è fermata.
+      // proseguendo dalla posizione in cui camera e marker si sono fermati.
       if (!playingRef.current) { legIndexRef.current = i; return; }
       await maybeShowStopPhotos(legs[i].to.label, legs[i].to.photoKey);
       if (!mountedRef.current || !playingRef.current) { legIndexRef.current = i; return; }
@@ -220,7 +238,6 @@ export function TripFlyover({ trips, onClose }: Props) {
     if (playing) {
       playingRef.current = false;
       setPlaying(false);
-      map.stop();
     } else {
       playingRef.current = true;
       setPlaying(true);

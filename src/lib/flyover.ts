@@ -98,7 +98,7 @@ export function bearingBetween(a: { lat: number; lon: number }, b: { lat: number
  * Camera per la tratta a→b: più la distanza è corta più si vola vicini al
  * suolo con inclinazione forte (effetto "cinematografico"), più è lunga
  * (intercontinentale) più si sale di quota restando sul globo. La durata
- * è proporzionale alla distanza ma restA in un range godibile (2.5-6s).
+ * è proporzionale alla distanza ma restA in un range godibile (3.5-7.5s).
  */
 export function computeLegCamera(from: { lat: number; lon: number }, to: { lat: number; lon: number }): LegCamera {
   const bearing = bearingBetween(from, to);
@@ -111,9 +111,33 @@ export function computeLegCamera(from: { lat: number; lon: number }, to: { lat: 
   else if (km < 3000) { zoom = 4.5; pitch = 45; }
   else { zoom = 2.5; pitch = 30; }
 
-  const durationMs = Math.min(6000, Math.max(2500, km * 4));
+  const durationMs = Math.min(7500, Math.max(3500, km * 4));
 
   return { zoom, pitch, bearing, durationMs };
+}
+
+/**
+ * Easing condiviso tra camera e icona del mezzo, applicato a mano al `t` di
+ * entrambe prima di interpolare posizione/zoom/pitch/bearing (camera) e
+ * pointAlongPath (icona). Necessario pilotare la camera a mano frame per
+ * frame (invece del `flyTo` nativo di MapLibre) perché la sua curva di volo
+ * predefinita non avanza in modo geograficamente lineare nemmeno passandole
+ * un easing custom (lo zoom-out/in intermedio distorce comunque il
+ * progresso: misurato dal vivo, a metà durata la camera nativa era già al
+ * 97% del tragitto mentre l'icona a velocità costante era solo al 50%).
+ * Con la STESSA easeInOutCubic e la STESSA interpolazione lineare a guidare
+ * entrambe, restano allineate per l'intera tratta.
+ */
+export function easeInOutCubic(t: number): number {
+  const c = Math.min(1, Math.max(0, t));
+  return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2;
+}
+
+/** Interpola un bearing (0-360°) da `from` a `to` seguendo il verso più breve. */
+export function lerpBearing(from: number, to: number, t: number): number {
+  const c = Math.min(1, Math.max(0, t));
+  const delta = ((to - from + 540) % 360) - 180;
+  return (from + delta * c + 360) % 360;
 }
 
 /**
