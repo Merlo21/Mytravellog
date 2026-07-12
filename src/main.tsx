@@ -4,6 +4,7 @@ import { HashRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
 import { SettingsProvider } from "./lib/settings";
+import { AuthProvider } from "./lib/auth";
 import "./index.css";
 
 const Home = lazy(() => import("./pages/Index"));
@@ -28,20 +29,22 @@ rootEl.style.minHeight = "100vh";
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <SettingsProvider>
-      <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/statistiche" element={<Stats />} />
-            <Route path="/impostazioni" element={<SettingsPage />} />
-            <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
-            <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
-            <Route path="/miei-viaggi" element={<MieiViaggi />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-        <Toaster richColors position="top-right" />
-      </HashRouter>
+      <AuthProvider>
+        <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/statistiche" element={<Stats />} />
+              <Route path="/impostazioni" element={<SettingsPage />} />
+              <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
+              <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
+              <Route path="/miei-viaggi" element={<MieiViaggi />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+          <Toaster richColors position="top-right" />
+        </HashRouter>
+      </AuthProvider>
     </SettingsProvider>
   </React.StrictMode>
 );

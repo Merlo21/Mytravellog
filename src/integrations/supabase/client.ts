@@ -30,6 +30,21 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+// "Ricordami" al login: se non selezionato, la sessione va in sessionStorage
+// (sparisce alla chiusura del browser) invece che in localStorage
+// (sopravvive). auth.ts imposta questo flag prima di ogni signIn/signUp.
+const REMEMBER_SESSION_KEY = "navta.remember_me";
+
+function getSessionStorage(): Storage {
+  return localStorage.getItem(REMEMBER_SESSION_KEY) === "false" ? sessionStorage : localStorage;
+}
+
+export const authStorage = {
+  getItem: (key: string) => getSessionStorage().getItem(key),
+  setItem: (key: string, value: string) => getSessionStorage().setItem(key, value),
+  removeItem: (key: string) => getSessionStorage().removeItem(key),
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -38,7 +53,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
   },
   auth: {
-    storage: localStorage,
+    storage: authStorage,
     persistSession: true,
     autoRefreshToken: true,
   }

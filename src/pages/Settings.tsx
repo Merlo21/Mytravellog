@@ -5,7 +5,8 @@ import { ArrowLeft, MapPin, Search, X } from "lucide-react";
 import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity, MARKER_SCALE_MIN, MARKER_SCALE_MAX } from "@/lib/settings";
 import { searchPlaces, GeoResult } from "@/lib/geo";
 import { useState, useEffect, useMemo } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, UserCircle } from "lucide-react";
+import { AccountSection } from "@/components/AccountSection";
 
 type MarkerScaleControlsProps = {
   min: number;
@@ -276,6 +277,14 @@ export default function Settings() {
             onChangeMin={s.setMinMarkerScale}
             onChangeMax={s.setMaxMarkerScale}
           />
+        </Group>
+
+        <Group
+          icon={<UserCircle width="18" height="18"/>}
+          title="Account"
+          desc="Accedi per poter fare un backup dei tuoi viaggi (facoltativo, l'app funziona anche senza)"
+        >
+          <AccountSection/>
         </Group>
 
       </div>
