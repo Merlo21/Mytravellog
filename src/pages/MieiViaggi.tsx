@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCardTicket } from "@/components/TripCardTicket";
+import { TripFlyover } from "@/components/TripFlyover";
 import { loadTrips, Trip } from "@/lib/storage";
-import { Search, X } from "lucide-react";
+import { Search, X, Video } from "lucide-react";
 
 const DELETE_ANIM_MS = 200;
 
@@ -12,6 +13,7 @@ export default function MieiViaggi() {
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
+  const [flyoverYear, setFlyoverYear] = useState<string | null>(null);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => { setTrips(loadTrips()); }, []);
@@ -132,6 +134,12 @@ export default function MieiViaggi() {
                   <span style={{fontSize:11,fontWeight:700,letterSpacing:"2px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{year}</span>
                   <div style={{flex:1,height:"0.5px",background:"#1a2d4a"}}/>
                   <span style={{fontSize:11,color:"rgba(255,255,255,0.25)"}}>{byYear[year].length}</span>
+                  {byYear[year].length > 1 && (
+                    <button type="button" onClick={() => setFlyoverYear(year)} aria-label={`Rivivi il ${year} in 3D`}
+                      style={{width:22,height:22,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <Video style={{width:13,height:13}}/>
+                    </button>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {byYear[year].map(t => (
@@ -149,6 +157,9 @@ export default function MieiViaggi() {
           </div>
         )}
       </div>
+      {flyoverYear && (
+        <TripFlyover trips={byYear[flyoverYear] ?? []} onClose={() => setFlyoverYear(null)} />
+      )}
     </main>
   );
 }

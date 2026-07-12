@@ -261,3 +261,37 @@ describe("MieiViaggi — filtro per anno", () => {
     expect(cards[0]).toHaveAttribute("data-year", "2023");
   });
 });
+
+describe("MieiViaggi — recap 3D per anno", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("non mostra il bottone di recap se l'anno ha un solo viaggio", () => {
+    addTrip(baseTrip({ trip_date: "2024-01-01", city: "Roma" }));
+    renderPage();
+    expect(screen.queryByRole("button", { name: /Rivivi il 2024 in 3D/ })).not.toBeInTheDocument();
+  });
+
+  it("mostra il bottone di recap se l'anno ha almeno due viaggi", () => {
+    addTrip(baseTrip({ trip_date: "2024-01-01", city: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-06-15", city: "Milano" }));
+    renderPage();
+    expect(screen.getByRole("button", { name: /Rivivi il 2024 in 3D/ })).toBeInTheDocument();
+  });
+
+  it("click sul bottone di recap apre la modale del flyover", () => {
+    addTrip(baseTrip({ trip_date: "2024-01-01", city: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-06-15", city: "Milano" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Rivivi il 2024 in 3D/ }));
+    expect(screen.getByRole("button", { name: "Chiudi" })).toBeInTheDocument();
+  });
+
+  it("il bottone Chiudi chiude la modale del recap", () => {
+    addTrip(baseTrip({ trip_date: "2024-01-01", city: "Roma" }));
+    addTrip(baseTrip({ trip_date: "2024-06-15", city: "Milano" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Rivivi il 2024 in 3D/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Chiudi" }));
+    expect(screen.queryByRole("button", { name: "Chiudi" })).not.toBeInTheDocument();
+  });
+});

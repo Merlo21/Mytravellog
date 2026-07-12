@@ -137,6 +137,15 @@ export function TripFlyover({ trips, onClose }: Props) {
 
   useEffect(() => {
     mountedRef.current = true;
+    // Variabile locale alla singola invocazione dell'effetto (non un ref
+    // condiviso): in React StrictMode (dev) ogni effetto viene montato,
+    // smontato e rimontato una volta per verificare la cleanup. Con un ref
+    // condiviso, la cleanup del primo montaggio "finto" azzererebbe lo stato
+    // usato anche dal secondo (reale), e l'init asincrono del primo — che
+    // arriva a creare la mappa solo dopo gli await — la creerebbe comunque,
+    // lasciando due istanze MapLibre orfane sullo stesso container invece di
+    // una sola. Ogni chiusura di questa closure ha la propria `cancelled`.
+    let cancelled = false;
 
     const stops = buildFlightPath(trips);
     const legs = buildFlightLegs(stops);
@@ -153,6 +162,7 @@ export function TripFlyover({ trips, onClose }: Props) {
       try {
         const ml = await import("maplibre-gl");
         const maplibregl = (ml as any).default || ml;
+        if (cancelled) return;
 
         if (!document.getElementById("ml-css")) {
           const link = document.createElement("link");
@@ -162,10 +172,11 @@ export function TripFlyover({ trips, onClose }: Props) {
         }
 
         const style = await fetchMapStyle();
+        if (cancelled) return;
         style.projection = { type: "globe" };
         style.glyphs = `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`;
 
-        if (!containerRef.current) return;
+        if (!containerRef.current || cancelled) return;
         map = new maplibregl.Map({
           container: containerRef.current,
           style,
@@ -173,10 +184,11 @@ export function TripFlyover({ trips, onClose }: Props) {
           zoom: 2,
           attributionControl: false,
         });
+        if (cancelled) { map.remove(); return; }
         mapRef.current = map;
 
         map.on("load", () => {
-          if (!mountedRef.current) return;
+          if (cancelled || !mountedRef.current) return;
 
           map.addSource("flyover-route", {
             type: "geojson",
@@ -205,13 +217,14 @@ export function TripFlyover({ trips, onClose }: Props) {
           playFrom(0, map);
         });
       } catch {
-        if (mountedRef.current) setPhase("error");
+        if (!cancelled && mountedRef.current) setPhase("error");
       }
     };
 
     init();
 
     return () => {
+      cancelled = true;
       mountedRef.current = false;
       playingRef.current = false;
       if (recorderRef.current) {
