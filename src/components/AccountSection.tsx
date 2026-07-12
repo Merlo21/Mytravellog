@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Loader2, AlertCircle, LogOut } from "lucide-react";
+import { BackupSection } from "@/components/BackupSection";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,14 +21,17 @@ export function AccountSection() {
 
   if (user) {
     return (
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">{user.email}</span>
-        <button
-          onClick={() => signOut()}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-destructive hover:opacity-80 transition-opacity"
-        >
-          <LogOut className="w-3.5 h-3.5" /> Esci
-        </button>
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-muted-foreground">{user.email}</span>
+          <button
+            onClick={() => signOut()}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-destructive hover:opacity-80 transition-opacity"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Esci
+          </button>
+        </div>
+        <BackupSection userId={user.id} />
       </div>
     );
   }
