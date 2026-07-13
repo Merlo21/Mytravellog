@@ -2,7 +2,7 @@ import { Trip } from "./storage";
 import { distanceKm } from "./geo";
 import { destinationPhotoKey, homePhotoKey, waypointPhotoKey } from "./photoStorage";
 
-export type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
+export type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
 
 export interface FlightStop {
   lat: number;

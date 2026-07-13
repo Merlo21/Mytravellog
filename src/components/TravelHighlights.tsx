@@ -1,7 +1,8 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useMemo, useRef } from "react";
 import React from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, ChevronLeft, ChevronRight } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, Bike, ChevronLeft, ChevronRight } from "lucide-react";
+import { Motorcycle } from "@/components/icons/Motorcycle";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { distanceKm } from "@/lib/geo";
@@ -13,7 +14,7 @@ interface Props {
 const EARTH_CIRCUMFERENCE_KM = 40075;
 const DISTANCE_TO_MOON_KM = 384400;
 
-type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
+type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
 type KmByMode = Record<TransportMode, number>;
 
 function guessMode(km: number): TransportMode {
@@ -29,7 +30,7 @@ function guessMode(km: number): TransportMode {
  * onto a single mode.
  */
 export function computeKmByTransportMode(trips: LocalTrip[]): KmByMode {
-  const acc: KmByMode = { plane: 0, train: 0, car: 0, ship: 0, walk: 0 };
+  const acc: KmByMode = { plane: 0, train: 0, car: 0, ship: 0, walk: 0, bici: 0, moto: 0 };
   for (const t of trips) {
     const stops: { lat: number; lon: number; mode: TransportMode | null }[] = [];
     if (t.home_latitude != null && t.home_longitude != null) {
@@ -96,6 +97,8 @@ export function TravelHighlights({ trips }: Props) {
   const byCar   = byMode.car;
   const byShip  = byMode.ship;
   const byWalk  = byMode.walk;
+  const byBici  = byMode.bici;
+  const byMoto  = byMode.moto;
   const byRoad  = byCar;
 
   return (
@@ -218,12 +221,15 @@ export function TravelHighlights({ trips }: Props) {
             { icon: <Car strokeWidth={1.5}/>,        color:"#A855F7", bg:"rgba(168,85,247,0.12)",  border:"rgba(168,85,247,0.3)",  km: byCar,   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
             { icon: <Ship strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   km: byShip,  val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
             { icon: <Footprints strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   km: byWalk,  val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
+            { icon: <Bike strokeWidth={1.5}/>,       color:"#22C55E", bg:"rgba(34,197,94,0.12)",   border:"rgba(34,197,94,0.3)",   km: byBici,  val: formatDistanceKm(byBici,  distanceUnit), label:"In bici"  },
+            { icon: <Motorcycle strokeWidth={1.5}/>, color:"#EAB308", bg:"rgba(234,179,8,0.12)",   border:"rgba(234,179,8,0.3)",   km: byMoto,  val: formatDistanceKm(byMoto,  distanceUnit), label:"In moto"  },
           ] as const);
           return (
             <>
-              {/* Desktop — layout in riga invariato, icona senza badge come da
-                  mobile (pura estetica, richiesta espressamente da Stefano). */}
-              <div className="hidden sm:grid grid-cols-5 gap-2 mb-4">
+              {/* Desktop — layout in riga invariato (ora 7 colonne), icona senza
+                  badge come da mobile (pura estetica, richiesta espressamente
+                  da Stefano). */}
+              <div className="hidden sm:grid grid-cols-7 gap-2 mb-4">
                 {transportItems.map(({ icon, color, bg, border, km, val, label }) => {
                   const used = km > 0;
                   return (
@@ -281,6 +287,8 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#A855F7", label:"Auto",  pct:byCar},
               {color:"#0F6E56", label:"Nave",  pct:byShip},
               {color:"#D85A30", label:"Piedi", pct:byWalk},
+              {color:"#22C55E", label:"Bici",  pct:byBici},
+              {color:"#EAB308", label:"Moto",  pct:byMoto},
             ] as const).map(x => (
               <span key={x.label} className={"flex items-center gap-1 " + (x.pct > 0 ? "opacity-100" : "opacity-30")}>
                 <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
@@ -295,6 +303,8 @@ export function TravelHighlights({ trips }: Props) {
               {color:"#A855F7", w:byCar,   k:2},
               {color:"#0F6E56", w:byShip,  k:3},
               {color:"#D85A30", w:byWalk,  k:4},
+              {color:"#22C55E", w:byBici,  k:5},
+              {color:"#EAB308", w:byMoto,  k:6},
             ] as const).map(x => (
               <div key={x.k} className="h-full transition-all duration-700" style={{flexGrow:x.w, background:x.color}}/>
             )) : <div className="h-full w-full rounded-full bg-muted"/>}

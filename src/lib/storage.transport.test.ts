@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { addTrip, loadTrips, type Trip } from "./storage";
 
 type Mode = NonNullable<Trip["transport_mode"]>;
-const MODES: Mode[] = ["plane", "train", "car", "ship", "walk"];
+const MODES: Mode[] = ["plane", "train", "car", "ship", "walk", "bici", "moto"];
 
 function baseTrip(mode: Mode): Omit<Trip, "id" | "created_at"> {
   return {

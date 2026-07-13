@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { Trip, deleteTrip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
-import { Plane, Train, Car, Ship, Footprints, Pencil, Trash2, Video } from "lucide-react";
+import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video } from "lucide-react";
+import { Motorcycle } from "@/components/icons/Motorcycle";
 import { useNavigate } from "react-router-dom";
 import { TripFlyover } from "@/components/TripFlyover";
 import { deletePhotosForTrip } from "@/lib/photoStorage";
@@ -13,6 +14,8 @@ const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string
   car:   { color: "#A855F7", bg: "rgba(168,85,247,0.12)", label: "Auto",    Icon: Car        },
   ship:  { color: "#0F6E56", bg: "rgba(15,110,86,0.12)",  label: "Nave",    Icon: Ship       },
   walk:  { color: "#D85A30", bg: "rgba(216,90,48,0.12)",  label: "A piedi", Icon: Footprints },
+  bici:  { color: "#22C55E", bg: "rgba(34,197,94,0.12)",  label: "Bici",    Icon: Bike       },
+  moto:  { color: "#EAB308", bg: "rgba(234,179,8,0.12)",  label: "Moto",    Icon: Motorcycle },
 };
 const DEFAULT_TRANSPORT = { color: "#60a5fa", bg: "rgba(96,165,250,0.12)", label: "Viaggio", Icon: Plane };
 

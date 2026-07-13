@@ -11,7 +11,7 @@ import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } f
 import { TripPhotos } from "@/components/TripPhotos";
 import { homePhotoKey, waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
 
-type TransportMode = "plane" | "train" | "car" | "ship" | "walk";
+type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
 type Waypoint = { id: string; city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
 
 const TRANSPORT: { value: TransportMode; label: string; color: string; bg: string }[] = [
@@ -20,6 +20,8 @@ const TRANSPORT: { value: TransportMode; label: string; color: string; bg: strin
   { value: "car",   label: "Auto",    color: "#A855F7", bg: "rgba(168,85,247,0.15)"  },
   { value: "ship",  label: "Nave",    color: "#0F6E56", bg: "rgba(15,110,86,0.15)"   },
   { value: "walk",  label: "A piedi", color: "#D85A30", bg: "rgba(216,90,48,0.15)"   },
+  { value: "bici",  label: "Bici",    color: "#22C55E", bg: "rgba(34,197,94,0.15)"   },
+  { value: "moto",  label: "Moto",    color: "#EAB308", bg: "rgba(234,179,8,0.15)"   },
 ];
 
 const RATING_LABELS: Record<number, string> = {
@@ -109,6 +111,25 @@ const TRANSPORT_SVG: Record<string, (color: string, size?: number) => React.Reac
       <path d="M18 20 L13 22" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   ),
+  bici: (c, s=24) => (
+    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="11" cy="29" r="6" stroke={c} strokeWidth="2"/>
+      <circle cx="29" cy="29" r="6" stroke={c} strokeWidth="2"/>
+      <path d="M11 29 L19 14 L29 29 M19 14 L15 29" stroke={c} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+      <path d="M19 14 L26 14" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M24 10 L28 14" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  moto: (c, s=24) => (
+    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="10" cy="29" r="5" stroke={c} strokeWidth="2"/>
+      <circle cx="30" cy="29" r="5" stroke={c} strokeWidth="2"/>
+      <path d="M10 29 L16 20 L24 20 L30 29" stroke={c} strokeWidth="2" strokeLinecap="round" fill="none"/>
+      <path d="M16 20 L20 13 L25 13" stroke={c} strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+      <path d="M24 20 L27 15" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+      <ellipse cx="20" cy="18" rx="4" ry="2" fill={c} opacity="0.85"/>
+    </svg>
+  ),
 };
 
 
@@ -163,7 +184,7 @@ function ContinuousFlyer({ stops, cx, cy, W }: {
   const color = (() => {
     const found = [
       {v:"plane",c:"#378ADD"},{v:"train",c:"#BA7517"},{v:"car",c:"#A855F7"},
-      {v:"ship",c:"#0F6E56"},{v:"walk",c:"#D85A30"}
+      {v:"ship",c:"#0F6E56"},{v:"walk",c:"#D85A30"},{v:"bici",c:"#22C55E"},{v:"moto",c:"#EAB308"}
     ].find(x => x.v === t);
     return found?.c ?? "#378ADD";
   })();
@@ -296,21 +317,21 @@ function RouteHero({
                     {/* Transport picker popup */}
                     {activeArc === i && (
                       <g onClick={e => e.stopPropagation()}>
-                        <rect x={mx-95} y={cy-arcH-84} width="190" height="60" rx="10"
+                        <rect x={mx-119} y={cy-arcH-84} width="238" height="60" rx="10"
                           fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
                         <text x={mx} y={cy-arcH-64} fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">Cambia mezzo</text>
                         {TRANSPORT.map((opt, j) => {
-                          const bx = mx - 72 + j * 36;
+                          const bx = mx - 96 + j * 32;
                           const by = cy - arcH - 44;
                           return (
                             <g key={opt.value} style={{cursor:"pointer"}}
                               onClick={() => { waypoints[i-1].transport_mode = opt.value; onRemoveWaypoint(-99); setActiveArc(null); }}>
-                              <rect x={bx-15} y={by-15} width="30" height="30" rx="8"
+                              <rect x={bx-14} y={by-14} width="28" height="28" rx="8"
                                 fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.05)"}
                                 stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"} strokeWidth="1"/>
-                              <foreignObject x={bx-13} y={by-13} width="26" height="26">
+                              <foreignObject x={bx-11} y={by-11} width="22" height="22">
                                 <div style={{display:"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
-                                  {TRANSPORT_SVG[opt.value]?.(opt.color, 22)}
+                                  {TRANSPORT_SVG[opt.value]?.(opt.color, 19)}
                                 </div>
                               </foreignObject>
                             </g>
@@ -648,7 +669,10 @@ const ModificaViaggio = () => {
     const routePromises = waypoints.map((wp) => {
       const p = prevPt;
       prevPt = wp.lat && wp.lon ? { lat: wp.lat, lon: wp.lon } : prevPt;
-      if (wp.transport_mode === "car" && p && wp.lat && wp.lon) {
+      // Bici e moto seguono la strada reale esattamente come l'auto (stessa
+      // richiesta esplicita: "stile di viaggio" uguale alla macchina).
+      const followsRoad = wp.transport_mode === "car" || wp.transport_mode === "bici" || wp.transport_mode === "moto";
+      if (followsRoad && p && wp.lat && wp.lon) {
         return fetchDrivingRoute(p.lat, p.lon, wp.lat, wp.lon);
       }
       return Promise.resolve(null);

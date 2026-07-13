@@ -8,8 +8,8 @@ export type Trip = {
   date_end: string | null; // YYYY-MM-DD (fine)
   rating: number | null; // 1-5 stelle
   notes: string | null;
-  transport_mode: "plane" | "train" | "car" | "ship" | "walk" | null;
-  waypoints: { id?: string; city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
+  transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto" | null;
+  waypoints: { id?: string; city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
   latitude: number;
   longitude: number;
   home_latitude: number | null;

@@ -386,7 +386,7 @@ export function WorldMap({
 
     // Per-trip lines: pink for single, colored by transport for multi-tappa
     const TRANSPORT_COLORS_MAP: Record<string, string> = {
-      plane: "#378ADD", train: "#BA7517", car: "#A855F7", ship: "#0F6E56", walk: "#D85A30"
+      plane: "#378ADD", train: "#BA7517", car: "#A855F7", ship: "#0F6E56", walk: "#D85A30", bici: "#22C55E", moto: "#EAB308"
     };
     ordered.forEach((t) => {
       if (!t.home_latitude || !t.home_longitude || !t.latitude || !t.longitude) return;
@@ -555,6 +555,8 @@ export function WorldMap({
             "car",   "#A855F7",
             "ship",  "#0F6E56",
             "walk",  "#D85A30",
+            "bici",  "#22C55E",
+            "moto",  "#EAB308",
             "#60a5fa"
           ],
           "circle-stroke-width": 1.5,

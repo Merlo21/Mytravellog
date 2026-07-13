@@ -14,6 +14,8 @@ const TRANSPORT_STYLE: Record<string, { color: string; emoji: string }> = {
   car: { color: "#A855F7", emoji: "🚗" },
   ship: { color: "#0F6E56", emoji: "🚢" },
   walk: { color: "#D85A30", emoji: "🚶" },
+  bici: { color: "#22C55E", emoji: "🚲" },
+  moto: { color: "#EAB308", emoji: "🏍️" },
 };
 const DEFAULT_TRANSPORT_STYLE = { color: "#60a5fa", emoji: "✈️" };
 
