@@ -96,7 +96,7 @@ export function TravelHeatmap({ trips }: Props) {
 
   return (
     <div className="glass-card p-5 animate-fade-up">
-      <div className="flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
+      <div className="flex items-center justify-between gap-3 sm:gap-4 pb-5 border-b border-border mb-5 flex-nowrap">
         <div className="flex items-center gap-3">
           <div style={{ width: 42, height: 42, borderRadius: 12, background: "rgba(96,165,250,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <CalendarDays className="w-5 h-5" style={{ color: "#60a5fa" }} />
