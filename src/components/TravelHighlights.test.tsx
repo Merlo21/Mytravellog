@@ -68,8 +68,11 @@ describe("TravelHighlights — highest (altitudine)", () => {
       makeTrip({ altitude_m: 100,  city: "Pianura" }),
     ];
     renderHighlights(trips);
-    // In metric (default), fmtAltitude(2000, "metric") → "2000 m" in jsdom
-    expect(screen.getByText("2000 m")).toBeInTheDocument();
+    // In metric (default), fmtAltitude(2000, "metric") → "2000 m" in jsdom.
+    // Compare toBeGreaterThanOrEqual(1) invece di toBeInTheDocument: la card
+    // è renderizzata sia nella versione desktop che in quella mobile (una
+    // sola visibile per volta via CSS, ma entrambe presenti nel DOM in jsdom).
+    expect(screen.getAllByText("2000 m").length).toBeGreaterThanOrEqual(1);
   });
 
   it("mostra la città del viaggio più alto come sottotitolo", () => {
@@ -85,14 +88,14 @@ describe("TravelHighlights — highest (altitudine)", () => {
     // La destinazione è a 100m, ma una tappa intermedia ha raggiunto 3000m
     const trips = [makeTrip({ altitude_m: 100, max_altitude_m: 3000, max_altitude_city: "Passo Alpino", city: "Destinazione" })];
     renderHighlights(trips);
-    expect(screen.getByText("3000 m")).toBeInTheDocument();
+    expect(screen.getAllByText("3000 m").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Passo Alpino").length).toBeGreaterThanOrEqual(1);
   });
 
   it("usa altitude_m se max_altitude_m è null (viaggi salvati prima del fix)", () => {
     const trips = [makeTrip({ altitude_m: 750, max_altitude_m: null, city: "Destinazione" })];
     renderHighlights(trips);
-    expect(screen.getByText("750 m")).toBeInTheDocument();
+    expect(screen.getAllByText("750 m").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Destinazione").length).toBeGreaterThanOrEqual(1);
   });
 });
@@ -105,7 +108,7 @@ describe("TravelHighlights — farthest (distanza)", () => {
     ];
     renderHighlights(trips);
     // 1200 viene scelto su 800 grazie a max_distance_from_home_km
-    expect(screen.getByText("1200 km")).toBeInTheDocument();
+    expect(screen.getAllByText("1200 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("usa distance_from_home_km se max_distance_from_home_km è null", () => {
@@ -114,7 +117,7 @@ describe("TravelHighlights — farthest (distanza)", () => {
       makeTrip({ distance_from_home_km: 300,  max_distance_from_home_km: null }),
     ];
     renderHighlights(trips);
-    expect(screen.getByText("900 km")).toBeInTheDocument();
+    expect(screen.getAllByText("900 km").length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -125,7 +128,7 @@ describe("TravelHighlights — hottest / coldest", () => {
       makeTrip({ hottest_temp_c: 30, temperature_c: 28 }),
     ];
     renderHighlights(trips);
-    expect(screen.getByText("38.0°C")).toBeInTheDocument();
+    expect(screen.getAllByText("38.0°C").length).toBeGreaterThanOrEqual(1);
   });
 
   it("usa temperature_c se hottest_temp_c è null", () => {
@@ -134,7 +137,7 @@ describe("TravelHighlights — hottest / coldest", () => {
       makeTrip({ hottest_temp_c: null, temperature_c: 20 }),
     ];
     renderHighlights(trips);
-    expect(screen.getByText("33.0°C")).toBeInTheDocument();
+    expect(screen.getAllByText("33.0°C").length).toBeGreaterThanOrEqual(1);
   });
 
   it("mostra la temperatura più bassa (coldest_temp_c prioritario)", () => {
@@ -143,7 +146,7 @@ describe("TravelHighlights — hottest / coldest", () => {
       makeTrip({ coldest_temp_c: 2,   temperature_c: 8 }),
     ];
     renderHighlights(trips);
-    expect(screen.getByText("-10.0°C")).toBeInTheDocument();
+    expect(screen.getAllByText("-10.0°C").length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -154,7 +157,7 @@ describe("TravelHighlights — totalKm, aroundWorld, toMoon", () => {
       makeTrip({ distance_from_home_km: 2000 }),
     ];
     renderHighlights(trips);
-    expect(screen.getByText("3000 km")).toBeInTheDocument();
+    expect(screen.getAllByText("3000 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("mostra 0 km totali con trips=[] (in più celle: totale + breakdown per mezzo)", () => {
@@ -169,14 +172,14 @@ describe("TravelHighlights — byMode breakdown", () => {
   it("assegna distanza a 'plane' con transport_mode='plane' esplicito", () => {
     const trips = [makeTrip({ transport_mode: "plane" })];
     renderHighlights(trips);
-    expect(screen.getByText("In aereo")).toBeInTheDocument();
+    expect(screen.getAllByText("In aereo").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("480 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("assegna distanza a 'train' con transport_mode='train' esplicito", () => {
     const trips = [makeTrip({ transport_mode: "train" })];
     renderHighlights(trips);
-    expect(screen.getByText("In treno")).toBeInTheDocument();
+    expect(screen.getAllByText("In treno").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("480 km").length).toBeGreaterThanOrEqual(1);
   });
 
@@ -184,7 +187,7 @@ describe("TravelHighlights — byMode breakdown", () => {
     // Milano -> Tokyo: ~9710 km, nessun transport_mode → plane
     const trips = [makeTrip({ transport_mode: null, latitude: 35.68, longitude: 139.65 })];
     renderHighlights(trips);
-    expect(screen.getByText("In aereo")).toBeInTheDocument();
+    expect(screen.getAllByText("In aereo").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("9710 km").length).toBeGreaterThanOrEqual(1);
   });
 
@@ -192,14 +195,14 @@ describe("TravelHighlights — byMode breakdown", () => {
     // Milano -> Torino: ~128 km, nessun transport_mode → car
     const trips = [makeTrip({ transport_mode: null, latitude: 45.07, longitude: 7.68 })];
     renderHighlights(trips);
-    expect(screen.getByText("In auto")).toBeInTheDocument();
+    expect(screen.getAllByText("In auto").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("128 km").length).toBeGreaterThanOrEqual(1);
   });
 
   it("fallback a 'walk' per distanza <20 km senza transport_mode", () => {
     const trips = [makeTrip({ transport_mode: null, latitude: 45.51, longitude: 9.21 })];
     renderHighlights(trips);
-    expect(screen.getByText("A piedi")).toBeInTheDocument();
+    expect(screen.getAllByText("A piedi").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("1 km").length).toBeGreaterThanOrEqual(1);
   });
 

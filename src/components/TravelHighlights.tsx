@@ -1,37 +1,10 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import React from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, ChevronLeft, ChevronRight } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { distanceKm } from "@/lib/geo";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-
-/**
- * Etichetta descrittiva di una metrica in "Distanze": da desktop è sempre
- * visibile come prima, da mobile è nascosta dietro un piccolo pallino — la
- * si legge al tap (o al passaggio del mouse, essendo comunque un bottone)
- * invece di occupare spazio in permanenza su schermi piccoli.
- */
-function InfoLabel({ label, className, style }: { label: string; className?: string; style?: React.CSSProperties }) {
-  return (
-    <>
-      <div className={"hidden sm:block " + (className ?? "")} style={style}>{label}</div>
-      <Popover>
-        <PopoverTrigger asChild>
-          <button type="button" aria-label={label}
-            className="sm:hidden inline-flex items-center justify-center"
-            style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.12)", marginTop: 4 }}>
-            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.6)", display: "block" }}/>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent side="top" align="center" className="sm:hidden w-auto px-2.5 py-1 text-xs">
-          {label}
-        </PopoverContent>
-      </Popover>
-    </>
-  );
-}
 
 interface Props {
   trips: LocalTrip[];
@@ -79,6 +52,10 @@ export function computeKmByTransportMode(trips: LocalTrip[]): KmByMode {
 
 export function TravelHighlights({ trips }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
+  const transportScrollRef = useRef<HTMLDivElement>(null);
+  const scrollTransportBy = (dir: 1 | -1) => {
+    transportScrollRef.current?.scrollBy({ left: dir * 140, behavior: "smooth" });
+  };
 
   const highest = useMemo(
     () => trips
@@ -149,25 +126,41 @@ export function TravelHighlights({ trips }: Props) {
             {item.sub && <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{item.sub}</div>}
           </div>
         );
-        return (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-            {items.map(item => <Card key={item.label} item={item}/>)}
+        // Mobile: icona grande "illustrata" invece del badge circolare piccolo
+        // (spunto preso da un'app concorrente) — più impatto visivo su schermi
+        // piccoli dove c'è meno concorrenza per lo spazio orizzontale.
+        const CardBig = ({ item }: { item: HlItem }) => (
+          <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderRadius:14,padding:"18px 10px",display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",gap:4}}>
+            <item.Icon style={{width:30,height:30,color:item.color,strokeWidth:1.6}}/>
+            <div style={{fontSize:19,fontWeight:800,color:"#f0f4ff",marginTop:4}}>{item.value}</div>
+            <div style={{fontSize:10,letterSpacing:"0.5px",textTransform:"uppercase",fontWeight:700,color:item.color}}>{item.label}</div>
+            {item.sub && <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{item.sub}</div>}
           </div>
+        );
+        return (
+          <>
+            <div className="hidden sm:grid" style={{gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+              {items.map(item => <Card key={item.label} item={item}/>)}
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 sm:hidden">
+              {items.map(item => <CardBig key={item.label} item={item}/>)}
+            </div>
+          </>
         );
       })()}
 
       <div className="mt-6 glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
 
-        {/* Hero row */}
-        <div className="flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
+        {/* Hero row — desktop invariato */}
+        <div className="hidden sm:flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(55,138,221,0.12)"}}>
               <Globe2 className="w-5 h-5" style={{color:"#378ADD"}} strokeWidth={1.5}/>
             </div>
             <div>
               <div className="text-2xl font-bold font-mono">{formatDistanceKm(totalKm, distanceUnit)}</div>
-              <InfoLabel label="chilometri percorsi in totale" className="text-xs text-muted-foreground mt-0.5"/>
+              <div className="text-xs text-muted-foreground mt-0.5">chilometri percorsi in totale</div>
             </div>
           </div>
 
@@ -183,7 +176,7 @@ export function TravelHighlights({ trips }: Props) {
             </div>
             <div>
               <div className="text-2xl font-bold font-mono">{aroundWorld.toFixed(3).replace(".",",")}×</div>
-              <InfoLabel label="intorno al mondo" className="text-xs text-muted-foreground mt-0.5"/>
+              <div className="text-xs text-muted-foreground mt-0.5">intorno al mondo</div>
             </div>
           </div>
 
@@ -193,37 +186,106 @@ export function TravelHighlights({ trips }: Props) {
             </div>
             <div>
               <div className="text-2xl font-bold font-mono">{toMoon.toFixed(3).replace(".",",")}×</div>
-              <InfoLabel label="alla luna" className="text-xs text-muted-foreground mt-0.5"/>
+              <div className="text-xs text-muted-foreground mt-0.5">alla luna</div>
             </div>
           </div>
         </div>
 
-        {/* 5 transport cards — i mezzi non usati (0 km) sono attenuati per far
-            risaltare solo quelli effettivamente usati nei viaggi. */}
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-4">
-          {([
-            { icon: <Plane className="w-5 h-5" strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  km: byPlane, val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
-            { icon: <Train className="w-5 h-5" strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  km: byTrain, val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
-            { icon: <Car className="w-5 h-5" strokeWidth={1.5}/>,        color:"#A855F7", bg:"rgba(168,85,247,0.12)",  border:"rgba(168,85,247,0.3)",  km: byCar,   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
-            { icon: <Ship className="w-5 h-5" strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   km: byShip,  val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
-            { icon: <Footprints className="w-5 h-5" strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   km: byWalk,  val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
-          ] as const).map(({ icon, color, bg, border, km, val, label }) => {
-            const used = km > 0;
-            return (
-              <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
-                style={used ? {background:bg, borderColor:border} : {background:"rgba(255,255,255,0.02)", borderColor:"rgba(255,255,255,0.06)"}}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
-                  <span style={{color: used ? color : "rgba(255,255,255,0.2)"}}>{icon}</span>
-                </div>
-                <div>
-                  <div className="text-lg font-extrabold font-mono leading-none" style={{color: used ? color : "rgba(255,255,255,0.25)"}}>{val}</div>
-                  <InfoLabel label={label} className={`text-[11px] mt-1 ${used ? "text-muted-foreground" : ""}`}
-                    style={used ? undefined : {color:"rgba(255,255,255,0.2)"}}/>
-                </div>
-              </div>
-            );
-          })}
+        {/* Hero row — mobile: km totali come "momento hero" con icona grande
+            (spunto preso da un'app concorrente), intorno-al-mondo/alla-luna
+            restano compatte ma affiancate 2x2 sotto, con etichetta sempre
+            visibile visto che ora c'è spazio a sufficienza. */}
+        <div className="sm:hidden pb-5 border-b border-border mb-5">
+          <div className="flex flex-col items-center text-center gap-1.5 mb-4">
+            <div style={{width:76,height:76,borderRadius:"50%",border:"2px dashed #378ADD",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <Globe2 style={{width:32,height:32,color:"#378ADD"}} strokeWidth={1.5}/>
+            </div>
+            <div className="text-2xl font-bold font-mono mt-1">{formatDistanceKm(totalKm, distanceUnit)}</div>
+            <div className="text-xs text-muted-foreground">chilometri percorsi in totale</div>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="flex flex-col items-center text-center gap-1.5 rounded-xl py-3" style={{background:"rgba(99,153,34,0.08)"}}>
+              <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5" stroke="#639922" strokeWidth="1.5"/>
+                <ellipse cx="11" cy="11" rx="3.5" ry="6.5" stroke="#639922" strokeWidth="1.2"/>
+                <line x1="4.5" y1="11" x2="17.5" y2="11" stroke="#639922" strokeWidth="1.2"/>
+                <path d="M6.5 7Q11 9 15.5 7" stroke="#639922" strokeWidth="1" fill="none"/>
+                <path d="M6.5 15Q11 13 15.5 15" stroke="#639922" strokeWidth="1" fill="none"/>
+              </svg>
+              <div className="text-lg font-bold font-mono">{aroundWorld.toFixed(3).replace(".",",")}×</div>
+              <div className="text-[11px] text-muted-foreground">intorno al mondo</div>
+            </div>
+            <div className="flex flex-col items-center text-center gap-1.5 rounded-xl py-3" style={{background:"rgba(127,119,221,0.08)"}}>
+              <Moon className="w-5 h-5" style={{color:"#7F77DD"}} strokeWidth={1.5}/>
+              <div className="text-lg font-bold font-mono">{toMoon.toFixed(3).replace(".",",")}×</div>
+              <div className="text-[11px] text-muted-foreground">alla luna</div>
+            </div>
+          </div>
         </div>
+
+        {/* 5 mezzi di trasporto — i non usati (0 km) sono attenuati per far
+            risaltare solo quelli effettivamente usati nei viaggi. */}
+        {(() => {
+          const transportItems = ([
+            { icon: <Plane strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  km: byPlane, val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
+            { icon: <Train strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  km: byTrain, val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
+            { icon: <Car strokeWidth={1.5}/>,        color:"#A855F7", bg:"rgba(168,85,247,0.12)",  border:"rgba(168,85,247,0.3)",  km: byCar,   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
+            { icon: <Ship strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   km: byShip,  val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
+            { icon: <Footprints strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   km: byWalk,  val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
+          ] as const);
+          return (
+            <>
+              {/* Desktop — invariato */}
+              <div className="hidden sm:grid grid-cols-5 gap-2 mb-4">
+                {transportItems.map(({ icon, color, bg, border, km, val, label }) => {
+                  const used = km > 0;
+                  return (
+                    <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
+                      style={used ? {background:bg, borderColor:border} : {background:"rgba(255,255,255,0.02)", borderColor:"rgba(255,255,255,0.06)"}}>
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
+                        <span style={{color: used ? color : "rgba(255,255,255,0.2)"}}>{React.cloneElement(icon, { className: "w-5 h-5" })}</span>
+                      </div>
+                      <div>
+                        <div className="text-lg font-extrabold font-mono leading-none" style={{color: used ? color : "rgba(255,255,255,0.25)"}}>{val}</div>
+                        <div className="text-[11px] mt-1" style={{color: used ? undefined : "rgba(255,255,255,0.2)"}}>{label}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile — carosello orizzontale con freccine, icona grande senza
+                  badge (stesso spunto grafico delle highlights card, e delle
+                  freccine visibili ◀▶ prese da un'app concorrente per rendere
+                  lo scroll orizzontale scopribile invece che "alla cieca"). */}
+              <div className="sm:hidden relative mb-4">
+                <button type="button" onClick={() => scrollTransportBy(-1)} aria-label="Scorri a sinistra"
+                  className="absolute left-0 top-1/2 z-10 flex items-center justify-center"
+                  style={{ transform: "translateY(-50%)", width: 26, height: 26, borderRadius: "50%", background: "rgba(10,22,40,0.92)", border: "1px solid #1a2d4a" }}>
+                  <ChevronLeft className="w-3.5 h-3.5"/>
+                </button>
+                <div ref={transportScrollRef} className="flex gap-2.5 overflow-x-auto" style={{ scrollbarWidth: "none", paddingLeft: 32, paddingRight: 32 }}>
+                  {transportItems.map(({ icon, color, km, val, label }) => {
+                    const used = km > 0;
+                    return (
+                      <div key={label} className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-xl border"
+                        style={{ width: 92, padding: "14px 8px", background: "#0a1628", borderColor: "#1a2d4a" }}>
+                        <span style={{color: used ? color : "rgba(255,255,255,0.2)"}}>{React.cloneElement(icon, { style: { width: 26, height: 26 } })}</span>
+                        <div className="text-sm font-extrabold font-mono" style={{color: used ? color : "rgba(255,255,255,0.25)"}}>{val}</div>
+                        <div style={{fontSize:10,letterSpacing:"0.3px",textTransform:"uppercase",fontWeight:700,textAlign:"center",color: used ? color : "rgba(255,255,255,0.2)"}}>{label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button type="button" onClick={() => scrollTransportBy(1)} aria-label="Scorri a destra"
+                  className="absolute right-0 top-1/2 z-10 flex items-center justify-center"
+                  style={{ transform: "translateY(-50%)", width: 26, height: 26, borderRadius: "50%", background: "rgba(10,22,40,0.92)", border: "1px solid #1a2d4a" }}>
+                  <ChevronRight className="w-3.5 h-3.5"/>
+                </button>
+              </div>
+            </>
+          );
+        })()}
 
         {/* Proportional bar */}
         <div>
