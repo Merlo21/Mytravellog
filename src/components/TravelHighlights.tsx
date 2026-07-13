@@ -1,11 +1,37 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import React from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, ChevronDown } from "lucide-react";
+import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints } from "lucide-react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { distanceKm } from "@/lib/geo";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+
+/**
+ * Etichetta descrittiva di una metrica in "Distanze": da desktop è sempre
+ * visibile come prima, da mobile è nascosta dietro un piccolo pallino — la
+ * si legge al tap (o al passaggio del mouse, essendo comunque un bottone)
+ * invece di occupare spazio in permanenza su schermi piccoli.
+ */
+function InfoLabel({ label, className, style }: { label: string; className?: string; style?: React.CSSProperties }) {
+  return (
+    <>
+      <div className={"hidden sm:block " + (className ?? "")} style={style}>{label}</div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" aria-label={label}
+            className="sm:hidden inline-flex items-center justify-center"
+            style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,0.12)", marginTop: 4 }}>
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.6)", display: "block" }}/>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="top" align="center" className="sm:hidden w-auto px-2.5 py-1 text-xs">
+          {label}
+        </PopoverContent>
+      </Popover>
+    </>
+  );
+}
 
 interface Props {
   trips: LocalTrip[];
@@ -53,7 +79,6 @@ export function computeKmByTransportMode(trips: LocalTrip[]): KmByMode {
 
 export function TravelHighlights({ trips }: Props) {
   const { distanceUnit, temperatureUnit } = useSettings();
-  const [highlightsOpen, setHighlightsOpen] = useState(false);
 
   const highest = useMemo(
     () => trips
@@ -99,44 +124,37 @@ export function TravelHighlights({ trips }: Props) {
   return (
     <div className="space-y-6 animate-fade-up">
 
+      {/* A differenza delle altre sezioni della pagina Statistiche (che hanno
+          già un proprio h2 interno, es. "Distanze" più sotto), la griglia di
+          card qui sotto non aveva alcun titolo. Stesso stile delle altre. */}
+      <h2 className="text-lg font-bold">Highlights di viaggio</h2>
+
       {/* Highlights grid — "Giorni in viaggio" è ora nella sezione Anni e mesi
-          di viaggio, insieme a "giorni senza viaggiare" (metrica complementare).
-          A comparsa (chiusa di default) perché su mobile le 4 card forzate su
-          un'unica riga risultavano troppo compresse. */}
-      <Collapsible open={highlightsOpen} onOpenChange={setHighlightsOpen}>
-        <CollapsibleTrigger asChild>
-          <button type="button" className="flex items-center justify-between w-full text-left" aria-label={highlightsOpen ? "Nascondi highlights di viaggio" : "Mostra highlights di viaggio"}>
-            <h2 className="text-lg font-bold">Highlights di viaggio</h2>
-            <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform" style={{ transform: highlightsOpen ? "rotate(180deg)" : "none" }}/>
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-4">
-          {(() => {
-            type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType };
-            const items: HlItem[] = [
-              { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain    },
-              { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2 },
-              { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun      },
-              { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.coldest_temp_c ?? coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.coldest_city ?? coldest?.city,  color:"#93c5fd", bg:"rgba(147,197,253,0.12)", Icon:Snowflake },
-            ];
-            const Card = ({ item }: { item: HlItem }) => (
-              <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderTop:"2px solid "+item.color,borderRadius:12,padding:14,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",gap:6}}>
-                <div style={{width:38,height:38,borderRadius:"50%",background:item.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <item.Icon style={{width:18,height:18,color:item.color}}/>
-                </div>
-                <div style={{fontSize:18,fontWeight:700,color:"#f0f4ff"}}>{item.value}</div>
-                <div style={{fontSize:10,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{item.label}</div>
-                {item.sub && <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{item.sub}</div>}
-              </div>
-            );
-            return (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {items.map(item => <Card key={item.label} item={item}/>)}
-              </div>
-            );
-          })()}
-        </CollapsibleContent>
-      </Collapsible>
+          di viaggio, insieme a "giorni senza viaggiare" (metrica complementare) */}
+      {(() => {
+        type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType };
+        const items: HlItem[] = [
+          { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain    },
+          { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2 },
+          { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun      },
+          { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.coldest_temp_c ?? coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.coldest_city ?? coldest?.city,  color:"#93c5fd", bg:"rgba(147,197,253,0.12)", Icon:Snowflake },
+        ];
+        const Card = ({ item }: { item: HlItem }) => (
+          <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderTop:"2px solid "+item.color,borderRadius:12,padding:14,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",gap:6}}>
+            <div style={{width:38,height:38,borderRadius:"50%",background:item.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <item.Icon style={{width:18,height:18,color:item.color}}/>
+            </div>
+            <div style={{fontSize:18,fontWeight:700,color:"#f0f4ff"}}>{item.value}</div>
+            <div style={{fontSize:10,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{item.label}</div>
+            {item.sub && <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{item.sub}</div>}
+          </div>
+        );
+        return (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+            {items.map(item => <Card key={item.label} item={item}/>)}
+          </div>
+        );
+      })()}
 
       <div className="mt-6 glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
@@ -149,7 +167,7 @@ export function TravelHighlights({ trips }: Props) {
             </div>
             <div>
               <div className="text-2xl font-bold font-mono">{formatDistanceKm(totalKm, distanceUnit)}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">chilometri percorsi in totale</div>
+              <InfoLabel label="chilometri percorsi in totale" className="text-xs text-muted-foreground mt-0.5"/>
             </div>
           </div>
 
@@ -165,7 +183,7 @@ export function TravelHighlights({ trips }: Props) {
             </div>
             <div>
               <div className="text-2xl font-bold font-mono">{aroundWorld.toFixed(3).replace(".",",")}×</div>
-              <div className="text-xs text-muted-foreground mt-0.5">intorno al mondo</div>
+              <InfoLabel label="intorno al mondo" className="text-xs text-muted-foreground mt-0.5"/>
             </div>
           </div>
 
@@ -175,7 +193,7 @@ export function TravelHighlights({ trips }: Props) {
             </div>
             <div>
               <div className="text-2xl font-bold font-mono">{toMoon.toFixed(3).replace(".",",")}×</div>
-              <div className="text-xs text-muted-foreground mt-0.5">alla luna</div>
+              <InfoLabel label="alla luna" className="text-xs text-muted-foreground mt-0.5"/>
             </div>
           </div>
         </div>
@@ -199,8 +217,8 @@ export function TravelHighlights({ trips }: Props) {
                 </div>
                 <div>
                   <div className="text-lg font-extrabold font-mono leading-none" style={{color: used ? color : "rgba(255,255,255,0.25)"}}>{val}</div>
-                  <div className={`text-[11px] mt-1 ${used ? "text-muted-foreground" : ""}`}
-                    style={used ? undefined : {color:"rgba(255,255,255,0.2)"}}>{label}</div>
+                  <InfoLabel label={label} className={`text-[11px] mt-1 ${used ? "text-muted-foreground" : ""}`}
+                    style={used ? undefined : {color:"rgba(255,255,255,0.2)"}}/>
                 </div>
               </div>
             );

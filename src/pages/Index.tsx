@@ -5,9 +5,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X } from "lucide-react";
+import { Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X, ChevronDown } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 /**
  * Ogni viaggio tocca anche i paesi/città delle tappe intermedie (waypoint),
@@ -84,6 +85,10 @@ function HomeInner() {
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
+  // Solo su mobile le 4 card sono a comparsa (chiuse di default, per non
+  // occupare spazio sopra il globo) — da desktop restano sempre visibili,
+  // vedi il rendering "hidden sm:grid" più sotto.
+  const [statsOpen, setStatsOpen] = useState(false);
   // Clean up legacy visited cities data
   useEffect(() => { localStorage.removeItem("atlas.visited.v1"); }, []);
   const refresh = () => setTrips(loadTrips());
@@ -115,13 +120,14 @@ function HomeInner() {
       <AppHeader/>
 
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          {([
+        {(() => {
+          const statItems = [
             { icon: <Plane       className="w-[18px] h-[18px]"/>, label: "Viaggi",   value: stats.trips.toString(),     accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
             { icon: <Globe       className="w-[18px] h-[18px]"/>, label: "Paesi",    value: stats.countries.toString(), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
             { icon: <MapPin      className="w-[18px] h-[18px]"/>, label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
             { icon: <Compass     className="w-[18px] h-[18px]"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-          ]).map(({ icon, label, value, accent, bg }) => (
+          ];
+          const StatCard = ({ icon, label, value, accent, bg }: typeof statItems[number]) => (
             <div key={label} style={{
               background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12,
               padding:"14px 16px", display:"flex", alignItems:"center", gap:12,
@@ -136,8 +142,36 @@ function HomeInner() {
                 <div style={{fontSize:10,letterSpacing:"1.2px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginTop:3}}>{label}</div>
               </div>
             </div>
-          ))}
-        </div>
+          );
+          return (
+            <>
+              {/* Desktop: sempre visibili, struttura invariata */}
+              <div className="hidden sm:grid grid-cols-4 gap-2.5">
+                {statItems.map(item => <StatCard key={item.label} {...item}/>)}
+              </div>
+
+              {/* Mobile: a comparsa, chiuse di default per non occupare spazio sopra il globo */}
+              <div className="sm:hidden">
+                <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="flex items-center justify-between w-full text-left py-1"
+                      aria-label={statsOpen ? "Nascondi le tue statistiche" : "Mostra le tue statistiche"}>
+                      <span style={{fontSize:12,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(255,255,255,0.5)",fontWeight:600}}>
+                        Le tue statistiche
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" style={{ transform: statsOpen ? "rotate(180deg)" : "none" }}/>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {statItems.map(item => <StatCard key={item.label} {...item}/>)}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            </>
+          );
+        })()}
 
         <div style={{ display:"flex", height:"calc(100vh - 220px)", minHeight:"460px", overflow:"hidden", transition:"all 0.3s ease" }}>
           {/* Globe */}

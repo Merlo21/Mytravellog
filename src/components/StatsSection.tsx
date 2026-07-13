@@ -72,7 +72,7 @@ export function StatsSection({ trips }: Props) {
 
   return (
     <section className="mb-8 animate-fade-up">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
         <StatHero
           image={earthImg}
           alt="Pianeta Terra dallo spazio"
@@ -153,7 +153,7 @@ function StatHero({
   image, alt, value, label, overlayColor,
 }: { image: string; alt: string; value: string; label: string; overlayColor: string }) {
   return (
-    <div className="relative rounded-2xl overflow-hidden aspect-[16/10] group">
+    <div className="relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-[16/10] group">
       <img
         src={image}
         alt={alt}
@@ -166,12 +166,12 @@ function StatHero({
       <div className="absolute inset-0" style={{background: overlayColor}} />
       {/* Bottom fade for text readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-      <div className="relative h-full flex flex-col items-center justify-center text-center px-4">
-        <div className="text-5xl sm:text-6xl font-extrabold text-white tracking-tight"
+      <div className="relative h-full flex flex-col items-center justify-center text-center px-2 sm:px-4">
+        <div className="text-3xl sm:text-6xl font-extrabold text-white tracking-tight"
           style={{textShadow:"0 2px 20px rgba(0,0,0,0.4)"}}>
           {value}
         </div>
-        <div className="text-sm sm:text-base text-white/90 font-medium mt-1"
+        <div className="text-xs sm:text-base text-white/90 font-medium mt-1"
           style={{textShadow:"0 1px 8px rgba(0,0,0,0.5)"}}>
           {label}
         </div>
