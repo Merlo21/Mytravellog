@@ -1,17 +1,21 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { TravelHighlights } from "./TravelHighlights";
 import { SettingsProvider } from "@/lib/settings";
 import type { Trip } from "@/lib/storage";
 import React from "react";
 
-// Wrap with SettingsProvider (required by useSettings inside TravelHighlights)
+// Wrap con SettingsProvider (richiesto da useSettings dentro TravelHighlights).
+// La sezione è a comparsa e chiusa di default: la apriamo subito per non
+// dover ripetere il click in ogni singolo test che verifica i valori.
 function renderHighlights(trips: Trip[]) {
-  return render(
+  const result = render(
     <SettingsProvider>
       <TravelHighlights trips={trips} />
     </SettingsProvider>
   );
+  fireEvent.click(screen.getByRole("button", { name: /highlights di viaggio/i }));
+  return result;
 }
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -58,6 +62,30 @@ describe("TravelHighlights — empty state", () => {
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
+});
+
+describe("TravelHighlights — sezione a comparsa", () => {
+  it("le card sono chiuse (non nel DOM) finché non si clicca sul titolo", () => {
+    render(
+      <SettingsProvider>
+        <TravelHighlights trips={[makeTrip({ altitude_m: 100 })]} />
+      </SettingsProvider>
+    );
+    expect(screen.queryByText("Altitudine più alta")).not.toBeInTheDocument();
+  });
+
+  it("cliccando sul titolo le card appaiono, cliccando di nuovo si richiudono", () => {
+    render(
+      <SettingsProvider>
+        <TravelHighlights trips={[makeTrip({ altitude_m: 100 })]} />
+      </SettingsProvider>
+    );
+    const toggle = screen.getByRole("button", { name: /highlights di viaggio/i });
+    fireEvent.click(toggle);
+    expect(screen.getByText("Altitudine più alta")).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(screen.queryByText("Altitudine più alta")).not.toBeInTheDocument();
+  });
 });
 
 describe("TravelHighlights — highest (altitudine)", () => {

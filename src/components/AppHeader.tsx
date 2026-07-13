@@ -1,6 +1,9 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { Link } from "react-router-dom";
-import { Plane, PieChart, Settings, Plus } from "lucide-react";
+import { Plane, PieChart, Settings, Plus, Menu } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   onTripsClick?: () => void;
@@ -32,8 +35,8 @@ export function AppHeader({ onTripsClick }: Props) {
           </h1>
         </Link>
 
-        {/* Nav */}
-        <div className="flex items-center gap-1">
+        {/* Nav — desktop: riga di icone/link, come sempre */}
+        <div className="hidden sm:flex items-center gap-1">
           <Link to="/miei-viaggi" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3" aria-label="I miei viaggi">
             <Plane className="w-4 h-4 text-primary"/> <span className="hidden sm:inline">I miei viaggi</span>
           </Link>
@@ -50,6 +53,38 @@ export function AppHeader({ onTripsClick }: Props) {
             <Plus className="w-4 h-4"/> <span className="hidden sm:inline">Nuovo viaggio</span>
           </Link>
         </div>
+
+        {/* Nav — mobile: un solo bottone che apre un menu, per non occupare spazio in header */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="sm:hidden btn-ghost p-2" aria-label="Menu">
+              <Menu className="w-5 h-5"/>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to="/miei-viaggi" className="flex items-center gap-2 cursor-pointer">
+                <Plane className="w-4 h-4 text-primary"/> I miei viaggi
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/statistiche" className="flex items-center gap-2 cursor-pointer">
+                <PieChart className="w-4 h-4 text-primary"/> Statistiche
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/impostazioni" className="flex items-center gap-2 cursor-pointer">
+                <Settings className="w-4 h-4 text-muted-foreground"/> Impostazioni
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator/>
+            <DropdownMenuItem asChild>
+              <Link to="/nuovo-viaggio" className="flex items-center gap-2 cursor-pointer font-semibold" style={{ color: "#60a5fa" }}>
+                <Plus className="w-4 h-4"/> Nuovo viaggio
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
       </div>
     </header>
