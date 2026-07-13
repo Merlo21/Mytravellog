@@ -109,27 +109,18 @@ export function TravelHighlights({ trips }: Props) {
       {/* Highlights grid — "Giorni in viaggio" è ora nella sezione Anni e mesi
           di viaggio, insieme a "giorni senza viaggiare" (metrica complementare) */}
       {(() => {
-        type HlItem = { label: string; value: string; sub?: string; color: string; bg: string; Icon: React.ElementType };
+        type HlItem = { label: string; value: string; sub?: string; color: string; Icon: React.ElementType };
         const items: HlItem[] = [
-          { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", bg:"rgba(52,211,153,0.12)",  Icon:Mountain    },
-          { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", bg:"rgba(244,114,182,0.12)", Icon:Globe2 },
-          { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", bg:"rgba(251,113,133,0.12)", Icon:Sun      },
-          { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.coldest_temp_c ?? coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.coldest_city ?? coldest?.city,  color:"#93c5fd", bg:"rgba(147,197,253,0.12)", Icon:Snowflake },
+          { label:"Altitudine più alta",  value: highest ? formatAltitudeM(highest.max_altitude_m ?? highest.altitude_m, distanceUnit) : "—",      sub: highest?.max_altitude_city ?? highest?.city,                                                color:"#34d399", Icon:Mountain    },
+          { label:"Più distante da casa", value: farthest ? formatDistanceKm(farthest.max_distance_from_home_km ?? farthest.distance_from_home_km, distanceUnit) : "—", sub: farthest?.max_distance_city ?? farthest?.city, color:"#f472b6", Icon:Globe2 },
+          { label:"Il posto più caldo",   value: hottest  ? formatTemperatureC(hottest.hottest_temp_c ?? hottest.temperature_c, temperatureUnit) : "—", sub: hottest?.hottest_city ?? hottest?.city,  color:"#fb7185", Icon:Sun      },
+          { label:"Il posto più freddo",  value: coldest  ? formatTemperatureC(coldest.coldest_temp_c ?? coldest.temperature_c, temperatureUnit) : "—",  sub: coldest?.coldest_city ?? coldest?.city,  color:"#93c5fd", Icon:Snowflake },
         ];
+        // Icona grande "illustrata" invece del badge circolare piccolo (spunto
+        // preso da un'app concorrente, poi estesa anche al desktop su richiesta
+        // di Stefano — è pura estetica, non una soluzione "di spazio" come il
+        // carosello o il menu hamburger, quindi ha senso unificarla ovunque.
         const Card = ({ item }: { item: HlItem }) => (
-          <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderTop:"2px solid "+item.color,borderRadius:12,padding:14,display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",gap:6}}>
-            <div style={{width:38,height:38,borderRadius:"50%",background:item.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <item.Icon style={{width:18,height:18,color:item.color}}/>
-            </div>
-            <div style={{fontSize:18,fontWeight:700,color:"#f0f4ff"}}>{item.value}</div>
-            <div style={{fontSize:10,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{item.label}</div>
-            {item.sub && <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{item.sub}</div>}
-          </div>
-        );
-        // Mobile: icona grande "illustrata" invece del badge circolare piccolo
-        // (spunto preso da un'app concorrente) — più impatto visivo su schermi
-        // piccoli dove c'è meno concorrenza per lo spazio orizzontale.
-        const CardBig = ({ item }: { item: HlItem }) => (
           <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderRadius:14,padding:"18px 10px",display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",gap:4}}>
             <item.Icon style={{width:30,height:30,color:item.color,strokeWidth:1.6}}/>
             <div style={{fontSize:19,fontWeight:800,color:"#f0f4ff",marginTop:4}}>{item.value}</div>
@@ -138,14 +129,9 @@ export function TravelHighlights({ trips }: Props) {
           </div>
         );
         return (
-          <>
-            <div className="hidden sm:grid" style={{gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-              {items.map(item => <Card key={item.label} item={item}/>)}
-            </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:hidden">
-              {items.map(item => <CardBig key={item.label} item={item}/>)}
-            </div>
-          </>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {items.map(item => <Card key={item.label} item={item}/>)}
+          </div>
         );
       })()}
 
@@ -235,16 +221,15 @@ export function TravelHighlights({ trips }: Props) {
           ] as const);
           return (
             <>
-              {/* Desktop — invariato */}
+              {/* Desktop — layout in riga invariato, icona senza badge come da
+                  mobile (pura estetica, richiesta espressamente da Stefano). */}
               <div className="hidden sm:grid grid-cols-5 gap-2 mb-4">
                 {transportItems.map(({ icon, color, bg, border, km, val, label }) => {
                   const used = km > 0;
                   return (
                     <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
                       style={used ? {background:bg, borderColor:border} : {background:"rgba(255,255,255,0.02)", borderColor:"rgba(255,255,255,0.06)"}}>
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-black/10">
-                        <span style={{color: used ? color : "rgba(255,255,255,0.2)"}}>{React.cloneElement(icon, { className: "w-5 h-5" })}</span>
-                      </div>
+                      <span style={{color: used ? color : "rgba(255,255,255,0.2)", flexShrink: 0}}>{React.cloneElement(icon, { style: { width: 26, height: 26 } })}</span>
                       <div>
                         <div className="text-lg font-extrabold font-mono leading-none" style={{color: used ? color : "rgba(255,255,255,0.25)"}}>{val}</div>
                         <div className="text-[11px] mt-1" style={{color: used ? undefined : "rgba(255,255,255,0.2)"}}>{label}</div>
