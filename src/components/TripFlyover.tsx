@@ -19,6 +19,25 @@ const TRANSPORT_STYLE: Record<string, { color: string; emoji: string }> = {
 };
 const DEFAULT_TRANSPORT_STYLE = { color: "#60a5fa", emoji: "✈️" };
 
+/** Rettangolo con angoli arrotondati, per il ritaglio della foto-tappa sul canvas di registrazione. */
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/** Emula object-fit:cover disegnando l'immagine sul canvas di registrazione. */
+function drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const sw = w / scale, sh = h / scale;
+  const sx = (img.naturalWidth - sw) / 2, sy = (img.naturalHeight - sh) / 2;
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
 function createFlyoverMarkerEl(): HTMLDivElement {
   const el = document.createElement("div");
   el.style.cssText =
@@ -141,6 +160,14 @@ export function TripFlyover({ trips, onClose }: Props) {
   const objectUrlRef = useRef<string | null>(null);
   const markerRef = useRef<any>(null);
   const markerRafIdRef = useRef<number | null>(null);
+  // Canvas "compositing" separato usato solo per la registrazione: il canvas
+  // WebGL di MapLibre da solo non basta perché marker e foto-tappa sono
+  // elementi HTML sovrapposti (non parte del framebuffer), quindi captureStream()
+  // sul canvas della mappa li ignorerebbe — vedi drawRecordFrame più sotto.
+  const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const recordRafIdRef = useRef<number | null>(null);
+  const stopPhotoImgsRef = useRef<{ label: string; imgs: HTMLImageElement[] } | null>(null);
+  const stopPhotoIndexRef = useRef(0);
 
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [playing, setPlaying] = useState(false);
@@ -158,29 +185,105 @@ export function TripFlyover({ trips, onClose }: Props) {
     const raw = (await getPhotosForTrip(photoKey)).slice(0, STOP_PHOTO_LIMIT);
     if (raw.length === 0 || !mountedRef.current || !playingRef.current) return;
     const urls = raw.map(p => URL.createObjectURL(photoToBlob(p)));
+    // Image() separate dall'<img> React: servono per disegnare la foto sul
+    // canvas di registrazione anche mentre l'overlay a schermo è nel DOM.
+    const imgs = urls.map(u => { const img = new Image(); img.src = u; return img; });
     stopPhotoUrlsRef.current = urls;
+    stopPhotoImgsRef.current = { label: stopLabel, imgs };
+    stopPhotoIndexRef.current = 0;
     setStopPhotoIndex(0);
     setStopPhotos({ label: stopLabel, urls });
     await wait(urls.length * STOP_PHOTO_DISPLAY_MS);
     urls.forEach(u => URL.revokeObjectURL(u));
     stopPhotoUrlsRef.current = [];
+    stopPhotoImgsRef.current = null;
     if (mountedRef.current) setStopPhotos(null);
   };
 
   useEffect(() => {
     if (!stopPhotos || stopPhotos.urls.length <= 1) return;
     const id = setInterval(() => {
-      setStopPhotoIndex(i => (i + 1) % stopPhotos.urls.length);
+      setStopPhotoIndex(i => {
+        const next = (i + 1) % stopPhotos.urls.length;
+        stopPhotoIndexRef.current = next;
+        return next;
+      });
     }, STOP_PHOTO_DISPLAY_MS);
     return () => clearInterval(id);
   }, [stopPhotos]);
 
+  /**
+   * Ridisegna ogni frame, sul canvas separato usato per la registrazione:
+   * il canvas WebGL della mappa (via drawImage), il marker del mezzo e la
+   * foto-tappa (entrambi elementi HTML altrimenti invisibili a captureStream()).
+   */
+  const drawRecordFrame = () => {
+    recordRafIdRef.current = requestAnimationFrame(drawRecordFrame);
+    const map = mapRef.current;
+    const mapCanvas = containerRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
+    const recordCanvas = recordCanvasRef.current;
+    if (!map || !mapCanvas || !recordCanvas || !mapCanvas.clientWidth) return;
+    if (recordCanvas.width !== mapCanvas.width || recordCanvas.height !== mapCanvas.height) {
+      recordCanvas.width = mapCanvas.width;
+      recordCanvas.height = mapCanvas.height;
+    }
+    const ctx = recordCanvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(mapCanvas, 0, 0, recordCanvas.width, recordCanvas.height);
+    const dpr = mapCanvas.width / mapCanvas.clientWidth;
+
+    if (markerRef.current) {
+      const el = markerRef.current.getElement();
+      const { x, y } = map.project(markerRef.current.getLngLat());
+      ctx.beginPath();
+      ctx.arc(x * dpr, y * dpr, 14 * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = el.style.backgroundColor || "#60a5fa";
+      ctx.fill();
+      ctx.lineWidth = 2 * dpr;
+      ctx.strokeStyle = "#fff";
+      ctx.stroke();
+      ctx.font = `${14 * dpr}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(el.textContent || "", x * dpr, y * dpr + dpr);
+    }
+
+    const stopInfo = stopPhotoImgsRef.current;
+    if (stopInfo && stopInfo.imgs.length > 0) {
+      const img = stopInfo.imgs[stopPhotoIndexRef.current % stopInfo.imgs.length];
+      if (img.complete && img.naturalWidth > 0) {
+        const pad = 16 * dpr, size = 220 * dpr, radius = 10 * dpr;
+        ctx.save();
+        roundRectPath(ctx, pad, pad, size, size, radius);
+        ctx.clip();
+        drawImageCover(ctx, img, pad, pad, size, size);
+        const gradient = ctx.createLinearGradient(0, pad + size - 44 * dpr, 0, pad + size);
+        gradient.addColorStop(0, "rgba(0,0,0,0)");
+        gradient.addColorStop(1, "rgba(0,0,0,0.75)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pad, pad + size - 44 * dpr, size, 44 * dpr);
+        ctx.fillStyle = "#fff";
+        ctx.font = `600 ${12 * dpr}px sans-serif`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(stopInfo.label, pad + 10 * dpr, pad + size - 8 * dpr);
+        ctx.restore();
+      }
+    }
+  };
+
   const startRecording = () => {
     if (!canRecordVideo() || !containerRef.current) return;
-    const canvas = containerRef.current.querySelector("canvas");
-    if (!canvas) return;
+    const mapCanvas = containerRef.current.querySelector("canvas") as HTMLCanvasElement | null;
+    if (!mapCanvas) return;
     try {
-      const stream = (canvas as any).captureStream(30);
+      const recordCanvas = document.createElement("canvas");
+      recordCanvas.width = mapCanvas.width;
+      recordCanvas.height = mapCanvas.height;
+      recordCanvasRef.current = recordCanvas;
+      recordRafIdRef.current = requestAnimationFrame(drawRecordFrame);
+
+      const stream = (recordCanvas as any).captureStream(30);
       const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
         ? "video/webm;codecs=vp9" : "video/webm";
       const recorder = new MediaRecorder(stream, { mimeType });
@@ -195,6 +298,7 @@ export function TripFlyover({ trips, onClose }: Props) {
   };
 
   const stopRecordingAndBuildDownload = () => {
+    if (recordRafIdRef.current != null) { cancelAnimationFrame(recordRafIdRef.current); recordRafIdRef.current = null; }
     const recorder = recorderRef.current;
     if (!recorder) return;
     recorder.onstop = () => {
@@ -345,6 +449,7 @@ export function TripFlyover({ trips, onClose }: Props) {
       cancelled = true;
       mountedRef.current = false;
       playingRef.current = false;
+      if (recordRafIdRef.current != null) { cancelAnimationFrame(recordRafIdRef.current); recordRafIdRef.current = null; }
       if (recorderRef.current) {
         try { recorderRef.current.stop(); } catch { /* già fermo */ }
         recorderRef.current = null;
