@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Trip } from "@/lib/storage";
-import { buildFlightPath, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, FlightLeg } from "@/lib/flyover";
+import { Trip, formatTripDate } from "@/lib/storage";
+import { buildFlightPath, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, pathLengthKm, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob } from "@/lib/photoStorage";
 import { X, Play, Pause, Download, Loader2 } from "lucide-react";
@@ -97,9 +97,15 @@ export function canRecordVideo(): boolean {
  * esattamente lo stesso `t` (con lo stesso `easeInOutCubic`) ogni frame,
  * quindi restano allineati per costruzione.
  */
+/** Formatta un numero di km con separatore delle migliaia in stile italiano. */
+function formatKm(km: number): string {
+  return Math.round(km).toLocaleString("it-IT");
+}
+
 function flyLeg(
   map: any, leg: FlightLeg, marker: any,
   rafIdRef: { current: number | null }, mountedRef: { current: boolean }, playingRef: { current: boolean },
+  distance: { legKm: number; traveledBeforeKm: number; totalKm: number; traveledKmRef: { current: number }; counterEl: HTMLSpanElement | null },
 ): Promise<void> {
   return new Promise(resolve => {
     if (marker) {
@@ -129,6 +135,12 @@ function flyLeg(
         bearing: lerpBearing(fromBearing, toBearing, t),
       });
       if (marker) marker.setLngLat(pointAlongPath(leg.pathCoords, t));
+
+      const traveledKm = distance.traveledBeforeKm + distance.legKm * t;
+      distance.traveledKmRef.current = traveledKm;
+      if (distance.counterEl) {
+        distance.counterEl.textContent = `${formatKm(traveledKm)} / ${formatKm(distance.totalKm)} km`;
+      }
 
       if (rawT < 1) { rafIdRef.current = requestAnimationFrame(tick); }
       else { rafIdRef.current = null; resolve(); }
@@ -168,6 +180,13 @@ export function TripFlyover({ trips, onClose }: Props) {
   const recordRafIdRef = useRef<number | null>(null);
   const stopPhotoImgsRef = useRef<{ label: string; imgs: HTMLImageElement[] } | null>(null);
   const stopPhotoIndexRef = useRef(0);
+  // Distanza percorsa in tempo reale: aggiornata ad ogni frame da flyLeg (via
+  // ref, non stato React, per non causare un re-render a 60fps) e letta sia
+  // dal contatore a schermo (via counterElRef, DOM diretto) sia da drawRecordFrame.
+  const counterElRef = useRef<HTMLSpanElement>(null);
+  const traveledKmRef = useRef(0);
+  const totalDistanceKmRef = useRef(0);
+  const legLengthsKmRef = useRef<number[]>([]);
 
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [playing, setPlaying] = useState(false);
@@ -248,26 +267,34 @@ export function TripFlyover({ trips, onClose }: Props) {
       ctx.fillText(el.textContent || "", x * dpr, y * dpr + dpr);
     }
 
+    // Contatore km persistente, in alto — stessa informazione della pillola a schermo.
+    const counterText = `${formatKm(traveledKmRef.current)} / ${formatKm(totalDistanceKmRef.current)} km`;
+    ctx.font = `600 ${13 * dpr}px sans-serif`;
+    const counterW = ctx.measureText(counterText).width + 20 * dpr;
+    ctx.fillStyle = "rgba(10,22,40,0.8)";
+    roundRectPath(ctx, recordCanvas.width / 2 - counterW / 2, 14 * dpr, counterW, 28 * dpr, 14 * dpr);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(counterText, recordCanvas.width / 2, 14 * dpr + 14 * dpr + dpr);
+
     const stopInfo = stopPhotoImgsRef.current;
     if (stopInfo && stopInfo.imgs.length > 0) {
       const img = stopInfo.imgs[stopPhotoIndexRef.current % stopInfo.imgs.length];
       if (img.complete && img.naturalWidth > 0) {
-        const pad = 16 * dpr, size = 220 * dpr, radius = 10 * dpr;
-        ctx.save();
-        roundRectPath(ctx, pad, pad, size, size, radius);
-        ctx.clip();
-        drawImageCover(ctx, img, pad, pad, size, size);
-        const gradient = ctx.createLinearGradient(0, pad + size - 44 * dpr, 0, pad + size);
+        drawImageCover(ctx, img, 0, 0, recordCanvas.width, recordCanvas.height);
+        const capH = 90 * dpr;
+        const gradient = ctx.createLinearGradient(0, recordCanvas.height - capH, 0, recordCanvas.height);
         gradient.addColorStop(0, "rgba(0,0,0,0)");
-        gradient.addColorStop(1, "rgba(0,0,0,0.75)");
+        gradient.addColorStop(1, "rgba(0,0,0,0.8)");
         ctx.fillStyle = gradient;
-        ctx.fillRect(pad, pad + size - 44 * dpr, size, 44 * dpr);
+        ctx.fillRect(0, recordCanvas.height - capH, recordCanvas.width, capH);
         ctx.fillStyle = "#fff";
-        ctx.font = `600 ${12 * dpr}px sans-serif`;
+        ctx.font = `600 ${16 * dpr}px sans-serif`;
         ctx.textAlign = "left";
         ctx.textBaseline = "bottom";
-        ctx.fillText(stopInfo.label, pad + 10 * dpr, pad + size - 8 * dpr);
-        ctx.restore();
+        ctx.fillText(stopInfo.label, 20 * dpr, recordCanvas.height - 20 * dpr);
       }
     }
   };
@@ -319,7 +346,14 @@ export function TripFlyover({ trips, onClose }: Props) {
       if (!playingRef.current) { legIndexRef.current = i; return; }
       if (!mountedRef.current) return;
       setLegIndex(i);
-      await flyLeg(map, legs[i], markerRef.current, markerRafIdRef, mountedRef, playingRef);
+      const traveledBeforeKm = legLengthsKmRef.current.slice(0, i).reduce((sum, km) => sum + km, 0);
+      await flyLeg(map, legs[i], markerRef.current, markerRafIdRef, mountedRef, playingRef, {
+        legKm: legLengthsKmRef.current[i] ?? 0,
+        traveledBeforeKm,
+        totalKm: totalDistanceKmRef.current,
+        traveledKmRef,
+        counterEl: counterElRef.current,
+      });
       if (!mountedRef.current) return;
       // Se nel frattempo è arrivata una pausa, il tick loop di flyLeg l'ha
       // già rilevata e ha risolto questa promise in anticipo: la tratta non
@@ -366,6 +400,8 @@ export function TripFlyover({ trips, onClose }: Props) {
     const stops = buildFlightPath(trips);
     const legs = buildFlightLegs(stops);
     legsRef.current = legs;
+    legLengthsKmRef.current = legs.map(leg => pathLengthKm(leg.pathCoords));
+    totalDistanceKmRef.current = legLengthsKmRef.current.reduce((sum, km) => sum + km, 0);
 
     if (legs.length === 0) {
       setPhase("empty");
@@ -469,6 +505,12 @@ export function TripFlyover({ trips, onClose }: Props) {
 
   const legs = legsRef.current;
   const currentLabel = legs[Math.min(legIndex, legs.length - 1)]?.to.label ?? "";
+  const tripsCount = trips.length;
+  const dateRangeLabel = tripsCount === 1
+    ? (trips[0].trip_date === trips[0].date_end
+      ? formatTripDate(trips[0].trip_date)
+      : `${formatTripDate(trips[0].trip_date)} → ${formatTripDate(trips[0].date_end)}`)
+    : null;
 
   return (
     <div style={{
@@ -480,12 +522,22 @@ export function TripFlyover({ trips, onClose }: Props) {
 
       <button onClick={onClose} aria-label="Chiudi"
         style={{
-          position: "absolute", top: 16, right: 16, width: 34, height: 34, borderRadius: 10,
+          position: "absolute", top: 16, right: 16, width: 34, height: 34, borderRadius: 10, zIndex: 30,
           background: "rgba(10,22,40,0.8)", border: "0.5px solid #1a2d4a", cursor: "pointer",
           color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
         <X className="w-4 h-4" />
       </button>
+
+      {phase === "ready" && !finished && (
+        <div style={{
+          position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 20,
+          background: "rgba(10,22,40,0.8)", border: "0.5px solid #1a2d4a", borderRadius: 999,
+          padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#fff",
+        }}>
+          <span ref={counterElRef}>0 / 0 km</span>
+        </div>
+      )}
 
       {phase === "loading" && (
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
@@ -503,53 +555,81 @@ export function TripFlyover({ trips, onClose }: Props) {
         </div>
       )}
 
-      {phase === "ready" && (
+      {phase === "ready" && !finished && (
         <div style={{
-          position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)",
+          position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 15,
           display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         }}>
-          {!finished && (
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-              Tappa {Math.min(legIndex + 1, legs.length)} di {legs.length} — {currentLabel}
-            </div>
-          )}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {!finished && (
-              <button onClick={handleTogglePlay} aria-label={playing ? "Pausa" : "Riproduci"}
-                style={{
-                  width: 40, height: 40, borderRadius: "50%", background: "#60a5fa", border: "none", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", color: "#0a1628",
-                }}>
-                {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              </button>
-            )}
-            {downloadUrl && (
-              <a href={downloadUrl} download="viaggio-3d.webm"
-                style={{
-                  display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
-                  padding: "8px 14px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
-                  border: "1px solid #60a5fa", color: "#60a5fa", textDecoration: "none",
-                }}>
-                <Download className="w-3.5 h-3.5" /> Scarica video
-              </a>
-            )}
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+            Tappa {Math.min(legIndex + 1, legs.length)} di {legs.length} — {currentLabel}
           </div>
+          <button onClick={handleTogglePlay} aria-label={playing ? "Pausa" : "Riproduci"}
+            style={{
+              width: 40, height: 40, borderRadius: "50%", background: "#60a5fa", border: "none", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", color: "#0a1628",
+            }}>
+            {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </button>
         </div>
       )}
 
       {stopPhotos && (
-        <div style={{
-          position: "absolute", top: 16, left: 16, width: 220, aspectRatio: "1",
-          borderRadius: 10, overflow: "hidden", background: "#060e1e",
-          border: "1px solid #1a2d4a", boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-        }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "#060e1e" }}>
           <img src={stopPhotos.urls[stopPhotoIndex]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 10px",
-            background: "linear-gradient(transparent, rgba(0,0,0,0.75))",
-            fontSize: 11, color: "#fff", fontWeight: 600,
+            position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 20px",
+            background: "linear-gradient(transparent, rgba(0,0,0,0.8))",
+            fontSize: 16, color: "#fff", fontWeight: 600,
           }}>
             {stopPhotos.label}
+          </div>
+        </div>
+      )}
+
+      {finished && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 25, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(6,14,30,0.55)",
+        }}>
+          <div style={{
+            width: 280, background: "#0e1c33", border: "1px solid #1a2d4a", borderRadius: 16,
+            padding: "24px 24px 20px", textAlign: "center", boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
+              {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
+            </div>
+            {dateRangeLabel && (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{dateRangeLabel}</div>
+            )}
+            <div style={{ display: "flex", justifyContent: "center", gap: 24, margin: "18px 0" }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{formatKm(totalDistanceKmRef.current)}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>km</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{legs.length}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>tappe</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button onClick={onClose}
+                style={{
+                  padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.08)",
+                  border: "0.5px solid #1a2d4a", color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                }}>
+                Chiudi
+              </button>
+              {downloadUrl && (
+                <a href={downloadUrl} download="viaggio-3d.webm"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+                    padding: "8px 16px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
+                    border: "1px solid #60a5fa", color: "#60a5fa", textDecoration: "none",
+                  }}>
+                  <Download className="w-3.5 h-3.5" /> Video
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}

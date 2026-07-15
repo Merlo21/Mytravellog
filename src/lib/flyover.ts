@@ -162,7 +162,7 @@ export function buildFlightLegs(stops: FlightStop[]): FlightLeg[] {
 }
 
 /** Lunghezza approssimata (km) di un percorso [lon,lat][], sommando ogni segmento. */
-function pathLengthKm(path: [number, number][]): number {
+export function pathLengthKm(path: [number, number][]): number {
   let total = 0;
   for (let i = 1; i < path.length; i++) {
     total += distanceKm(path[i - 1][1], path[i - 1][0], path[i][1], path[i][0]);
