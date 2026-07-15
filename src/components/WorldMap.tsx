@@ -388,6 +388,20 @@ export function WorldMap({
     const TRANSPORT_COLORS_MAP: Record<string, string> = {
       plane: "#378ADD", train: "#BA7517", car: "#A855F7", ship: "#0F6E56", walk: "#D85A30", bici: "#22C55E", moto: "#EAB308"
     };
+    // Espressione MapLibre condivisa: colora un pallino in base al mezzo di
+    // trasporto della tappa (property "transport"), stessa palette ovunque
+    // nell'app (linee, badge, marker del flyover).
+    const TRANSPORT_MATCH_EXPR: any[] = [
+      "match", ["get", "transport"],
+      "plane", TRANSPORT_COLORS_MAP.plane,
+      "train", TRANSPORT_COLORS_MAP.train,
+      "car",   TRANSPORT_COLORS_MAP.car,
+      "ship",  TRANSPORT_COLORS_MAP.ship,
+      "walk",  TRANSPORT_COLORS_MAP.walk,
+      "bici",  TRANSPORT_COLORS_MAP.bici,
+      "moto",  TRANSPORT_COLORS_MAP.moto,
+      "#60a5fa"
+    ];
     ordered.forEach((t) => {
       if (!t.home_latitude || !t.home_longitude || !t.latitude || !t.longitude) return;
       const hasWp = t.waypoints && t.waypoints.length > 0;
@@ -424,26 +438,26 @@ export function WorldMap({
     }
 
     // Trip markers — use native WebGL circle layers (stay fixed on globe)
-    // Build GeoJSON for single-destination trips (pink)
+    // Build GeoJSON for single-destination trips (colored by transport mode)
     const singleFeatures = ordered
       .filter((t: any) => !t.waypoints?.length)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selectedId },
+        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane" },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
-    // Build GeoJSON for multi-tappa trips (blue)
+    // Build GeoJSON for multi-tappa trips (colored by transport mode)
     const multiFeatures = ordered
       .filter((t: any) => t.waypoints?.length > 0)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selectedId },
+        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane" },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
     // Add click handlers via map.on for these layers
-    const addCircleLayer = (id: string, features: any[], color: string, selColor: string) => {
+    const addCircleLayer = (id: string, features: any[], color: string | any[]) => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
       if (!features.length) return;
@@ -475,8 +489,8 @@ export function WorldMap({
       map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
     };
 
-    addCircleLayer("trips-single", singleFeatures, "#f472b6", "#5eead4");
-    addCircleLayer("trips-multi",  multiFeatures,  "#60a5fa", "#5eead4");
+    addCircleLayer("trips-single", singleFeatures, TRANSPORT_MATCH_EXPR);
+    addCircleLayer("trips-multi",  multiFeatures,  TRANSPORT_MATCH_EXPR);
 
     // City name labels for selected trip stops
     if (map.getLayer("trips-labels")) map.removeLayer("trips-labels");
@@ -548,17 +562,7 @@ export function WorldMap({
         id: "trips-waypoints", type: "circle", source: "trips-waypoints",
         paint: {
           "circle-radius": 5,
-          "circle-color": [
-            "match", ["get", "transport"],
-            "plane", "#378ADD",
-            "train", "#BA7517",
-            "car",   "#A855F7",
-            "ship",  "#0F6E56",
-            "walk",  "#D85A30",
-            "bici",  "#22C55E",
-            "moto",  "#EAB308",
-            "#60a5fa"
-          ],
+          "circle-color": TRANSPORT_MATCH_EXPR,
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
           "circle-opacity": 0.9,
@@ -719,8 +723,6 @@ export function WorldMap({
       {/* Legend */}
       <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/>Casa</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{background:"#f472b6"}}/>Destinazione</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400"/>Multi-tappa</div>
       </div>
 
       {/* Hint drag-per-ruotare: solo al primo caricamento (flag in localStorage) */}
