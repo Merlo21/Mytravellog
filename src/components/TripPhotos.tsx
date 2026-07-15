@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Photo, savePhoto, getPhotosForTrip, deletePhoto, photoToBlob } from "@/lib/photoStorage";
-import { Camera, Trash2, Loader2 } from "lucide-react";
+import { Camera, ImagePlus, Trash2, Loader2 } from "lucide-react";
 
 interface Props {
   /** Chiave di IndexedDB per questa tappa (vedi destinationPhotoKey/homePhotoKey/waypointPhotoKey in photoStorage.ts). */
@@ -18,6 +18,7 @@ export function TripPhotos({ photoKey, label }: Props) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const urlsRef = useRef<string[]>([]);
 
   const refresh = async () => {
@@ -51,6 +52,7 @@ export function TripPhotos({ photoKey, label }: Props) {
     await refresh();
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   const handleDelete = async (id: string) => {
@@ -64,14 +66,25 @@ export function TripPhotos({ photoKey, label }: Props) {
         <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase" }}>
           Foto{label ? ` — ${label}` : ""} <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
         </label>
-        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-          style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, fontWeight:600, padding:"5px 10px",
-            borderRadius:999, background:"rgba(96,165,250,0.12)", border:"1px solid rgba(96,165,250,0.3)",
-            color:"#60a5fa", cursor: uploading ? "default" : "pointer" }}>
-          {uploading ? <Loader2 className="w-3 h-3 animate-spin"/> : <Camera className="w-3 h-3"/>}
-          Aggiungi foto
-        </button>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <button type="button" onClick={() => cameraInputRef.current?.click()} disabled={uploading}
+            aria-label="Scatta foto" title="Scatta foto"
+            style={{ display:"flex", alignItems:"center", justifyContent:"center", width:26, height:26,
+              borderRadius:999, background:"rgba(96,165,250,0.12)", border:"1px solid rgba(96,165,250,0.3)",
+              color:"#60a5fa", cursor: uploading ? "default" : "pointer" }}>
+            <Camera className="w-3 h-3"/>
+          </button>
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, fontWeight:600, padding:"5px 10px",
+              borderRadius:999, background:"rgba(96,165,250,0.12)", border:"1px solid rgba(96,165,250,0.3)",
+              color:"#60a5fa", cursor: uploading ? "default" : "pointer" }}>
+            {uploading ? <Loader2 className="w-3 h-3 animate-spin"/> : <ImagePlus className="w-3 h-3"/>}
+            Aggiungi foto
+          </button>
+        </div>
         <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display:"none" }}
+          onChange={e => handleFiles(e.target.files)}/>
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }}
           onChange={e => handleFiles(e.target.files)}/>
       </div>
 
