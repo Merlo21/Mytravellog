@@ -3,22 +3,22 @@
   "short_name": "NAV·TA",
   "description": "Atlas: registra città e stati visitati con temperatura, altitudine e km da casa. Il tuo atlante personale di viaggio.",
   "lang": "it",
-  "id": "/",
-  "start_url": "/",
-  "scope": "/",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0a1628",
   "theme_color": "#60a5fa",
   "categories": ["travel"],
   "icons": [
     {
-      "src": "/icons/icon.svg",
+      "src": "./icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"

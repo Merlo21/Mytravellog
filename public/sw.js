@@ -1,4 +1,6 @@
-const CACHE_NAME = "navta-cache-v1";
+// Bump della versione a ogni cambio di strategia di caching: alla activate
+// le cache con nome diverso vengono eliminate, ripartendo da zero.
+const CACHE_NAME = "navta-cache-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -25,11 +27,17 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          // Solo risposte valide: mettere in cache un 404/500 transitorio
+          // servirebbe la pagina di errore a ogni avvio offline successivo.
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+        // Fallback offline: l'URL esatto, poi la shell dell'app allo scope del
+        // service worker (in produzione /Mytravellog/, non la radice "/").
+        .catch(() => caches.match(request).then((cached) => cached || caches.match(self.registration.scope)))
     );
     return;
   }

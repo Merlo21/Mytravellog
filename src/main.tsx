@@ -24,10 +24,12 @@ function RouteFallback() {
 }
 
 // Solo in produzione: in dev il service worker intercetterebbe le richieste
-// dei moduli di Vite e romperebbe l'hot reload.
+// dei moduli di Vite e romperebbe l'hot reload. Il percorso usa BASE_URL
+// perché in produzione l'app vive sotto /Mytravellog/ (vite.config.ts):
+// un "/sw.js" fisso andrebbe in 404 sulla radice del dominio.
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
+    navigator.serviceWorker.register(import.meta.env.BASE_URL + "sw.js").catch(() => {
       // installazione PWA non disponibile su questo browser: l'app
       // funziona comunque normalmente, semplicemente senza offline/installabilità.
     });
