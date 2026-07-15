@@ -23,6 +23,17 @@ function RouteFallback() {
   );
 }
 
+// Solo in produzione: in dev il service worker intercetterebbe le richieste
+// dei moduli di Vite e romperebbe l'hot reload.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // installazione PWA non disponibile su questo browser: l'app
+      // funziona comunque normalmente, semplicemente senza offline/installabilità.
+    });
+  });
+}
+
 const rootEl = document.getElementById("root")!;
 rootEl.style.backgroundColor = "#060e1e";
 rootEl.style.minHeight = "100vh";
