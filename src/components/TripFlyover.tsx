@@ -3,7 +3,7 @@ import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, pathLengthKm, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob } from "@/lib/photoStorage";
-import { X, Play, Pause, Download, Loader2 } from "lucide-react";
+import { X, Play, Pause, Download, Share2, Loader2 } from "lucide-react";
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
 
@@ -74,6 +74,22 @@ export function canRecordVideo(): boolean {
       typeof MediaRecorder !== "undefined" &&
       MediaRecorder.isTypeSupported("video/webm")
     );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * true solo se il browser supporta davvero la condivisione di un file video
+ * (Web Share API con `files`, tipicamente Chrome/Safari su mobile) — su
+ * desktop `navigator.share` spesso manca o non accetta file, quindi si
+ * ricade sul link di download esistente.
+ */
+function canShareFile(file: File): boolean {
+  try {
+    return typeof navigator !== "undefined"
+      && typeof (navigator as any).canShare === "function"
+      && (navigator as any).canShare({ files: [file] });
   } catch {
     return false;
   }
@@ -170,6 +186,7 @@ export function TripFlyover({ trips, onClose }: Props) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const objectUrlRef = useRef<string | null>(null);
+  const videoBlobRef = useRef<Blob | null>(null);
   const markerRef = useRef<any>(null);
   const markerRafIdRef = useRef<number | null>(null);
   // Canvas "compositing" separato usato solo per la registrazione: il canvas
@@ -331,12 +348,25 @@ export function TripFlyover({ trips, onClose }: Props) {
     recorder.onstop = () => {
       if (!mountedRef.current) return;
       const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      videoBlobRef.current = blob;
       const url = URL.createObjectURL(blob);
       objectUrlRef.current = url;
       setDownloadUrl(url);
     };
     recorder.stop();
     recorderRef.current = null;
+  };
+
+  /** Condivide il video con il foglio di condivisione nativo (mobile), invece di scaricarlo e basta. */
+  const handleShareVideo = async () => {
+    const blob = videoBlobRef.current;
+    if (!blob) return;
+    const file = new File([blob], "viaggio-3d.webm", { type: "video/webm" });
+    try {
+      await navigator.share({ files: [file], title: trips.length > 1 ? "Il mio viaggio in 3D" : trips[0].title });
+    } catch {
+      // utente ha annullato la condivisione: nessuna azione necessaria
+    }
   };
 
   const playFrom = async (startIndex: number, map: any) => {
@@ -619,7 +649,16 @@ export function TripFlyover({ trips, onClose }: Props) {
                 }}>
                 Chiudi
               </button>
-              {downloadUrl && (
+              {downloadUrl && videoBlobRef.current && canShareFile(new File([videoBlobRef.current], "viaggio-3d.webm", { type: "video/webm" })) ? (
+                <button onClick={handleShareVideo}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    padding: "8px 16px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
+                    border: "1px solid #60a5fa", color: "#60a5fa",
+                  }}>
+                  <Share2 className="w-3.5 h-3.5" /> Condividi
+                </button>
+              ) : downloadUrl && (
                 <a href={downloadUrl} download="viaggio-3d.webm"
                   style={{
                     display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
