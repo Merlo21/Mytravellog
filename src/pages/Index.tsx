@@ -2,13 +2,25 @@
 import { AppHeader } from "@/components/AppHeader";
 import { useEffect, useMemo, useState, Component, ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loadTrips, updateTrip, Trip } from "@/lib/storage";
+import { loadTrips, updateTrip, formatTripDate, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { Compass, Globe, MapPin, Plane, PieChart, Plus, Search, Settings, X, ChevronDown } from "lucide-react";
+import { Compass, Globe, MapPin, Pencil, Plane, PieChart, Plus, Search, Settings, Video, X, ChevronDown } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
+import { TripFlyover } from "@/components/TripFlyover";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+
+// Stessa palette per-mezzo di TripCardTicket/WorldMap/TripFlyover.
+const TRANSPORT_BADGE: Record<string, { color: string; label: string }> = {
+  plane: { color: "#378ADD", label: "Aereo" },
+  train: { color: "#BA7517", label: "Treno" },
+  car:   { color: "#A855F7", label: "Auto" },
+  ship:  { color: "#0F6E56", label: "Nave" },
+  walk:  { color: "#D85A30", label: "A piedi" },
+  bici:  { color: "#22C55E", label: "Bici" },
+  moto:  { color: "#EAB308", label: "Moto" },
+};
 
 /**
  * Ogni viaggio tocca anche i paesi/città delle tappe intermedie (waypoint),
@@ -111,6 +123,11 @@ function HomeInner() {
 
   const stats = useMemo(() => computeHomeStats(trips), [trips]);
 
+  // Viaggio selezionato toccando un pallino sul globo: prima evidenziava solo
+  // la rotta, senza mostrare alcuna informazione né un modo per aprirlo.
+  const selectedTrip = useMemo(() => trips.find(t => t.id === selectedId) ?? null, [trips, selectedId]);
+  const [flyoverTrip, setFlyoverTrip] = useState<Trip | null>(null);
+
   const defaultHome = trips[0]
     ? { lat: trips[0].home_latitude, lon: trips[0].home_longitude, label: trips[0].home_label }
     : null;
@@ -187,6 +204,76 @@ function HomeInner() {
               onSelectCity={(city) => setSelectedCity(city)}
               autoRotateSetting={autoRotate}
             />
+
+            {/* Mini-card del viaggio selezionato: flottante (non modale) così
+                la rotta evidenziata sul globo resta visibile dietro. */}
+            {selectedTrip && (
+              <div style={{position:"absolute", left:12, right:12, bottom:12, zIndex:30, display:"flex", justifyContent:"center", pointerEvents:"none"}}>
+                <div style={{
+                  pointerEvents:"auto", width:"100%", maxWidth:380,
+                  background:"rgba(10,22,40,0.92)", border:"0.5px solid #1a2d4a",
+                  borderRadius:14, padding:"12px 14px", backdropFilter:"blur(6px)",
+                }}>
+                  <div style={{display:"flex", alignItems:"flex-start", gap:10}}>
+                    <div style={{width:26, height:26, borderRadius:"50%", overflow:"hidden", border:"1px solid rgba(255,255,255,0.1)", flexShrink:0}}>
+                      {selectedTrip.country_code
+                        ? <img src={"https://flagcdn.com/w80/"+selectedTrip.country_code.toLowerCase()+".png"} width="26" height="26" style={{objectFit:"cover"}} alt=""/>
+                        : <div style={{width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14}}>🌍</div>}
+                    </div>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{fontSize:13, fontWeight:700, color:"#f0f4ff", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>
+                        {selectedTrip.title && selectedTrip.title !== selectedTrip.city ? selectedTrip.title : selectedTrip.city}
+                      </div>
+                      <div style={{fontSize:11, color:"rgba(255,255,255,0.4)"}}>{selectedTrip.city}, {selectedTrip.country}</div>
+                    </div>
+                    <button onClick={() => setSelectedId(null)} aria-label="Chiudi scheda viaggio"
+                      style={{width:24, height:24, background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}>
+                      <X style={{width:14, height:14}}/>
+                    </button>
+                  </div>
+
+                  <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", margin:"8px 0 10px"}}>
+                    <span style={{fontSize:11, color:"rgba(255,255,255,0.55)", fontWeight:600}}>
+                      {formatTripDate(selectedTrip.trip_date)}
+                      {selectedTrip.date_end && selectedTrip.date_end !== selectedTrip.trip_date && (
+                        <span style={{color:"rgba(255,255,255,0.35)", fontWeight:400}}> → {formatTripDate(selectedTrip.date_end)}</span>
+                      )}
+                    </span>
+                    {selectedTrip.transport_mode && TRANSPORT_BADGE[selectedTrip.transport_mode] && (
+                      <span style={{
+                        fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:99,
+                        color: TRANSPORT_BADGE[selectedTrip.transport_mode].color,
+                        background: TRANSPORT_BADGE[selectedTrip.transport_mode].color + "1f",
+                      }}>
+                        {TRANSPORT_BADGE[selectedTrip.transport_mode].label}
+                      </span>
+                    )}
+                    {selectedTrip.distance_from_home_km != null && (
+                      <span style={{fontSize:11, color:"rgba(255,255,255,0.35)"}}>{fmtDistance(selectedTrip.distance_from_home_km, distanceUnit)}</span>
+                    )}
+                  </div>
+
+                  <div style={{display:"flex", gap:8}}>
+                    <button onClick={() => setFlyoverTrip(selectedTrip)}
+                      style={{
+                        flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                        fontSize:11, fontWeight:600, padding:"7px 0", borderRadius:999, cursor:"pointer",
+                        background:"rgba(96,165,250,0.15)", border:"1px solid #60a5fa", color:"#60a5fa",
+                      }}>
+                      <Video style={{width:12, height:12}}/> Rivivi in 3D
+                    </button>
+                    <button onClick={() => navigate("/modifica-viaggio/"+selectedTrip.id)}
+                      style={{
+                        flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                        fontSize:11, fontWeight:600, padding:"7px 0", borderRadius:999, cursor:"pointer",
+                        background:"rgba(255,255,255,0.06)", border:"0.5px solid #1a2d4a", color:"rgba(255,255,255,0.7)",
+                      }}>
+                      <Pencil style={{width:12, height:12}}/> Modifica
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
 
@@ -234,7 +321,7 @@ function HomeInner() {
         </div>
       )}
 
-
+      {flyoverTrip && <TripFlyover trips={[flyoverTrip]} onClose={() => setFlyoverTrip(null)} />}
 
           </main>
   );
