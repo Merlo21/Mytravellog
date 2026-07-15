@@ -40,12 +40,20 @@ interface Props {
   onDeleteRequested?: (trip: Trip) => void;
 }
 
+// Oltre questa lunghezza le note vengono mostrate troncate (2 righe) con
+// espansione al tap: sotto, stanno comunque in 2 righe e il toggle sarebbe inutile.
+const NOTES_CLAMP_THRESHOLD = 120;
+
 export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showFlyover, setShowFlyover] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const { distanceUnit, temperatureUnit } = useSettings();
   const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_TRANSPORT;
+
+  const notes = trip.notes?.trim() || null;
+  const notesAreLong = !!notes && notes.length > NOTES_CLAMP_THRESHOLD;
 
   const days = trip.date_end && trip.date_end !== trip.trip_date
     ? Math.round((new Date(trip.date_end).getTime() - new Date(trip.trip_date).getTime()) / 86400000)
@@ -187,6 +195,37 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
           </>
         )}
       </div>
+
+      {/* Note del viaggio: prima erano visibili solo riaprendo il form di
+          modifica. Troncate a 2 righe se lunghe, tap per espandere. */}
+      {notes && (
+        <div style={{padding:"0 20px 14px"}}>
+          <div
+            onClick={notesAreLong ? () => setNotesExpanded(e => !e) : undefined}
+            role={notesAreLong ? "button" : undefined}
+            aria-expanded={notesAreLong ? notesExpanded : undefined}
+            aria-label={notesAreLong ? (notesExpanded ? "Comprimi le note" : "Espandi le note") : undefined}
+            style={{
+              borderLeft:"2px solid #1a2d4a", paddingLeft:10,
+              cursor: notesAreLong ? "pointer" : "default",
+            }}>
+            <div style={{
+              fontSize:11, lineHeight:1.5, color:"rgba(255,255,255,0.45)", fontStyle:"italic",
+              whiteSpace:"pre-wrap", wordBreak:"break-word",
+              ...(notesAreLong && !notesExpanded ? {
+                display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" as const, overflow:"hidden",
+              } : {}),
+            }}>
+              {notes}
+            </div>
+            {notesAreLong && (
+              <div style={{fontSize:10,color:"#60a5fa",fontWeight:600,marginTop:3}}>
+                {notesExpanded ? "Mostra meno" : "Mostra tutto"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
     {showFlyover && <TripFlyover trips={[trip]} onClose={() => setShowFlyover(false)} />}
     </>

@@ -229,6 +229,35 @@ describe("TripCardTicket — edit e delete", () => {
   });
 });
 
+describe("TripCardTicket — note", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("mostra le note quando presenti", () => {
+    renderCard(makeTrip({ notes: "Cena fantastica sul lungomare" }));
+    expect(screen.getByText("Cena fantastica sul lungomare")).toBeInTheDocument();
+  });
+
+  it("non mostra la sezione note se notes è null o solo spazi", () => {
+    renderCard(makeTrip({ notes: "   " }));
+    expect(screen.queryByRole("button", { name: /note/i })).not.toBeInTheDocument();
+  });
+
+  it("note brevi: nessun toggle Mostra tutto", () => {
+    renderCard(makeTrip({ notes: "Breve nota" }));
+    expect(screen.queryByText("Mostra tutto")).not.toBeInTheDocument();
+  });
+
+  it("note lunghe: toggle Mostra tutto/Mostra meno espande e comprime", () => {
+    const longNotes = "Una nota molto lunga. ".repeat(10).trim(); // > 120 caratteri
+    renderCard(makeTrip({ notes: longNotes }));
+    expect(screen.getByText("Mostra tutto")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Espandi le note" }));
+    expect(screen.getByText("Mostra meno")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Comprimi le note" }));
+    expect(screen.getByText("Mostra tutto")).toBeInTheDocument();
+  });
+});
+
 describe("TripCardTicket — distanza e temperatura", () => {
   beforeEach(() => localStorage.clear());
 
