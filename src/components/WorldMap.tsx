@@ -227,6 +227,12 @@ export function WorldMap({
   const onSelectCityRef = useRef(onSelectCity);
   const onSelectTripRef = useRef(onSelectTrip);
   const cityMarkerRefs = useRef<{marker:any;el:HTMLElement;city:CityInfo}[]>([]);
+  // I click handler dei layer viaggio vengono registrati UNA volta per layer
+  // (map.on con layerId sopravvive a removeLayer/addLayer): questo set tiene
+  // traccia di quali sono già attivi, e orderedRef dà loro sempre la lista
+  // viaggi corrente invece di una chiusura stantia.
+  const tripLayerHandlersRef = useRef<Set<string>>(new Set());
+  const orderedRef = useRef<Trip[]>([]);
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
@@ -273,6 +279,10 @@ export function WorldMap({
       });
 
       mapRef.current = map;
+      // Nuova istanza mappa = nessun handler registrato: senza questo reset,
+      // dopo lo smonta/rimonta di StrictMode (dev) il set conserverebbe gli id
+      // della mappa precedente e i pallini resterebbero senza click handler.
+      tripLayerHandlersRef.current.clear();
 
       // Suppress MapLibre globe projection warnings
       const _warn = console.warn.bind(console);
@@ -319,6 +329,12 @@ export function WorldMap({
 
       // Click → reverse geocode
       map.on("click", async (e: any) => {
+        // Se il click ha colpito un pallino viaggio, la mini-card è già stata
+        // aperta dal suo handler: senza questo controllo, dopo ~1s arriverebbe
+        // anche il popup città "Aggiungi come viaggio" a coprirla.
+        const tripLayers = ["trips-single", "trips-single-icons", "trips-multi", "trips-multi-icons"]
+          .filter(id => map.getLayer(id));
+        if (tripLayers.length > 0 && map.queryRenderedFeatures(e.point, { layers: tripLayers }).length > 0) return;
         const { lng, lat } = e.lngLat;
         try {
           const res = await fetch(
@@ -389,6 +405,10 @@ export function WorldMap({
 
   // ── Add trips ──────────────────────────────────────────────────────────────
   function addTripsToMap(map: any, maplibregl: any) {
+    // I click handler dei layer (registrati una sola volta) leggono da qui la
+    // lista viaggi corrente, mai da una chiusura vecchia.
+    orderedRef.current = ordered;
+
     // Clean old markers
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
@@ -404,10 +424,12 @@ export function WorldMap({
         if (map.getSource(id)) map.removeSource(id);
       });
     } catch(_) {}
-    ["route-line","route-points","trips-single","trips-single-icons","trips-multi","trips-multi-icons","trips-waypoints","trips-waypoints-icons","trips-labels"].forEach(id => {
-      if (map.getLayer(id)) map.removeLayer(id);
-      if (map.getSource(id)) map.removeSource(id);
-    });
+    // Prima TUTTI i layer, poi le source: rimuovere la source "trips-single"
+    // mentre il layer "trips-single-icons" (più avanti nella lista) la usa
+    // ancora farebbe scattare un errore MapLibre a ogni ridisegno.
+    const tripIds = ["route-line","route-points","trips-single","trips-single-icons","trips-multi","trips-multi-icons","trips-waypoints","trips-waypoints-icons","trips-labels"];
+    tripIds.forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+    tripIds.forEach(id => { if (map.getSource(id)) map.removeSource(id); });
 
     if (!ordered.length) return;
 
@@ -523,17 +545,24 @@ export function WorldMap({
         id: iconId, type: "symbol", source: id,
         layout: { "icon-image": ICON_MATCH_EXPR, "icon-size": 1, "icon-allow-overlap": true, "icon-ignore-placement": true },
       });
-      map.on("click", id, (e: any) => {
-        if (!e.features?.length) return;
-        const tripId = e.features[0].properties.id;
-        const trip = ordered.find((t: any) => t.id === tripId);
-        if (trip) {
-          onSelectTripRef.current?.(trip);
-          map.flyTo({ center: [trip.longitude, trip.latitude], zoom: Math.max(map.getZoom(), 5), duration: 800 });
-        }
-      });
-      map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
+      // Handler registrati UNA volta per layer id e per istanza mappa:
+      // map.on(evento, layerId) sopravvive a removeLayer/addLayer, quindi
+      // ri-registrarli a ogni ridisegno (= ogni cambio selezione) li
+      // accumulerebbe — N selezioni, N flyTo per ogni click.
+      if (!tripLayerHandlersRef.current.has(id)) {
+        tripLayerHandlersRef.current.add(id);
+        map.on("click", id, (e: any) => {
+          if (!e.features?.length) return;
+          const tripId = e.features[0].properties.id;
+          const trip = orderedRef.current.find((t: any) => t.id === tripId);
+          if (trip) {
+            onSelectTripRef.current?.(trip);
+            map.flyTo({ center: [trip.longitude, trip.latitude], zoom: Math.max(map.getZoom(), 5), duration: 800 });
+          }
+        });
+        map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
+      }
     };
 
     addCircleLayer("trips-single", singleFeatures, TRANSPORT_MATCH_EXPR);
