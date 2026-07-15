@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Photo, savePhoto, getPhotosForTrip, deletePhoto, photoToBlob } from "@/lib/photoStorage";
-import { Camera, ImagePlus, Trash2, Loader2 } from "lucide-react";
+import { Camera, ImagePlus, Trash2, Loader2, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Props {
   /** Chiave di IndexedDB per questa tappa (vedi destinationPhotoKey/homePhotoKey/waypointPhotoKey in photoStorage.ts). */
@@ -60,6 +61,35 @@ export function TripPhotos({ photoKey, label }: Props) {
     await refresh();
   };
 
+  // ── Lightbox ──────────────────────────────────────────────────────────────
+  // Indice della foto aperta a schermo intero, null = chiuso. Renderizzato in
+  // un portal su document.body: dentro al form un antenato con transform
+  // renderebbe il position:fixed relativo alla card invece che al viewport.
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+
+  const showPrev = () => setViewerIndex(i => (i === null ? null : (i - 1 + photos.length) % photos.length));
+  const showNext = () => setViewerIndex(i => (i === null ? null : (i + 1) % photos.length));
+
+  useEffect(() => {
+    if (viewerIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setViewerIndex(null);
+      else if (e.key === "ArrowLeft") showPrev();
+      else if (e.key === "ArrowRight") showNext();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerIndex === null, photos.length]);
+
+  // Se la foto aperta viene eliminata o la lista si accorcia, evita un indice fuori range.
+  useEffect(() => {
+    if (viewerIndex !== null && viewerIndex >= photos.length) {
+      setViewerIndex(photos.length > 0 ? photos.length - 1 : null);
+    }
+  }, [photos.length, viewerIndex]);
+
   return (
     <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
@@ -94,9 +124,11 @@ export function TripPhotos({ photoKey, label }: Props) {
 
       {photos.length > 0 && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(84px, 1fr))", gap:8 }}>
-          {photos.map(p => (
+          {photos.map((p, i) => (
             <div key={p.id} style={{ position:"relative", aspectRatio:"1", borderRadius:8, overflow:"hidden", background:"#060e1e" }}>
-              <img src={p.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+              <img src={p.url} alt="" onClick={() => setViewerIndex(i)}
+                role="button" aria-label="Apri foto a schermo intero"
+                style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", cursor:"pointer" }}/>
               <button type="button" onClick={() => handleDelete(p.id)} aria-label="Elimina foto"
                 style={{ position:"absolute", top:4, right:4, width:20, height:20, borderRadius:6,
                   background:"rgba(6,14,30,0.75)", border:"none", cursor:"pointer",
@@ -106,6 +138,60 @@ export function TripPhotos({ photoKey, label }: Props) {
             </div>
           ))}
         </div>
+      )}
+
+      {viewerIndex !== null && photos[viewerIndex] && createPortal(
+        <div
+          onClick={() => setViewerIndex(null)}
+          onTouchStart={e => { touchStartXRef.current = e.touches[0].clientX; }}
+          onTouchEnd={e => {
+            const startX = touchStartXRef.current;
+            touchStartXRef.current = null;
+            if (startX === null || photos.length < 2) return;
+            const dx = e.changedTouches[0].clientX - startX;
+            if (Math.abs(dx) < 50) return; // tocco, non swipe
+            if (dx > 0) showPrev(); else showNext();
+          }}
+          style={{
+            position:"fixed", inset:0, zIndex:200, background:"rgba(2,8,18,0.94)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+          <img src={photos[viewerIndex].url} alt="" onClick={e => e.stopPropagation()}
+            style={{ maxWidth:"92vw", maxHeight:"86vh", objectFit:"contain", borderRadius:8 }}/>
+
+          <button type="button" onClick={() => setViewerIndex(null)} aria-label="Chiudi foto"
+            style={{ position:"absolute", top:16, right:16, width:34, height:34, borderRadius:10,
+              background:"rgba(10,22,40,0.8)", border:"0.5px solid #1a2d4a", cursor:"pointer",
+              color:"rgba(255,255,255,0.7)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <X className="w-4 h-4"/>
+          </button>
+
+          {photos.length > 1 && (
+            <>
+              <button type="button" onClick={e => { e.stopPropagation(); showPrev(); }} aria-label="Foto precedente"
+                style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)",
+                  width:36, height:36, borderRadius:"50%", background:"rgba(10,22,40,0.8)",
+                  border:"0.5px solid #1a2d4a", cursor:"pointer", color:"rgba(255,255,255,0.7)",
+                  display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <ChevronLeft className="w-4 h-4"/>
+              </button>
+              <button type="button" onClick={e => { e.stopPropagation(); showNext(); }} aria-label="Foto successiva"
+                style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+                  width:36, height:36, borderRadius:"50%", background:"rgba(10,22,40,0.8)",
+                  border:"0.5px solid #1a2d4a", cursor:"pointer", color:"rgba(255,255,255,0.7)",
+                  display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <ChevronRight className="w-4 h-4"/>
+              </button>
+              <div style={{ position:"absolute", bottom:18, left:"50%", transform:"translateX(-50%)",
+                fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.7)",
+                background:"rgba(10,22,40,0.8)", border:"0.5px solid #1a2d4a",
+                borderRadius:999, padding:"4px 12px" }}>
+                {viewerIndex + 1} / {photos.length}
+              </div>
+            </>
+          )}
+        </div>,
+        document.body
       )}
     </div>
   );
