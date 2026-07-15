@@ -131,3 +131,29 @@ describe("Home — mini-card del viaggio selezionato sul globo", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/modifica-viaggio/" + trip.id);
   });
 });
+
+describe("Home — benvenuto al primo avvio", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockNavigate.mockClear();
+  });
+
+  it("senza viaggi mostra l'invito e il CTA porta a /nuovo-viaggio", () => {
+    renderHome();
+    expect(screen.getByText("Benvenuto su NAV·TA")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Aggiungi il primo viaggio/ }));
+    expect(mockNavigate).toHaveBeenCalledWith("/nuovo-viaggio");
+  });
+
+  it("senza città di casa mostra anche il link alle Impostazioni", () => {
+    renderHome();
+    fireEvent.click(screen.getByRole("button", { name: /imposta la tua città di casa/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/impostazioni");
+  });
+
+  it("con almeno un viaggio l'invito non compare", () => {
+    addTrip(baseTrip());
+    renderHome();
+    expect(screen.queryByText("Benvenuto su NAV·TA")).not.toBeInTheDocument();
+  });
+});

@@ -90,7 +90,10 @@ class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> 
 function HomeInner() {
   const navigate = useNavigate();
   const { distanceUnit, autoRotate, homeCity } = useSettings();
-  const [trips, setTrips] = useState<Trip[]>([]);
+  // Inizializzato in modo sincrono (localStorage) invece che [] + effect:
+  // così l'invito di benvenuto per chi non ha viaggi non lampeggia mai
+  // per un frame agli utenti che invece ne hanno.
+  const [trips, setTrips] = useState<Trip[]>(() => loadTrips());
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
 
@@ -204,6 +207,40 @@ function HomeInner() {
               onSelectCity={(city) => setSelectedCity(city)}
               autoRotateSetting={autoRotate}
             />
+
+            {/* Primo avvio: senza viaggi il globo era muto (zeri e nessun
+                invito). Card di benvenuto con la prima azione da fare. */}
+            {trips.length === 0 && (
+              <div style={{position:"absolute", inset:0, zIndex:25, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none"}}>
+                <div style={{
+                  pointerEvents:"auto", width:"100%", maxWidth:320, margin:"0 16px",
+                  background:"rgba(10,22,40,0.92)", border:"0.5px solid #1a2d4a",
+                  borderRadius:16, padding:"24px 22px", textAlign:"center", backdropFilter:"blur(6px)",
+                }}>
+                  <div style={{width:48, height:48, borderRadius:"50%", background:"rgba(96,165,250,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px"}}>
+                    <Plane style={{width:22, height:22, color:"#60a5fa"}}/>
+                  </div>
+                  <div style={{fontSize:15, fontWeight:700, color:"#f0f4ff"}}>Benvenuto su NAV·TA</div>
+                  <p style={{fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.5, margin:"6px 0 16px"}}>
+                    Aggiungi il tuo primo viaggio e guarda il globo prendere vita.
+                  </p>
+                  <button onClick={() => navigate("/nuovo-viaggio")}
+                    style={{
+                      width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                      fontSize:13, fontWeight:600, padding:"10px 0", borderRadius:999, cursor:"pointer",
+                      background:"#60a5fa", border:"none", color:"#0a1628",
+                    }}>
+                    <Plus style={{width:14, height:14}}/> Aggiungi il primo viaggio
+                  </button>
+                  {!homeCity && (
+                    <button onClick={() => navigate("/impostazioni")}
+                      style={{marginTop:10, fontSize:11, background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.4)", textDecoration:"underline"}}>
+                      Prima imposta la tua città di casa
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Mini-card del viaggio selezionato: flottante (non modale) così
                 la rotta evidenziata sul globo resta visibile dietro. */}
