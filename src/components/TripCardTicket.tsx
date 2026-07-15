@@ -53,7 +53,9 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_TRANSPORT;
 
   const notes = trip.notes?.trim() || null;
-  const notesAreLong = !!notes && notes.length > NOTES_CLAMP_THRESHOLD;
+  // Lunghe per caratteri O per numero di righe: una lista di 8 righe corte
+  // (whiteSpace:pre-wrap le rispetta) occuperebbe comunque troppa card.
+  const notesAreLong = !!notes && (notes.length > NOTES_CLAMP_THRESHOLD || notes.split("\n").length > 2);
 
   const days = trip.date_end && trip.date_end !== trip.trip_date
     ? Math.round((new Date(trip.date_end).getTime() - new Date(trip.trip_date).getTime()) / 86400000)

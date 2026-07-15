@@ -46,14 +46,19 @@ export function TripPhotos({ photoKey, label }: Props) {
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
-      await savePhoto(photoKey, file);
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) continue;
+        await savePhoto(photoKey, file);
+      }
+      await refresh();
+    } finally {
+      // Anche se savePhoto fallisce (es. quota IndexedDB esaurita), i bottoni
+      // non devono restare bloccati per sempre sullo spinner.
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
     }
-    await refresh();
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   const handleDelete = async (id: string) => {

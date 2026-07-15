@@ -256,6 +256,11 @@ describe("TripCardTicket — note", () => {
     fireEvent.click(screen.getByRole("button", { name: "Comprimi le note" }));
     expect(screen.getByText("Mostra tutto")).toBeInTheDocument();
   });
+
+  it("note corte ma su molte righe: vengono troncate comunque", () => {
+    renderCard(makeTrip({ notes: "zaino\nscarpe\ncrema\ncappello" })); // < 120 caratteri, 4 righe
+    expect(screen.getByText("Mostra tutto")).toBeInTheDocument();
+  });
 });
 
 describe("TripCardTicket — distanza e temperatura", () => {
