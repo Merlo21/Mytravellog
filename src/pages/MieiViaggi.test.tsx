@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import MieiViaggi from "./MieiViaggi";
 import { SettingsProvider } from "@/lib/settings";
@@ -12,16 +12,40 @@ vi.mock("@/components/AppHeader", () => ({
   AppHeader: () => <header data-testid="app-header" />,
 }));
 
-// Mock TripCardTicket to keep tests focused on MieiViaggi logic
+// Mock TripCardTicket to keep tests focused on MieiViaggi logic. Il bottone
+// "Elimina" simula il secondo tap di conferma sul cestino reale.
 vi.mock("@/components/TripCardTicket", () => ({
-  TripCardTicket: ({ trip, onDeleted }: { trip: Trip; onDeleted?: () => void }) => (
+  TripCardTicket: ({ trip, onDeleteRequested }: { trip: Trip; onDeleteRequested?: (trip: Trip) => void }) => (
     <div data-testid="trip-card" data-city={trip.city} data-year={trip.trip_date?.slice(0, 4)}>
       <span>{trip.city}</span>
       <span>{trip.country}</span>
       <span>{trip.title}</span>
+      <button onClick={() => onDeleteRequested?.(trip)}>Elimina {trip.city}</button>
     </div>
   ),
 }));
+
+// Mock di sonner: il toast reale non renderizza nulla senza un <Toaster/>
+// montato, quindi qui catturiamo la chiamata per poter simulare il click
+// su "Annulla" chiamando direttamente action.onClick.
+const mockToast = vi.fn();
+vi.mock("sonner", () => ({
+  toast: (...args: unknown[]) => mockToast(...args),
+}));
+
+// photoStorage usa IndexedDB, non disponibile in questo ambiente di test
+// (a differenza di photoStorage.test.ts, che lo polyfilla): qui non serve
+// verificarne il comportamento interno, solo che venga invocato. Il resto
+// del modulo resta reale: TripFlyover (montato dai test del recap 3D) usa
+// anche destinationPhotoKey/getPhotosForTrip.
+const mockDeletePhotosForTrip = vi.fn();
+vi.mock("@/lib/photoStorage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/photoStorage")>();
+  return {
+    ...actual,
+    deletePhotosForTrip: (...args: unknown[]) => mockDeletePhotosForTrip(...args),
+  };
+});
 
 function renderPage() {
   return render(
@@ -293,5 +317,63 @@ describe("MieiViaggi — recap 3D per anno", () => {
     fireEvent.click(screen.getByRole("button", { name: /Rivivi il 2024 in 3D/ }));
     fireEvent.click(screen.getByRole("button", { name: "Chiudi" }));
     expect(screen.queryByRole("button", { name: "Chiudi" })).not.toBeInTheDocument();
+  });
+});
+
+describe("MieiViaggi — eliminazione con Annulla", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockToast.mockClear();
+    mockDeletePhotosForTrip.mockClear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("richiedere l'eliminazione mostra un toast con azione Annulla, senza toccare subito lo storage", () => {
+    addTrip(baseTrip({ city: "Roma" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Elimina Roma" }));
+
+    expect(mockToast).toHaveBeenCalledTimes(1);
+    const [, options] = mockToast.mock.calls[0];
+    expect(options.action.label).toBe("Annulla");
+    expect(loadTrips()).toHaveLength(1); // ancora lì: la cancellazione è sospesa
+  });
+
+  it("dopo l'animazione la card sparisce dalla lista, ma il viaggio resta in storage durante la finestra di grazia", () => {
+    addTrip(baseTrip({ city: "Roma" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Elimina Roma" }));
+
+    act(() => { vi.advanceTimersByTime(200); }); // DELETE_ANIM_MS
+    expect(screen.queryAllByTestId("trip-card")).toHaveLength(0);
+    expect(loadTrips()).toHaveLength(1);
+  });
+
+  it("cliccare Annulla prima che scada la finestra ripristina il viaggio ed evita la cancellazione", () => {
+    addTrip(baseTrip({ city: "Roma" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Elimina Roma" }));
+    act(() => { vi.advanceTimersByTime(200); }); // la card è già sparita dalla lista
+
+    const [, options] = mockToast.mock.calls[0];
+    act(() => { options.action.onClick(); }); // "Annulla"
+
+    expect(screen.getAllByTestId("trip-card")).toHaveLength(1);
+    act(() => { vi.advanceTimersByTime(5000); }); // scade la finestra: non deve eliminare nulla
+    expect(loadTrips()).toHaveLength(1);
+  });
+
+  it("senza Annulla, allo scadere della finestra il viaggio viene eliminato per davvero", () => {
+    addTrip(baseTrip({ city: "Roma" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Elimina Roma" }));
+
+    act(() => { vi.advanceTimersByTime(5000); }); // UNDO_GRACE_MS
+    expect(loadTrips()).toHaveLength(0);
+    expect(mockDeletePhotosForTrip).toHaveBeenCalledTimes(1);
   });
 });

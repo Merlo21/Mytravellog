@@ -1,12 +1,18 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCardTicket } from "@/components/TripCardTicket";
 import { TripFlyover } from "@/components/TripFlyover";
-import { loadTrips, Trip } from "@/lib/storage";
+import { loadTrips, deleteTrip, Trip } from "@/lib/storage";
+import { deletePhotosForTrip } from "@/lib/photoStorage";
 import { Search, X, Video } from "lucide-react";
 
 const DELETE_ANIM_MS = 200;
+// Finestra di tempo in cui "Annulla" nel toast può ancora recuperare il
+// viaggio: l'eliminazione vera e propria (storage + foto) resta sospesa
+// fino ad allora, così una cancellazione per errore non è mai definitiva.
+const UNDO_GRACE_MS = 5000;
 
 export default function MieiViaggi() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -15,20 +21,57 @@ export default function MieiViaggi() {
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [flyoverYear, setFlyoverYear] = useState<string | null>(null);
   const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingDeletesRef = useRef<Map<string, { timer: ReturnType<typeof setTimeout>; trip: Trip }>>(new Map());
 
   useEffect(() => { setTrips(loadTrips()); }, []);
-  useEffect(() => () => clearTimeout(deleteTimeoutRef.current), []);
-  const refresh = () => setTrips(loadTrips());
+  useEffect(() => () => {
+    clearTimeout(deleteTimeoutRef.current);
+    // Alla chiusura della pagina, le cancellazioni ancora "in sospeso" (in
+    // attesa che scada la finestra per l'Annulla) vengono eseguite subito
+    // invece di restare bloccate a metà.
+    pendingDeletesRef.current.forEach(({ timer, trip }) => {
+      clearTimeout(timer);
+      deleteTrip(trip.id);
+      deletePhotosForTrip(trip);
+    });
+    pendingDeletesRef.current.clear();
+  }, []);
+
+  const commitDelete = (trip: Trip) => {
+    deleteTrip(trip.id);
+    deletePhotosForTrip(trip);
+    pendingDeletesRef.current.delete(trip.id);
+  };
+
+  const undoDelete = (trip: Trip) => {
+    const pending = pendingDeletesRef.current.get(trip.id);
+    if (!pending) return; // la finestra per l'Annulla è già scaduta: niente da recuperare
+    clearTimeout(pending.timer);
+    pendingDeletesRef.current.delete(trip.id);
+    setLeavingId(null);
+    // Re-inserito nell'ordine giusto (stesso criterio di loadTrips: data decrescente).
+    setTrips(prev => prev.some(t => t.id === trip.id)
+      ? prev
+      : [...prev, trip].sort((a, b) => b.trip_date.localeCompare(a.trip_date)));
+  };
 
   // Mostra prima la card che sta uscendo (opacity+scale via CSS), poi la
-  // rimuove davvero dalla lista — senza questo la card scomparirebbe di
-  // scatto non appena TripCardTicket chiama onDeleted.
-  const handleDeleted = (id: string) => {
-    setLeavingId(id);
+  // rimuove dalla lista visibile — senza cancellarla ancora da storage,
+  // per lasciare tempo all'eventuale "Annulla" nel toast.
+  const handleDeleteRequested = (trip: Trip) => {
+    setLeavingId(trip.id);
     deleteTimeoutRef.current = setTimeout(() => {
-      refresh();
+      setTrips(prev => prev.filter(t => t.id !== trip.id));
       setLeavingId(null);
     }, DELETE_ANIM_MS);
+
+    const timer = setTimeout(() => commitDelete(trip), UNDO_GRACE_MS);
+    pendingDeletesRef.current.set(trip.id, { timer, trip });
+
+    toast(`"${trip.title || trip.city}" eliminato`, {
+      duration: UNDO_GRACE_MS,
+      action: { label: "Annulla", onClick: () => undoDelete(trip) },
+    });
   };
 
   const tripYear = (t: Trip) => t.trip_date ? new Date(t.trip_date).getFullYear().toString() : "—";
@@ -148,7 +191,7 @@ export default function MieiViaggi() {
                       opacity: leavingId === t.id ? 0 : 1,
                       transform: leavingId === t.id ? "scale(0.95)" : "none",
                     }}>
-                      <TripCardTicket trip={t} onDeleted={() => handleDeleted(t.id)}/>
+                      <TripCardTicket trip={t} onDeleteRequested={handleDeleteRequested}/>
                     </div>
                   ))}
                 </div>

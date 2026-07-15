@@ -1,12 +1,11 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useState } from "react";
-import { Trip, deleteTrip, formatTripDate, parseLocalDate } from "@/lib/storage";
+import { Trip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
 import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 import { useNavigate } from "react-router-dom";
 import { TripFlyover } from "@/components/TripFlyover";
-import { deletePhotosForTrip } from "@/lib/photoStorage";
 
 const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string; Icon: React.ElementType }> = {
   plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", label: "Aereo",   Icon: Plane      },
@@ -35,10 +34,13 @@ function abbr(city: string) {
 
 interface Props {
   trip: Trip;
-  onDeleted?: () => void;
+  /** Chiamato alla conferma (secondo tap): il viaggio NON è ancora stato
+   * eliminato — chi lo gestisce (MieiViaggi) decide quando eliminarlo
+   * davvero, per poter offrire un "Annulla". */
+  onDeleteRequested?: (trip: Trip) => void;
 }
 
-export function TripCardTicket({ trip, onDeleted }: Props) {
+export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showFlyover, setShowFlyover] = useState(false);
@@ -58,9 +60,7 @@ export function TripCardTicket({ trip, onDeleted }: Props) {
 
   const handleDelete = () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
-    deleteTrip(trip.id);
-    deletePhotosForTrip(trip);
-    onDeleted?.();
+    onDeleteRequested?.(trip);
   };
 
   return (
