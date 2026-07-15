@@ -28,11 +28,13 @@ function mount() {
 describe("Stats page", () => {
   beforeEach(() => localStorage.clear());
 
-  it("monta senza viaggi", () => {
+  it("senza viaggi mostra l'invito unico al posto delle sezioni", () => {
     mount();
-    expect(screen.getByTestId("stats-section").textContent).toBe("0");
-    expect(screen.getByTestId("continents-map")).toBeInTheDocument();
-    expect(screen.getByTestId("highlights").textContent).toBe("0");
+    expect(screen.getByText("Ancora nessuna statistica")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Aggiungi il primo viaggio/ })).toHaveAttribute("href", "/nuovo-viaggio");
+    expect(screen.queryByTestId("stats-section")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("continents-map")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("highlights")).not.toBeInTheDocument();
   });
 
   it("passa i viaggi caricati alle sezioni", () => {
