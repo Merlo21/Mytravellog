@@ -29,9 +29,12 @@ vi.mock("@/components/TripCardTicket", () => ({
 // montato, quindi qui catturiamo la chiamata per poter simulare il click
 // su "Annulla" chiamando direttamente action.onClick.
 const mockToast = vi.fn();
-vi.mock("sonner", () => ({
-  toast: (...args: unknown[]) => mockToast(...args),
-}));
+const mockToastDismiss = vi.fn();
+vi.mock("sonner", () => {
+  const toastFn = (...args: unknown[]) => mockToast(...args);
+  (toastFn as any).dismiss = (...args: unknown[]) => mockToastDismiss(...args);
+  return { toast: toastFn };
+});
 
 // photoStorage usa IndexedDB, non disponibile in questo ambiente di test
 // (a differenza di photoStorage.test.ts, che lo polyfilla): qui non serve
@@ -324,6 +327,7 @@ describe("MieiViaggi — eliminazione con Annulla", () => {
   beforeEach(() => {
     localStorage.clear();
     mockToast.mockClear();
+    mockToastDismiss.mockClear();
     mockDeletePhotosForTrip.mockClear();
     vi.useFakeTimers();
   });
@@ -375,5 +379,44 @@ describe("MieiViaggi — eliminazione con Annulla", () => {
     act(() => { vi.advanceTimersByTime(5000); }); // UNDO_GRACE_MS
     expect(loadTrips()).toHaveLength(0);
     expect(mockDeletePhotosForTrip).toHaveBeenCalledTimes(1);
+  });
+
+  it("Annulla immediato (prima della fine dell'animazione) non fa sparire la card", () => {
+    addTrip(baseTrip({ city: "Roma" }));
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Elimina Roma" }));
+
+    const [, options] = mockToast.mock.calls[0];
+    act(() => { options.action.onClick(); }); // "Annulla" entro i 200ms dell'animazione
+
+    act(() => { vi.advanceTimersByTime(300); }); // il timer dell'animazione non deve rimuoverla
+    expect(screen.getAllByTestId("trip-card")).toHaveLength(1);
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(loadTrips()).toHaveLength(1);
+  });
+
+  it("una seconda conferma sulla stessa card viene ignorata (nessun timer orfano)", () => {
+    addTrip(baseTrip({ city: "Roma" }));
+    renderPage();
+    const btn = screen.getByRole("button", { name: "Elimina Roma" });
+    fireEvent.click(btn);
+    fireEvent.click(btn); // doppio tap durante l'animazione di uscita
+    expect(mockToast).toHaveBeenCalledTimes(1);
+
+    // L'Annulla del primo (unico) toast deve ancora funzionare fino in fondo.
+    const [, options] = mockToast.mock.calls[0];
+    act(() => { options.action.onClick(); });
+    act(() => { vi.advanceTimersByTime(6000); });
+    expect(loadTrips()).toHaveLength(1);
+  });
+
+  it("uscendo dalla pagina le cancellazioni in sospeso vengono eseguite e il toast chiuso", () => {
+    addTrip(baseTrip({ city: "Roma" }));
+    const { unmount } = renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Elimina Roma" }));
+
+    unmount();
+    expect(loadTrips()).toHaveLength(0); // eseguita subito, non lasciata a metà
+    expect(mockToastDismiss).toHaveBeenCalledTimes(1); // niente "Annulla" ingannevole rimasto
   });
 });

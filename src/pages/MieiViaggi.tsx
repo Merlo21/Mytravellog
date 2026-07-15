@@ -20,17 +20,24 @@ export default function MieiViaggi() {
   const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [flyoverYear, setFlyoverYear] = useState<string | null>(null);
-  const deleteTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  const pendingDeletesRef = useRef<Map<string, { timer: ReturnType<typeof setTimeout>; trip: Trip }>>(new Map());
+  const pendingDeletesRef = useRef<Map<string, {
+    animTimer: ReturnType<typeof setTimeout>;
+    commitTimer: ReturnType<typeof setTimeout>;
+    toastId: string | number;
+    trip: Trip;
+  }>>(new Map());
 
   useEffect(() => { setTrips(loadTrips()); }, []);
   useEffect(() => () => {
-    clearTimeout(deleteTimeoutRef.current);
     // Alla chiusura della pagina, le cancellazioni ancora "in sospeso" (in
     // attesa che scada la finestra per l'Annulla) vengono eseguite subito
-    // invece di restare bloccate a metà.
-    pendingDeletesRef.current.forEach(({ timer, trip }) => {
-      clearTimeout(timer);
+    // invece di restare bloccate a metà — e il loro toast viene chiuso,
+    // perché il Toaster è globale e un "Annulla" rimasto visibile sarebbe
+    // ormai un no-op ingannevole.
+    pendingDeletesRef.current.forEach(({ animTimer, commitTimer, toastId, trip }) => {
+      clearTimeout(animTimer);
+      clearTimeout(commitTimer);
+      toast.dismiss(toastId);
       deleteTrip(trip.id);
       deletePhotosForTrip(trip);
     });
@@ -46,9 +53,12 @@ export default function MieiViaggi() {
   const undoDelete = (trip: Trip) => {
     const pending = pendingDeletesRef.current.get(trip.id);
     if (!pending) return; // la finestra per l'Annulla è già scaduta: niente da recuperare
-    clearTimeout(pending.timer);
+    // Anche il timer dell'animazione: un Annulla immediato (entro i 200ms)
+    // non deve comunque far sparire la card dalla lista.
+    clearTimeout(pending.animTimer);
+    clearTimeout(pending.commitTimer);
     pendingDeletesRef.current.delete(trip.id);
-    setLeavingId(null);
+    setLeavingId(prev => (prev === trip.id ? null : prev));
     // Re-inserito nell'ordine giusto (stesso criterio di loadTrips: data decrescente).
     setTrips(prev => prev.some(t => t.id === trip.id)
       ? prev
@@ -59,19 +69,23 @@ export default function MieiViaggi() {
   // rimuove dalla lista visibile — senza cancellarla ancora da storage,
   // per lasciare tempo all'eventuale "Annulla" nel toast.
   const handleDeleteRequested = (trip: Trip) => {
+    // La card resta cliccabile durante l'animazione di uscita: una seconda
+    // conferma non deve creare un secondo timer orfano.
+    if (pendingDeletesRef.current.has(trip.id)) return;
+
     setLeavingId(trip.id);
-    deleteTimeoutRef.current = setTimeout(() => {
+    const animTimer = setTimeout(() => {
       setTrips(prev => prev.filter(t => t.id !== trip.id));
-      setLeavingId(null);
+      setLeavingId(prev => (prev === trip.id ? null : prev));
     }, DELETE_ANIM_MS);
 
-    const timer = setTimeout(() => commitDelete(trip), UNDO_GRACE_MS);
-    pendingDeletesRef.current.set(trip.id, { timer, trip });
+    const commitTimer = setTimeout(() => commitDelete(trip), UNDO_GRACE_MS);
 
-    toast(`"${trip.title || trip.city}" eliminato`, {
+    const toastId = toast(`"${trip.title || trip.city}" eliminato`, {
       duration: UNDO_GRACE_MS,
       action: { label: "Annulla", onClick: () => undoDelete(trip) },
     });
+    pendingDeletesRef.current.set(trip.id, { animTimer, commitTimer, toastId, trip });
   };
 
   const tripYear = (t: Trip) => t.trip_date ? new Date(t.trip_date).getFullYear().toString() : "—";
