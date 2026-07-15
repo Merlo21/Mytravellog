@@ -148,6 +148,33 @@ function GlobeHalo() {
   );
 }
 
+const TRANSPORT_EMOJI: Record<string, string> = {
+  plane: "✈️", train: "🚆", car: "🚗", ship: "🚢", walk: "🚶", bici: "🚲", moto: "🏍️",
+};
+
+/**
+ * Registra su MapLibre (via addImage) una piccola icona per ogni mezzo di
+ * trasporto, disegnando l'emoji su un canvas 2D (il font di sistema la
+ * renderizza a colori) — i layer "circle" da soli non possono mostrare
+ * testo/icone, serve un layer "symbol" con icon-image che punti a queste.
+ * Idempotente: ogni mezzo viene registrato una sola volta per istanza mappa.
+ */
+function ensureTransportIcons(map: any) {
+  Object.entries(TRANSPORT_EMOJI).forEach(([mode, emoji]) => {
+    const id = `transport-icon-${mode}`;
+    if (map.hasImage(id)) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = 28; canvas.height = 28;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.font = "20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(emoji, 14, 15);
+    map.addImage(id, ctx.getImageData(0, 0, 28, 28), { pixelRatio: 2 });
+  });
+}
+
 /**
  * Costruisce la sequenza di coordinate home → tappe → destinazione per il
  * disegno della rotta sul globo. Per le tratte in auto con un percorso
@@ -377,7 +404,7 @@ export function WorldMap({
         if (map.getSource(id)) map.removeSource(id);
       });
     } catch(_) {}
-    ["route-line","route-points","trips-single","trips-multi","trips-waypoints","trips-labels"].forEach(id => {
+    ["route-line","route-points","trips-single","trips-single-icons","trips-multi","trips-multi-icons","trips-waypoints","trips-waypoints-icons","trips-labels"].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
@@ -402,6 +429,20 @@ export function WorldMap({
       "moto",  TRANSPORT_COLORS_MAP.moto,
       "#60a5fa"
     ];
+    // Espressione gemella: sceglie l'icona (immagine registrata via addImage,
+    // vedi ensureTransportIcons) invece del colore, stessa property "transport".
+    const ICON_MATCH_EXPR: any[] = [
+      "match", ["get", "transport"],
+      "plane", "transport-icon-plane",
+      "train", "transport-icon-train",
+      "car",   "transport-icon-car",
+      "ship",  "transport-icon-ship",
+      "walk",  "transport-icon-walk",
+      "bici",  "transport-icon-bici",
+      "moto",  "transport-icon-moto",
+      "transport-icon-plane"
+    ];
+    ensureTransportIcons(map);
     ordered.forEach((t) => {
       if (!t.home_latitude || !t.home_longitude || !t.latitude || !t.longitude) return;
       const hasWp = t.waypoints && t.waypoints.length > 0;
@@ -468,13 +509,19 @@ export function WorldMap({
       map.addLayer({
         id, type: "circle", source: id,
         paint: {
-          "circle-radius": 5,
+          "circle-radius": 7,
           "circle-color": color,
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
           "circle-opacity": 1,
           "circle-stroke-opacity": 0.9,
         }
+      });
+      const iconId = id + "-icons";
+      if (map.getLayer(iconId)) map.removeLayer(iconId);
+      map.addLayer({
+        id: iconId, type: "symbol", source: id,
+        layout: { "icon-image": ICON_MATCH_EXPR, "icon-size": 1, "icon-allow-overlap": true, "icon-ignore-placement": true },
       });
       map.on("click", id, (e: any) => {
         if (!e.features?.length) return;
@@ -561,12 +608,17 @@ export function WorldMap({
       map.addLayer({
         id: "trips-waypoints", type: "circle", source: "trips-waypoints",
         paint: {
-          "circle-radius": 5,
+          "circle-radius": 7,
           "circle-color": TRANSPORT_MATCH_EXPR,
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
           "circle-opacity": 0.9,
         }
+      });
+      if (map.getLayer("trips-waypoints-icons")) map.removeLayer("trips-waypoints-icons");
+      map.addLayer({
+        id: "trips-waypoints-icons", type: "symbol", source: "trips-waypoints",
+        layout: { "icon-image": ICON_MATCH_EXPR, "icon-size": 1, "icon-allow-overlap": true, "icon-ignore-placement": true },
       });
     }
   }
