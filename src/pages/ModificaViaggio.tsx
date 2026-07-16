@@ -538,7 +538,6 @@ const ModificaViaggio = () => {
   const { id } = useParams<{ id: string }>();
   const s = useSettings();
   const trip = loadTrips().find(t => t.id === id);
-  if (!trip) { navigate("/"); return null; }
 
   const [title, setTitle] = useState(trip?.title ?? "");
   const [dateStart, setDateStart] = useState(trip?.trip_date ?? todayLocalISO());
@@ -635,6 +634,19 @@ const ModificaViaggio = () => {
     }, 300);
     return () => clearTimeout(t);
   }, [wpQuery]);
+
+  // Prima questo controllo (e il redirect) precedeva tutti gli hook sopra:
+  // se il viaggio veniva eliminato altrove mentre questa pagina era aperta,
+  // "trip" sarebbe diventato undefined in un render successivo con MENO hook
+  // chiamati rispetto al render precedente — un errore React ("Rendered
+  // fewer hooks than expected"), non solo un redirect mancato. Il redirect
+  // va quindi in un effect, e l'uscita anticipata dalla JSX solo DOPO che
+  // tutti gli hook di questo render sono già stati chiamati.
+  useEffect(() => {
+    if (!trip) navigate("/");
+  }, [trip, navigate]);
+
+  if (!trip) return null;
 
   const addWaypoint = (r: GeoResult) => {
     setWaypoints(prev => [...prev, {

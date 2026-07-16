@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ModificaViaggio from "./ModificaViaggio";
 import { SettingsProvider } from "@/lib/settings";
-import { addTrip } from "@/lib/storage";
+import { addTrip, deleteTrip } from "@/lib/storage";
 import type { Trip } from "@/lib/storage";
 
 vi.mock("@/components/AppHeader", () => ({
@@ -153,6 +153,29 @@ describe("ModificaViaggio — feedback durante il salvataggio lento", () => {
     expect(screen.getByRole("link", { name: "Annulla" })).toHaveAttribute("aria-disabled", "true");
 
     geoGate.resolve();
+    await waitFor(() => expect(screen.getByText("HOME")).toBeInTheDocument());
+  });
+});
+
+describe("ModificaViaggio — il viaggio viene eliminato mentre la pagina è aperta", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it("non lancia un errore React e naviga alla Home, invece di un crash da hook mancanti", async () => {
+    const trip = addTrip(baseTrip());
+    renderPage(trip.id);
+
+    // Simula la cancellazione da un'altra tab/finestra: lo storage cambia
+    // sotto ai piedi del componente, che lo scopre solo al prossimo render
+    // (trip = loadTrips().find(...) viene ricalcolato ad ogni render, non
+    // mai una tantum). Digitare nel titolo forza quel prossimo render.
+    deleteTrip(trip.id);
+    expect(() => {
+      fireEvent.change(screen.getByDisplayValue("Weekend Roma"), { target: { value: "x" } });
+    }).not.toThrow();
+
     await waitFor(() => expect(screen.getByText("HOME")).toBeInTheDocument());
   });
 });
