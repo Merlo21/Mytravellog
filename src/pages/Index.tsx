@@ -1,11 +1,11 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { AppHeader } from "@/components/AppHeader";
 import { useEffect, useMemo, useState, Component, ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, formatTripDate, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
 import { fmtDistance, useSettings } from "@/lib/settings";
-import { Compass, Globe, MapPin, Pencil, Plane, PieChart, Plus, Search, Settings, Video, X, ChevronDown } from "lucide-react";
+import { Compass, Globe, MapPin, Pencil, Plane, Plus, Video, X, ChevronDown } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField } from "@/components/StarField";
 import { TripFlyover } from "@/components/TripFlyover";
@@ -130,10 +130,6 @@ function HomeInner() {
   // la rotta, senza mostrare alcuna informazione né un modo per aprirlo.
   const selectedTrip = useMemo(() => trips.find(t => t.id === selectedId) ?? null, [trips, selectedId]);
   const [flyoverTrip, setFlyoverTrip] = useState<Trip | null>(null);
-
-  const defaultHome = trips[0]
-    ? { lat: trips[0].home_latitude, lon: trips[0].home_longitude, label: trips[0].home_label }
-    : null;
 
   return (
     <main className="h-screen flex flex-col" style={{backgroundColor:"#060e1e"}}>

@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult, RegionInfo } from "@/lib/geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, GeoResult, RegionInfo } from "@/lib/geo";
 import { addTrip, updateTrip, loadTrips, parseLocalDate, todayLocalISO } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
@@ -537,7 +537,6 @@ const ModificaViaggio = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const s = useSettings();
-  const { distanceUnit } = s;
   const trip = loadTrips().find(t => t.id === id);
   if (!trip) { navigate("/"); return null; }
 

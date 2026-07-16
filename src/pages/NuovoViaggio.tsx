@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
-import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
+import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, GeoResult } from "@/lib/geo";
 import { addTrip, parseLocalDate, todayLocalISO } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
@@ -451,7 +451,6 @@ function RouteHero({
 const NuovoViaggio = () => {
   const navigate = useNavigate();
   const s = useSettings();
-  const { distanceUnit } = s;
 
   const [title, setTitle] = useState("");
   const [dateStart, setDateStart] = useState(() => todayLocalISO());

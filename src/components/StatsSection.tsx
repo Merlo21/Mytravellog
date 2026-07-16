@@ -1,12 +1,9 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useMemo, useState } from "react";
 import { Trip as LocalTrip } from "@/lib/storage";
-import { countryFlag } from "@/lib/geo";
-import { CalendarDays, Route, Mountain, MapPin } from "lucide-react";
 import { CountryMapModal } from "@/components/CountryMapModal";
 const earthImg = "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=600&q=80";
 const forestImg = "https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=80";
-import { useSettings, formatDistanceKm, formatAltitudeM } from "@/lib/settings";
 
 // Total recognized sovereign countries (UN members + observers, commonly used as 195)
 const TOTAL_COUNTRIES = 195;
@@ -16,7 +13,6 @@ interface Props {
 }
 
 export function StatsSection({ trips }: Props) {
-  const { distanceUnit } = useSettings();
   const [showAll, setShowAll] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -139,14 +135,6 @@ export function StatsSection({ trips }: Props) {
       )}
     </section>
   );
-}
-
-function formatDateIt(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" });
-  } catch {
-    return iso;
-  }
 }
 
 function StatHero({
