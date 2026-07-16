@@ -1,116 +1,33 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { AppHeader } from "@/components/AppHeader";
-import { Link } from "react-router-dom";
-import { ArrowLeft, MapPin, Search, X } from "lucide-react";
-import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity, MARKER_SCALE_MIN, MARKER_SCALE_MAX } from "@/lib/settings";
+import { MapPin, Search, X, Ruler, RotateCw, CircleDot, UserCircle } from "lucide-react";
+import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity } from "@/lib/settings";
 import { searchPlaces, GeoResult } from "@/lib/geo";
-import { useState, useEffect, useMemo } from "react";
-import { AlertCircle, UserCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { AccountSection } from "@/components/AccountSection";
 
-type MarkerScaleControlsProps = {
-  min: number;
-  max: number;
-  onChangeMin: (v: number) => void;
-  onChangeMax: (v: number) => void;
-};
+// Preset "da utente" per la dimensione dei marker sul globo: sotto il cofano
+// impostano la coppia min/max che prima andava digitata a mano (con tanto di
+// validazione numerica) — un dettaglio da sviluppatore, non da utente.
+export const MARKER_SIZE_PRESETS = {
+  small:    { label: "Piccoli",  min: 0.3, max: 0.7 },
+  standard: { label: "Standard", min: 0.5, max: 1.0 },
+  large:    { label: "Grandi",   min: 0.8, max: 1.5 },
+} as const;
+export type MarkerSizePreset = keyof typeof MARKER_SIZE_PRESETS;
 
-function MarkerScaleControls({ min, max, onChangeMin, onChangeMax }: MarkerScaleControlsProps) {
-  const [minText, setMinText] = useState(String(min));
-  const [maxText, setMaxText] = useState(String(max));
-
-  useEffect(() => { setMinText(String(min)); }, [min]);
-  useEffect(() => { setMaxText(String(max)); }, [max]);
-
-  const validate = (raw: string): { value: number | null; error: string | null } => {
-    const trimmed = raw.trim();
-    if (trimmed === "") return { value: null, error: "Valore richiesto" };
-    const n = Number(trimmed.replace(",", "."));
-    if (!Number.isFinite(n)) return { value: null, error: "Non è un numero valido" };
-    if (n < MARKER_SCALE_MIN || n > MARKER_SCALE_MAX) {
-      return { value: n, error: `Fuori range (${MARKER_SCALE_MIN}–${MARKER_SCALE_MAX})` };
-    }
-    return { value: n, error: null };
-  };
-
-  const minCheck = useMemo(() => validate(minText), [minText]);
-  const maxCheck = useMemo(() => validate(maxText), [maxText]);
-  const orderError = useMemo(() => {
-    if (minCheck.value != null && maxCheck.value != null && minCheck.value > maxCheck.value) {
-      return "Il valore minimo non può superare il massimo";
-    }
-    return null;
-  }, [minCheck.value, maxCheck.value]);
-
-  const commit = (which: "min" | "max", raw: string) => {
-    const { value, error } = validate(raw);
-    if (value == null || error) return;
-    if (which === "min") onChangeMin(value);
-    else onChangeMax(value);
-  };
-
-  const inputCls = (hasError: boolean) =>
-    `w-full bg-secondary/20 border rounded-xl px-3 py-2.5 text-sm outline-none transition-colors ${
-      hasError ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
-    }`;
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1.5 block">Minimo</label>
-          <input
-            type="number"
-            step={0.1}
-            min={MARKER_SCALE_MIN}
-            max={MARKER_SCALE_MAX}
-            value={minText}
-            onChange={(e) => setMinText(e.target.value)}
-            onBlur={(e) => commit("min", e.target.value)}
-            aria-invalid={!!minCheck.error}
-            aria-describedby="min-scale-error"
-            className={inputCls(!!minCheck.error)}
-          />
-          {minCheck.error && (
-            <p id="min-scale-error" role="alert" className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-              <AlertCircle className="w-3 h-3"/> {minCheck.error}
-            </p>
-          )}
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1.5 block">Massimo</label>
-          <input
-            type="number"
-            step={0.1}
-            min={MARKER_SCALE_MIN}
-            max={MARKER_SCALE_MAX}
-            value={maxText}
-            onChange={(e) => setMaxText(e.target.value)}
-            onBlur={(e) => commit("max", e.target.value)}
-            aria-invalid={!!maxCheck.error}
-            aria-describedby="max-scale-error"
-            className={inputCls(!!maxCheck.error)}
-          />
-          {maxCheck.error && (
-            <p id="max-scale-error" role="alert" className="mt-1.5 text-xs text-destructive flex items-center gap-1">
-              <AlertCircle className="w-3 h-3"/> {maxCheck.error}
-            </p>
-          )}
-        </div>
-      </div>
-      {orderError && (
-        <p role="alert" className="text-xs text-destructive flex items-center gap-1">
-          <AlertCircle className="w-3 h-3"/> {orderError}
-        </p>
-      )}
-    </div>
-  );
+/** Preset corrispondente ai valori correnti, o null se sono valori custom legacy. */
+export function detectMarkerPreset(min: number, max: number): MarkerSizePreset | null {
+  for (const [key, p] of Object.entries(MARKER_SIZE_PRESETS)) {
+    if (Math.abs(p.min - min) < 0.001 && Math.abs(p.max - max) < 0.001) return key as MarkerSizePreset;
+  }
+  return null;
 }
 
 function SegmentControl<T extends string>({
   value, onChange, options,
 }: {
-  value: T;
+  value: T | null;
   onChange: (v: T) => void;
   options: { value: T; label: string; hint?: string }[];
 }) {
@@ -138,7 +55,7 @@ function Group({ icon, title, desc, children }: { icon: React.ReactNode; title: 
   return (
     <div className="bg-card border border-border rounded-xl p-5 mb-3">
       <div className="flex items-start gap-3 mb-4">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">{icon}</div>
+        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">{icon}</div>
         <div>
           <h3 className="font-semibold">{title}</h3>
           <p className="text-sm text-muted-foreground">{desc}</p>
@@ -149,6 +66,14 @@ function Group({ icon, title, desc, children }: { icon: React.ReactNode; title: 
   );
 }
 
+/** Intestazione di sezione: dà gerarchia a una pagina che prima era un elenco piatto di card. */
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", margin: "22px 4px 10px" }}>
+      {children}
+    </div>
+  );
+}
 
 function HomeCityPicker({ value, onChange }: { value: HomeCity; onChange: (v: HomeCity) => void }) {
   const [query, setQuery] = useState(value?.label ?? "");
@@ -211,40 +136,57 @@ function HomeCityPicker({ value, onChange }: { value: HomeCity; onChange: (v: Ho
 
 export default function Settings() {
   const s = useSettings();
+  const markerPreset = detectMarkerPreset(s.minMarkerScale, s.maxMarkerScale);
+
+  const applyMarkerPreset = (key: MarkerSizePreset) => {
+    const p = MARKER_SIZE_PRESETS[key];
+    s.setMinMarkerScale(p.min);
+    s.setMaxMarkerScale(p.max);
+  };
 
   return (
     <main className="min-h-screen">
       <AppHeader/>
 
       <div className="container mx-auto px-4 py-8 max-w-xl">
+
+        <SectionHeading>Misure</SectionHeading>
+
         <Group
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>}
-          title="Unità di distanza"
-          desc="Distanze e altitudini"
+          icon={<Ruler width="18" height="18"/>}
+          title="Unità di misura"
+          desc="Come mostrare distanze, altitudini e temperature"
         >
-          <SegmentControl<DistanceUnit>
-            value={s.distanceUnit} onChange={s.setDistanceUnit}
-            options={[{ value: "metric", label: "Metrico", hint: "km, m" }, { value: "imperial", label: "Imperiale", hint: "mi, ft" }]}
-          />
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Distanze e altitudini</label>
+              <SegmentControl<DistanceUnit>
+                value={s.distanceUnit} onChange={s.setDistanceUnit}
+                options={[{ value: "metric", label: "Metrico", hint: "km, m" }, { value: "imperial", label: "Imperiale", hint: "mi, ft" }]}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Temperatura</label>
+              <SegmentControl<TemperatureUnit>
+                value={s.temperatureUnit} onChange={s.setTemperatureUnit}
+                options={[{ value: "celsius", label: "Celsius", hint: "°C" }, { value: "fahrenheit", label: "Fahrenheit", hint: "°F" }]}
+              />
+            </div>
+          </div>
         </Group>
 
         <Group
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>}
-          title="Temperatura"
-          desc="Unità di misura della temperatura"
+          icon={<MapPin width="18" height="18"/>}
+          title="Città di residenza"
+          desc="Usata per calcolare le distanze e precompilare il punto di partenza"
         >
-          <SegmentControl<TemperatureUnit>
-            value={s.temperatureUnit} onChange={s.setTemperatureUnit}
-            options={[{ value: "celsius", label: "Celsius", hint: "°C" }, { value: "fahrenheit", label: "Fahrenheit", hint: "°F" }]}
-          />
+          <HomeCityPicker value={s.homeCity} onChange={s.setHomeCity}/>
         </Group>
 
-
-
-        
+        <SectionHeading>Globo</SectionHeading>
 
         <Group
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>}
+          icon={<RotateCw width="18" height="18"/>}
           title="Rotazione automatica"
           desc="Il globo ruota da solo all'avvio"
         >
@@ -257,27 +199,26 @@ export default function Settings() {
           />
         </Group>
 
-
         <Group
-          icon={<MapPin width="18" height="18"/>}
-          title="Città di residenza"
-          desc="Usata per calcolare le distanze e precompilare il punto di partenza"
+          icon={<CircleDot width="18" height="18"/>}
+          title="Dimensione marker"
+          desc="Quanto grandi sono i punti dei viaggi sul globo"
         >
-          <HomeCityPicker value={s.homeCity} onChange={s.setHomeCity}/>
-        </Group>
-
-        <Group
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>}
-          title="Scala marker"
-          desc={`Dimensione minima e massima dei marker sul globo (${MARKER_SCALE_MIN}–${MARKER_SCALE_MAX})`}
-        >
-          <MarkerScaleControls
-            min={s.minMarkerScale}
-            max={s.maxMarkerScale}
-            onChangeMin={s.setMinMarkerScale}
-            onChangeMax={s.setMaxMarkerScale}
+          <SegmentControl<MarkerSizePreset>
+            value={markerPreset}
+            onChange={applyMarkerPreset}
+            options={(Object.keys(MARKER_SIZE_PRESETS) as MarkerSizePreset[]).map(key => ({
+              value: key, label: MARKER_SIZE_PRESETS[key].label,
+            }))}
           />
+          {markerPreset === null && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Al momento è attiva una dimensione personalizzata: scegli un preset per sostituirla.
+            </p>
+          )}
         </Group>
+
+        <SectionHeading>Account e backup</SectionHeading>
 
         <Group
           icon={<UserCircle width="18" height="18"/>}
