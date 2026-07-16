@@ -94,10 +94,20 @@ export default function MieiViaggi() {
   // restano stabili mentre si scrive nella ricerca, invece di sparire.
   const allYears = Array.from(new Set(trips.map(tripYear))).sort((a, b) => b.localeCompare(a));
 
+  // Anche le tappe intermedie e le note: prima "Firenze" non trovava un
+  // viaggio in cui Firenze era solo una tappa (e non la destinazione), pur
+  // essendo l'app pensata per i multi-tappa.
+  const matchesSearch = (t: Trip, q: string) => {
+    const needle = q.toLowerCase();
+    const fields = [
+      t.title, t.city, t.country, t.notes,
+      ...(t.waypoints ?? []).flatMap(w => [w.city, w.country]),
+    ];
+    return fields.some(s => s?.toLowerCase().includes(needle));
+  };
+
   const filtered = trips.filter(t =>
-    (!search || [t.title, t.city, t.country].some(s =>
-      s?.toLowerCase().includes(search.toLowerCase())
-    )) && (!yearFilter || tripYear(t) === yearFilter)
+    (!search || matchesSearch(t, search)) && (!yearFilter || tripYear(t) === yearFilter)
   );
 
   const byYear = filtered.reduce((acc, t) => {

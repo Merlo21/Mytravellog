@@ -233,6 +233,31 @@ describe("MieiViaggi — ricerca", () => {
     fireEvent.click(screen.getByRole("button", { name: "" })); // X button
     expect(screen.getAllByTestId("trip-card")).toHaveLength(2);
   });
+
+  it("trova un viaggio anche se la città cercata è solo una tappa intermedia", () => {
+    addTrip(baseTrip({
+      city: "Parigi", country: "Francia",
+      waypoints: [{ id: "w1", city: "Firenze", country: "Italia", transport_mode: "car" }],
+    }));
+    addTrip(baseTrip({ city: "Milano" }));
+    renderPage();
+    const input = screen.getByPlaceholderText(/cerca città/i);
+    fireEvent.change(input, { target: { value: "firenze" } });
+    const cards = screen.getAllByTestId("trip-card");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveAttribute("data-city", "Parigi");
+  });
+
+  it("filtra anche per contenuto delle note", () => {
+    addTrip(baseTrip({ city: "Roma", notes: "Visto il Colosseo al tramonto" }));
+    addTrip(baseTrip({ city: "Milano", notes: null }));
+    renderPage();
+    const input = screen.getByPlaceholderText(/cerca città/i);
+    fireEvent.change(input, { target: { value: "colosseo" } });
+    const cards = screen.getAllByTestId("trip-card");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveAttribute("data-city", "Roma");
+  });
 });
 
 describe("MieiViaggi — filtro per anno", () => {
