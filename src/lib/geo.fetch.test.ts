@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions } from "./geo";
+import { todayLocalISO } from "./storage";
 
 const okJson = (data: unknown) =>
   Promise.resolve({ ok: true, json: () => Promise.resolve(data) } as Response);
@@ -82,7 +83,7 @@ describe("fetchTemperature", () => {
 
   it("usa forecast per data odierna", async () => {
     (fetch as any).mockReturnValue(okJson({ current: { temperature_2m: 21 } }));
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocalISO();
     const r = await fetchTemperature(0, 0, today);
     expect(r).toBe(21);
     expect((fetch as any).mock.calls[0][0]).toContain("forecast");

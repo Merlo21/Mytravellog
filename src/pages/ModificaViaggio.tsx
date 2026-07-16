@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult, RegionInfo } from "@/lib/geo";
-import { addTrip, updateTrip, loadTrips, parseLocalDate } from "@/lib/storage";
+import { addTrip, updateTrip, loadTrips, parseLocalDate, todayLocalISO } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
@@ -542,7 +542,7 @@ const ModificaViaggio = () => {
   if (!trip) { navigate("/"); return null; }
 
   const [title, setTitle] = useState(trip?.title ?? "");
-  const [dateStart, setDateStart] = useState(trip?.trip_date ?? new Date().toISOString().slice(0, 10));
+  const [dateStart, setDateStart] = useState(trip?.trip_date ?? todayLocalISO());
   const [dateEnd, setDateEnd] = useState(trip?.date_end ?? "");
   const [notes, setNotes] = useState(trip?.notes ?? "");
   const [rating, setRating] = useState(trip?.rating ?? 0);

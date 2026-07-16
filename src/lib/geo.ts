@@ -1,4 +1,6 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
+import { todayLocalISO } from "./storage";
+
 export type GeoResult = {
   id: number;
   name: string;
@@ -35,7 +37,10 @@ export async function fetchElevation(lat: number, lon: number): Promise<number |
 
 export async function fetchTemperature(lat: number, lon: number, dateISO: string): Promise<number | null> {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    // Locale, non UTC: dateISO è una data di calendario scelta dall'utente
+    // (fuso locale), confrontarla con "oggi" in UTC farebbe scegliere il ramo
+    // sbagliato (archivio vs previsioni) nelle prime ore del giorno in Italia.
+    const today = todayLocalISO();
     // Future dates: no historical data available
     if (dateISO > today) return null;
     if (dateISO < today) {

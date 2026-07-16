@@ -6,6 +6,7 @@ import {
   deleteTrip,
   parseLocalDate,
   formatTripDate,
+  todayLocalISO,
   type Trip,
 } from "./storage";
 
@@ -166,6 +167,18 @@ describe("deleteTrip", () => {
     addTrip(makeTrip({ city: "Torino" }));
     expect(() => deleteTrip("id-falso")).not.toThrow();
     expect(loadTrips()).toHaveLength(1);
+  });
+});
+
+describe("todayLocalISO", () => {
+  it("usa il calendario locale, non UTC: coerente con getFullYear/getMonth/getDate", () => {
+    const d = new Date();
+    const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    expect(todayLocalISO()).toBe(expected);
+  });
+
+  it("il formato è sempre YYYY-MM-DD (zero-padded)", () => {
+    expect(todayLocalISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

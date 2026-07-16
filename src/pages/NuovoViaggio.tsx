@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
-import { addTrip, parseLocalDate } from "@/lib/storage";
+import { addTrip, parseLocalDate, todayLocalISO } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
@@ -454,7 +454,7 @@ const NuovoViaggio = () => {
   const { distanceUnit } = s;
 
   const [title, setTitle] = useState("");
-  const [dateStart, setDateStart] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dateStart, setDateStart] = useState(() => todayLocalISO());
   const [dateEnd, setDateEnd] = useState("");
   const [notes, setNotes] = useState("");
   const [rating, setRating] = useState(0);

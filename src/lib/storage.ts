@@ -84,6 +84,17 @@ export function parseLocalDate(iso: string): Date {
   return new Date(iso + "T00:00:00");
 }
 
+/**
+ * Data di oggi in YYYY-MM-DD, nel fuso orario locale — non
+ * `new Date().toISOString().slice(0,10)`, che legge il calendario UTC: tra
+ * mezzanotte e l'ora del proprio fuso (es. le prime ~1-2 ore in Italia)
+ * avrebbe precompilato/valutato "ieri" invece di oggi.
+ */
+export function todayLocalISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function formatTripDate(iso: string): string {
   return parseLocalDate(iso).toLocaleDateString("it-IT", {
     day: "2-digit",
