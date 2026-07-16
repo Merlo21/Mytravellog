@@ -50,8 +50,15 @@ export function saveTrips(trips: Trip[]): void {
   localStorage.setItem(KEY, JSON.stringify(trips));
 }
 
-export function addTrip(t: Omit<Trip, "id" | "created_at">): Trip {
-  const full: Trip = { ...t, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+/**
+ * `id` è opzionale e serve solo a NuovoViaggio.tsx: genera un id di bozza
+ * PRIMA di salvare (per poter già collegare le foto delle tappe via
+ * photoStorage.ts), e lo passa qui perché il viaggio salvato usi lo stesso
+ * id — altrimenti le foto caricate prima del salvataggio resterebbero
+ * orfane sotto un id che il viaggio non ha più.
+ */
+export function addTrip(t: Omit<Trip, "id" | "created_at">, id?: string): Trip {
+  const full: Trip = { ...t, id: id ?? crypto.randomUUID(), created_at: new Date().toISOString() };
   const all = loadTrips();
   all.unshift(full);
   saveTrips(all);

@@ -102,6 +102,12 @@ describe("addTrip", () => {
     expect(t.waypoints).toEqual([]);
   });
 
+  it("usa l'id passato esplicitamente invece di generarne uno nuovo", () => {
+    const t = addTrip(makeTrip({ city: "Torino" }), "id-bozza-123");
+    expect(t.id).toBe("id-bozza-123");
+    expect(loadTrips()[0].id).toBe("id-bozza-123");
+  });
+
   it("persiste il viaggio in loadTrips", () => {
     addTrip(makeTrip({ city: "Milano" }));
     const trips = loadTrips();
