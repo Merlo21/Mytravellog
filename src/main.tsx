@@ -5,6 +5,16 @@ import { Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
 import { SettingsProvider } from "./lib/settings";
 import { AuthProvider } from "./lib/auth";
+// Self-hosted (Fontsource), non da un CDN esterno: erano già dichiarati in
+// tailwind.config.ts (font-display/font-mono) ma senza i file veri restavano
+// solo un'intenzione, con fallback silenzioso al font di sistema — self-
+// hosted così restano disponibili anche offline (la PWA lo richiede).
+import "@fontsource/space-grotesk/latin-500.css";
+import "@fontsource/space-grotesk/latin-600.css";
+import "@fontsource/space-grotesk/latin-700.css";
+import "@fontsource/jetbrains-mono/latin-400.css";
+import "@fontsource/jetbrains-mono/latin-700.css";
+import "@fontsource/jetbrains-mono/latin-800.css";
 import "./index.css";
 
 const Home = lazy(() => import("./pages/Index"));

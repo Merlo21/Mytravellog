@@ -19,6 +19,14 @@ html, body, #root { background-color: #060e1e !important; }
     color: #f0f4ff;
     background-color: #060e1e;
   }
+
+  /* Space Grotesk sui titoli: prima era dichiarata in tailwind.config.ts
+     (font-display) ma senza i file del font caricati (v. main.tsx) ricadeva
+     sempre sul font di sistema — l'intera app, wordmark compreso, non ha mai
+     mostrato il carattere "di marca" previsto. */
+  h1, h2, h3 {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
 }
 
 @layer components {
@@ -60,6 +68,27 @@ html, body, #root { background-color: #060e1e !important; }
   .input-field:focus {
     border-color: #60a5fa;
   }
+}
+
+/* Anello di focus da tastiera per QUALSIASI elemento interattivo: prima non
+   esisteva alcuno stile :focus-visible in tutta l'app (a parte i primitivi
+   shadcn) — navigando con Tab non si vedeva mai dove ci si trovasse. */
+:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Hover sui bottoni "nudi" (icona, senza className: i pulsanti fantasma con
+   stile tutto inline — cestino, matita, video, frecce…) erano del tutto muti
+   al passaggio del mouse. filter invece di background-color: si somma al
+   colore già impostato inline (es. il rosso del cestino "armato") invece di
+   sovrascriverlo, e non richiede !important per battere lo style inline. */
+button:not([class]):not(:disabled) {
+  transition: filter 0.15s;
+}
+button:not([class]):not(:disabled):hover {
+  filter: brightness(1.6);
 }
 
 /* Hide MapLibre replay button */
