@@ -1,5 +1,5 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
 import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video } from "lucide-react";
@@ -71,8 +71,18 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
     ? [trip.home_label?.split(",")[0] ?? "Casa", ...trip.waypoints!.map((w: any) => w.city), trip.city]
     : null;
 
+  // Il primo tap "arma" il cestino (diventa rosso); senza un timeout resta
+  // armato per sempre se l'utente cambia idea senza toccare altro sulla card.
+  const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(confirmTimeoutRef.current), []);
+
   const handleDelete = () => {
-    if (!confirmDelete) { setConfirmDelete(true); return; }
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      confirmTimeoutRef.current = setTimeout(() => setConfirmDelete(false), 3000);
+      return;
+    }
+    clearTimeout(confirmTimeoutRef.current);
     onDeleteRequested?.(trip);
   };
 
@@ -86,7 +96,9 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
         <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10}}>
           <div style={{width:28,height:28,borderRadius:"50%",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",flexShrink:0}}>
             {trip.country_code
-              ? <img src={"https://flagcdn.com/w80/"+trip.country_code.toLowerCase()+".png"} width="28" height="28" style={{objectFit:"cover"}}/>
+              ? <img src={"https://flagcdn.com/w80/"+trip.country_code.toLowerCase()+".png"} width="28" height="28" alt=""
+                  style={{objectFit:"cover"}}
+                  onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/>
               : <div style={{width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🌍</div>
             }
           </div>
@@ -109,6 +121,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
               <Pencil style={{width:13,height:13}}/>
             </button>
             <button onClick={handleDelete}
+              aria-label={confirmDelete ? "Confermi l'eliminazione del viaggio?" : "Elimina viaggio"}
               style={{width:26,height:26,background:confirmDelete?"rgba(239,68,68,0.15)":"none",border:"none",cursor:"pointer",color:confirmDelete?"#f87171":"rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:6}}>
               <Trash2 style={{width:13,height:13}}/>
             </button>
@@ -143,7 +156,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:"#fbbf24"}}/>
-              <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>{trip.home_label ? abbr(trip.home_label.split(",")[0]) : "MXP"}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>{abbr(trip.home_label?.split(",")[0] || "Casa")}</div>
             </div>
             <div style={{flex:1,display:"flex",alignItems:"center",gap:4}}>
               <div style={{flex:1,borderTop:"1.5px dashed "+ts.color+"60"}}/>

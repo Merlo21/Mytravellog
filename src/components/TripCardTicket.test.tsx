@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { TripCardTicket, seasonColor } from "./TripCardTicket";
 import { SettingsProvider } from "@/lib/settings";
@@ -190,6 +190,13 @@ describe("TripCardTicket — rotta waypoints", () => {
     expect(screen.getByText("VEN")).toBeInTheDocument();
     expect(screen.getByText("MIL")).toBeInTheDocument();
   });
+
+  it("senza home_label mostra la sigla di 'Casa', non un aeroporto hardcoded", () => {
+    const trip = makeTrip({ city: "Venezia", home_label: null, waypoints: [] });
+    renderCard(trip);
+    expect(screen.getByText("VEN")).toBeInTheDocument();
+    expect(screen.getByText("CAS")).toBeInTheDocument();
+  });
 });
 
 describe("TripCardTicket — edit e delete", () => {
@@ -208,10 +215,10 @@ describe("TripCardTicket — edit e delete", () => {
     addTrip({ ...trip });
     const onDeleteRequested = vi.fn();
     renderCard(trip, onDeleteRequested);
-    const buttons = screen.getAllByRole("button");
-    const deleteBtn = buttons[buttons.length - 1]; // ultimo bottone = trash
-    fireEvent.click(deleteBtn);
+    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" }));
     expect(onDeleteRequested).not.toHaveBeenCalled();
+    // L'aria-label cambia per annunciare lo stato armato a chi usa uno screen reader.
+    expect(screen.getByRole("button", { name: "Confermi l'eliminazione del viaggio?" })).toBeInTheDocument();
   });
 
   it("secondo click delete chiama onDeleteRequested col viaggio, senza eliminarlo da storage", () => {
@@ -219,15 +226,30 @@ describe("TripCardTicket — edit e delete", () => {
     localStorage.setItem("atlas.trips.v1", JSON.stringify([trip]));
     const onDeleteRequested = vi.fn();
     renderCard(trip, onDeleteRequested);
-    const buttons = screen.getAllByRole("button");
-    const deleteBtn = buttons[buttons.length - 1];
-    fireEvent.click(deleteBtn); // primo click → confirm
-    fireEvent.click(deleteBtn); // secondo click → richiede l'eliminazione
+    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" })); // primo click → confirm
+    fireEvent.click(screen.getByRole("button", { name: "Confermi l'eliminazione del viaggio?" })); // secondo click
     expect(onDeleteRequested).toHaveBeenCalledTimes(1);
     expect(onDeleteRequested).toHaveBeenCalledWith(expect.objectContaining({ id: "del-test" }));
     // La cancellazione vera e propria spetta a chi gestisce onDeleteRequested
     // (per poter offrire "Annulla") — qui il viaggio deve restare intatto.
     expect(JSON.parse(localStorage.getItem("atlas.trips.v1")!)).toHaveLength(1);
+  });
+
+  it("il cestino armato si disarma da solo dopo qualche secondo se non confermato", () => {
+    vi.useFakeTimers();
+    const trip = makeTrip({ id: "auto-reset" });
+    const onDeleteRequested = vi.fn();
+    renderCard(trip, onDeleteRequested);
+    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" }));
+    expect(screen.getByRole("button", { name: "Confermi l'eliminazione del viaggio?" })).toBeInTheDocument();
+
+    act(() => { vi.advanceTimersByTime(3000); });
+    expect(screen.getByRole("button", { name: "Elimina viaggio" })).toBeInTheDocument();
+
+    // Un click ora deve tornare ad armare (non eliminare): il reset ha funzionato.
+    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" }));
+    expect(onDeleteRequested).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
 
