@@ -329,6 +329,9 @@ function RouteHero({
                           return (
                             <g key={opt.value} style={{cursor:"pointer"}}
                               onClick={() => { waypoints[i-1].transport_mode = opt.value; onRemoveWaypoint(-99); setActiveArc(null); }}>
+                              {/* Area di tap invisibile: affiancate a passo 32 (il
+                                  passo stesso tra le icone), senza sovrapporsi alle vicine. */}
+                              <rect x={bx-16} y={by-18} width="32" height="36" fill="transparent"/>
                               <rect x={bx-14} y={by-14} width="28" height="28" rx="8"
                                 fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.05)"}
                                 stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"} strokeWidth="1"/>
@@ -360,12 +363,17 @@ function RouteHero({
                       strokeWidth={isLast ? 2.5 : 1.5} strokeDasharray={stop.isHome ? "3 2" : "none"}/>
                     {stop.isHome && (
                       <g style={{cursor:"pointer"}} onClick={onEditHome}>
+                        {/* Area di tap invisibile, più ampia del pallino visibile
+                            (che resta a r=10 ≈ 20px): un target reale da ~40px
+                            senza appesantire il disegno. */}
+                        <circle cx={x+r-4} cy={cy-r+4} r="20" fill="transparent"/>
                         <circle cx={x+r-4} cy={cy-r+4} r="10" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1.5"/>
                         <text x={x+r-4} y={cy-r+8} fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
                       </g>
                     )}
                     {!stop.isHome && (
                       <g style={{cursor:"pointer"}} onClick={() => onRemoveWaypoint(i-1)}>
+                        <circle cx={x+r-3} cy={cy-r+3} r="20" fill="transparent"/>
                         <circle cx={x+r-3} cy={cy-r+3} r="9" fill="#060e1e"
                           stroke={isLast ? borderColor : "#1a2d4a"} strokeWidth="1.5"/>
                         <text x={x+r-3} y={cy-r+7} fontSize="10" textAnchor="middle"
@@ -479,7 +487,7 @@ function RouteHero({
                 textTransform:"uppercase", marginRight:4 }}>Mezzo</span>
               {TRANSPORT.map(t => (
                 <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
-                  style={{ fontSize:10, padding:"3px 8px", borderRadius:99, cursor:"pointer",
+                  style={{ fontSize:10, padding:"7px 10px", minHeight:30, borderRadius:99, cursor:"pointer",
                     background: wpTransport === t.value ? t.bg : "transparent",
                     color: wpTransport === t.value ? t.color : "rgba(255,255,255,0.25)",
                     border: `0.5px solid ${wpTransport === t.value ? t.color : "#1a2d4a"}` }}>
