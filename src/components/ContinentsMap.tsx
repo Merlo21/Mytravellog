@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import { feature } from "topojson-client";
 import { Trip as LocalTrip } from "@/lib/storage";
+import { CountryMapModal } from "@/components/CountryMapModal";
 
 // Approximate continent bounding boxes (lat, lon)
 // Used to classify both trip markers AND country centroids
@@ -94,6 +95,8 @@ export function __clearCountryFeatsCache() {
 export function ContinentsMap({ trips }: Props) {
   const [countries, setCountries] = useState<CountryFeat[]>(cachedCountryFeats ?? []);
   const [debug, setDebug] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<{ code: string; name: string; trips: LocalTrip[] } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -114,7 +117,10 @@ export function ContinentsMap({ trips }: Props) {
         cachedCountryFeats = feats;
         setCountries(feats);
       })
-      .catch(() => {});
+      // Prima l'area restava vuota per sempre, senza dire perché: ora un
+      // messaggio spiega che la mappa non si è caricata (rete assente/CDN
+      // irraggiungibile) invece di sembrare semplicemente "nessun paese visitato".
+      .catch(() => { if (!cancelled) setFetchFailed(true); });
     return () => { cancelled = true; };
   }, []);
 
@@ -144,6 +150,49 @@ export function ContinentsMap({ trips }: Props) {
     }
     return set;
   }, [visitedPoints, countries]);
+
+  // Quali viaggi hanno toccato ciascun paese (destinazione o una tappa): serve
+  // a rispondere al tap su un paese visitato con "questi viaggi ci sono stati",
+  // esattamente come i chip in "Elenco dei paesi" (StatsSection) — prima il
+  // tap non faceva assolutamente nulla. Il match è geometrico (stesso
+  // pointInCountry di visitedCountryIds), non per nome/codice paese: i confini
+  // del world-atlas non condividono un identificatore con trip.country_code.
+  const tripsByCountryId = useMemo(() => {
+    const map = new Map<string, LocalTrip[]>();
+    if (!countries.length) return map;
+    for (const t of trips) {
+      const points = [
+        { lat: t.latitude, lon: t.longitude },
+        ...(t.waypoints ?? []).filter(w => w.lat != null && w.lon != null).map(w => ({ lat: w.lat!, lon: w.lon! })),
+      ];
+      const touchedIds = new Set<string>();
+      for (const p of points) {
+        for (const c of countries) {
+          if (touchedIds.has(c.id)) continue;
+          if (pointInCountry(p.lon, p.lat, c.polygons)) touchedIds.add(c.id);
+        }
+      }
+      for (const id of touchedIds) {
+        const arr = map.get(id) ?? [];
+        arr.push(t);
+        map.set(id, arr);
+      }
+    }
+    return map;
+  }, [trips, countries]);
+
+  const handleCountryClick = (c: CountryFeat) => {
+    const countryTrips = tripsByCountryId.get(c.id);
+    if (!countryTrips || countryTrips.length === 0) return; // paese non visitato: nessun viaggio da mostrare
+    // Nome e codice del paese vengono dal viaggio stesso (lingua e alpha-2
+    // dell'utente), non dal topojson (nomi in inglese, id numerici ISO M49).
+    const first = countryTrips[0];
+    setSelectedCountry({
+      code: first.country_code ?? "",
+      name: first.country,
+      trips: countryTrips.slice().sort((a, b) => b.trip_date.localeCompare(a.trip_date)),
+    });
+  };
 
   // Detect countries whose polygons cross the antimeridian and capture the
   // (projected) split points so we can highlight them in debug mode.
@@ -181,6 +230,13 @@ export function ContinentsMap({ trips }: Props) {
 </div>
 
       <div className="w-full rounded-xl p-3" style={{ background: "#060e1e" }}>
+        {/* Prima, se il fetch del topojson falliva, l'area restava vuota per
+            sempre — indistinguibile da "nessun paese visitato". */}
+        {fetchFailed && countries.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-10">
+            Non è stato possibile caricare la mappa. Controlla la connessione e riprova più tardi.
+          </p>
+        ) : (
         <svg
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
@@ -212,7 +268,15 @@ export function ContinentsMap({ trips }: Props) {
                   stroke="#060e1e"
                   strokeWidth={0.5}
                   strokeLinejoin="round"
-                />
+                  onClick={isVisited ? () => handleCountryClick(c) : undefined}
+                  onKeyDown={isVisited ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCountryClick(c); } } : undefined}
+                  tabIndex={isVisited ? 0 : undefined}
+                  style={{ cursor: isVisited ? "pointer" : "default" }}
+                  role={isVisited ? "button" : undefined}
+                  aria-label={isVisited ? `Viaggi in ${c.name}` : undefined}
+                >
+                  {isVisited && <title>{c.name}</title>}
+                </path>
               );
             })}
 
@@ -229,6 +293,7 @@ export function ContinentsMap({ trips }: Props) {
             )}
           </g>
         </svg>
+        )}
       </div>
 
       {debug && antimeridianInfo.names.length > 0 && (
@@ -258,6 +323,15 @@ export function ContinentsMap({ trips }: Props) {
           );
         })}
       </div>
+
+      {selectedCountry && (
+        <CountryMapModal
+          countryCode={selectedCountry.code}
+          countryName={selectedCountry.name}
+          trips={selectedCountry.trips}
+          onClose={() => setSelectedCountry(null)}
+        />
+      )}
     </div>
   );
 }
