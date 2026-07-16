@@ -7,7 +7,7 @@ import { addTrip, parseLocalDate } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Bike, Route, Search } from "lucide-react";
+import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Bike, Route, Search, AlertCircle } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 import { TripPhotos } from "@/components/TripPhotos";
 import { homePhotoKey, waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
@@ -556,10 +556,16 @@ const NuovoViaggio = () => {
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
 
+  const dateOrderError = !!dateEnd && dateEnd < dateStart;
+
   const handleSave = async () => {
     if (waypoints.length === 0) {
       setDestinationError(true);
       toast.error("Aggiungi almeno una città all'itinerario");
+      return;
+    }
+    if (dateOrderError) {
+      toast.error("Il ritorno non può essere prima della partenza");
       return;
     }
     setSaving(true);
@@ -782,19 +788,19 @@ const NuovoViaggio = () => {
               
               {/* CONNETTORE TRATTEGGIATO */}
               <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0 }}>
-                <div style={{ 
+                <div style={{
                   height:2, width:16, position:"relative",
                   backgroundImage: "linear-gradient(to right, rgba(255, 255, 255, 0.15) 20%, rgba(255,255,255,0) 0%)",
                   backgroundPosition: "bottom", backgroundSize: "6px 2px", backgroundRepeat: "repeat-x"
                 }}>
-                  <div style={{ 
-                    position:"absolute", right:-4, top:-3, width:0, height:0, 
-                    borderTop:"4px solid transparent", borderBottom:"4px solid transparent", 
-                    borderLeft:"6px solid rgba(255, 255, 255, 0.15)" 
+                  <div style={{
+                    position:"absolute", right:-4, top:-3, width:0, height:0,
+                    borderTop:"4px solid transparent", borderBottom:"4px solid transparent",
+                    borderLeft:"6px solid rgba(255, 255, 255, 0.15)"
                   }}/>
                 </div>
               </div>
-              
+
               {/* RITORNO */}
               <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, marginLeft:2 }}>
                 <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</span>
@@ -806,6 +812,14 @@ const NuovoViaggio = () => {
               </div>
 
             </div>
+            {/* Prima si salvava senza errori anche con il ritorno prima della
+                partenza: la durata spariva silenziosamente (daysBetween
+                tornava null), senza dire perché. */}
+            {dateOrderError && (
+              <p style={{ fontSize:11, color:"#f87171", marginTop:8, display:"flex", alignItems:"center", gap:4 }}>
+                <AlertCircle className="w-3 h-3"/> Il ritorno non può essere prima della partenza
+              </p>
+            )}
           </div>
 
           {/* Note */}

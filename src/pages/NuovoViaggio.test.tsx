@@ -97,6 +97,31 @@ describe("NuovoViaggio — protezione modifiche non salvate", () => {
   });
 });
 
+describe("NuovoViaggio — validazione date", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it("ritorno prima della partenza: mostra l'errore e blocca il salvataggio", async () => {
+    const { container } = renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "+ Aggiungi tappa" }));
+    fireEvent.change(screen.getByPlaceholderText("Cerca città…"), { target: { value: "par" } });
+    await screen.findByText("Parigi, Francia");
+    fireEvent.click(screen.getByText("Parigi, Francia"));
+
+    const [dateStartInput, dateEndInput] = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateStartInput, { target: { value: "2024-06-10" } });
+    fireEvent.change(dateEndInput, { target: { value: "2024-06-05" } });
+
+    expect(screen.getByText("Il ritorno non può essere prima della partenza")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Salva viaggio/ }));
+    expect(screen.queryByRole("button", { name: /Salvataggio…/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("HOME")).not.toBeInTheDocument();
+  });
+});
+
 describe("NuovoViaggio — feedback durante il salvataggio lento", () => {
   beforeEach(() => {
     localStorage.clear();

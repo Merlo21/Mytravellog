@@ -7,7 +7,7 @@ import { addTrip, updateTrip, loadTrips, parseLocalDate } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
-import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search } from "lucide-react";
+import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Route, Search, AlertCircle } from "lucide-react";
 import { TripPhotos } from "@/components/TripPhotos";
 import { homePhotoKey, waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
 
@@ -649,10 +649,16 @@ const ModificaViaggio = () => {
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
 
+  const dateOrderError = !!dateEnd && dateEnd < dateStart;
+
   const handleSave = async () => {
     if (!id || waypoints.length === 0) {
       setDestinationError(true);
       toast.error("Aggiungi almeno una città all'itinerario");
+      return;
+    }
+    if (dateOrderError) {
+      toast.error("Il ritorno non può essere prima della partenza");
       return;
     }
     setSaving(true);
@@ -899,6 +905,14 @@ const ModificaViaggio = () => {
               </div>
 
             </div>
+            {/* Prima si salvava senza errori anche con il ritorno prima della
+                partenza: la durata spariva silenziosamente (daysBetween
+                tornava null), senza dire perché. */}
+            {dateOrderError && (
+              <p style={{ fontSize:11, color:"#f87171", marginTop:8, display:"flex", alignItems:"center", gap:4 }}>
+                <AlertCircle className="w-3 h-3"/> Il ritorno non può essere prima della partenza
+              </p>
+            )}
           </div>
 
           {/* Note */}

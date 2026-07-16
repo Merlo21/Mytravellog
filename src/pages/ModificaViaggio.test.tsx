@@ -115,6 +115,27 @@ describe("ModificaViaggio — protezione modifiche non salvate", () => {
   });
 });
 
+describe("ModificaViaggio — validazione date", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it("ritorno prima della partenza: mostra l'errore e blocca il salvataggio", () => {
+    const trip = addTrip(baseTrip({ trip_date: "2024-06-01" }));
+    const { container } = renderPage(trip.id);
+
+    const [, dateEndInput] = container.querySelectorAll('input[type="date"]');
+    fireEvent.change(dateEndInput, { target: { value: "2024-05-01" } });
+
+    expect(screen.getByText("Il ritorno non può essere prima della partenza")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Salva viaggio/ }));
+    expect(screen.queryByRole("button", { name: /Salvataggio…/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("HOME")).not.toBeInTheDocument();
+  });
+});
+
 describe("ModificaViaggio — feedback durante il salvataggio lento", () => {
   beforeEach(() => {
     localStorage.clear();
