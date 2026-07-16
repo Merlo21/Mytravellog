@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult, RegionInfo } from "@/lib/geo";
-import { addTrip, updateTrip, loadTrips } from "@/lib/storage";
+import { addTrip, updateTrip, loadTrips, parseLocalDate } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
@@ -28,9 +28,12 @@ const RATING_LABELS: Record<number, string> = {
   1: "Non memorabile", 2: "Nella media", 3: "Bello", 4: "Fantastico", 5: "Indimenticabile"
 };
 
+// Inclusivo (1-5 giugno = 5 giorni): stessa convenzione della heatmap in
+// Statistiche, che con il vecchio calcolo per differenza di date contava un
+// giorno in più per lo stesso identico viaggio (v. TripCardTicket.tsx).
 function daysBetween(a: string, b: string) {
   if (!a || !b) return null;
-  const d = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
+  const d = Math.round((parseLocalDate(b).getTime() - parseLocalDate(a).getTime()) / 86400000) + 1;
   return d > 0 ? d : null;
 }
 
@@ -576,6 +579,31 @@ const ModificaViaggio = () => {
   const [saving, setSaving] = useState(false);
   const [destinationError, setDestinationError] = useState(false);
 
+  // Traccia se qualcosa è stato modificato dopo il primo render: prima non
+  // c'era alcun avviso prima di lasciare la pagina, quindi un tap su "Annulla"
+  // o su un link dell'header per errore buttava via le modifiche senza
+  // chiedere conferma. Il ref salta il giro iniziale (i valori caricati dal
+  // viaggio non contano come "modifica").
+  const [dirty, setDirty] = useState(false);
+  const skipDirtyRef = useRef(true);
+  useEffect(() => {
+    if (skipDirtyRef.current) { skipDirtyRef.current = false; return; }
+    setDirty(true);
+  }, [title, dateStart, dateEnd, notes, rating, waypoints, home]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const confirmDiscard = (e: React.MouseEvent) => {
+    if (dirty && !window.confirm("Hai modifiche non salvate. Uscire senza salvare?")) {
+      e.preventDefault();
+    }
+  };
+
   // Le tappe salvate prima che avessero un id stabile lo ricevono al volo
   // sopra (in waypoints ?? crypto.randomUUID()), ma solo in memoria: se
   // l'utente aggiunge foto a una tappa senza mai premere "Salva viaggio",
@@ -628,6 +656,7 @@ const ModificaViaggio = () => {
       return;
     }
     setSaving(true);
+    try {
     const dest = waypoints[waypoints.length - 1];
     const settHome = s.homeCity;
     const distHome = settHome ?? home;
@@ -715,8 +744,15 @@ const ModificaViaggio = () => {
       rating: rating || null,
     });
     toast.success("Viaggio aggiornato!");
-    setSaving(false);
     navigate("/");
+    } finally {
+      // try/finally invece di un setSaving(false) a fine funzione: se una
+      // delle chiamate sopra dovesse lanciare per un motivo imprevisto (le
+      // fetch verso le API esterne catturano già tutto internamente, ma
+      // meglio non fidarsi ciecamente), il form non deve restare bloccato
+      // per sempre sullo spinner.
+      setSaving(false);
+    }
   };
 
 
@@ -917,9 +953,12 @@ const ModificaViaggio = () => {
 
           {/* Actions */}
           <div style={{ display:"flex", gap:8, paddingTop:4 }}>
-            <Link to="/" style={{ flex:1, textAlign:"center", padding:"10px", borderRadius:10,
+            <Link to="/" onClick={saving ? (e) => e.preventDefault() : confirmDiscard}
+              aria-disabled={saving}
+              style={{ flex:1, textAlign:"center", padding:"10px", borderRadius:10,
               fontSize:13, color:"rgba(255,255,255,0.4)", border:"0.5px solid #1a2d4a",
-              textDecoration:"none", background:"transparent" }}>
+              textDecoration:"none", background:"transparent",
+              opacity: saving ? 0.4 : 1, pointerEvents: saving ? "none" : "auto" }}>
               Annulla
             </Link>
             <button onClick={handleSave} disabled={saving}
@@ -927,9 +966,16 @@ const ModificaViaggio = () => {
                 color:"#060e1e", background:"#60a5fa", border:"none", cursor:"pointer",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
-              Salva viaggio
+              {saving ? "Salvataggio…" : "Salva viaggio"}
             </button>
           </div>
+          {/* Un viaggio con più tappe può richiedere qualche secondo: senza
+              questa riga il form sembra bloccato invece che al lavoro. */}
+          {saving && (
+            <p style={{ fontSize:11, color:"rgba(255,255,255,0.35)", textAlign:"center", margin:0 }}>
+              Recupero regione, meteo e altitudine delle tappe…
+            </p>
+          )}
 
         </div>
       </div>

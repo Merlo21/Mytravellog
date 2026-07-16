@@ -97,16 +97,18 @@ describe("TripCardTicket — date e giorni", () => {
     expect(screen.queryByText(/\dg$/)).not.toBeInTheDocument();
   });
 
-  it("non mostra i giorni se date_end === trip_date", () => {
+  it("mostra 1g se date_end === trip_date (conteggio inclusivo: un solo giorno)", () => {
     renderCard(makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-01" }));
-    expect(screen.queryByText(/\dg$/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText((_content, node) => node?.textContent?.replace(/\s+/g, " ").trim() === "· 1g")
+    ).toBeInTheDocument();
   });
 
-  it("mostra i giorni corretti con date_end diversa da trip_date", () => {
+  it("mostra i giorni corretti con date_end diversa da trip_date (inclusivo: 1-6 gennaio = 6 giorni)", () => {
     renderCard(makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-06" }));
     // JSX `{days}g` produce due nodi testo adiacenti (numero + "g"); confrontiamo textContent
     expect(
-      screen.getByText((_content, node) => node?.textContent?.replace(/\s+/g, " ").trim() === "· 5g")
+      screen.getByText((_content, node) => node?.textContent?.replace(/\s+/g, " ").trim() === "· 6g")
     ).toBeInTheDocument();
   });
 });

@@ -3,12 +3,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { Link, useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, countryFlag, GeoResult } from "@/lib/geo";
-import { addTrip } from "@/lib/storage";
+import { addTrip, parseLocalDate } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Bike, Route, Search } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
+import { TripPhotos } from "@/components/TripPhotos";
+import { homePhotoKey, waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
 
 type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
 type Waypoint = { id: string; city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
@@ -27,9 +29,12 @@ const RATING_LABELS: Record<number, string> = {
   1: "Non memorabile", 2: "Nella media", 3: "Bello", 4: "Fantastico", 5: "Indimenticabile"
 };
 
+// Inclusivo (1-5 giugno = 5 giorni): stessa convenzione della heatmap in
+// Statistiche, che con il vecchio calcolo per differenza di date contava un
+// giorno in più per lo stesso identico viaggio (v. TripCardTicket.tsx).
 function daysBetween(a: string, b: string) {
   if (!a || !b) return null;
-  const d = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
+  const d = Math.round((parseLocalDate(b).getTime() - parseLocalDate(a).getTime()) / 86400000) + 1;
   return d > 0 ? d : null;
 }
 
@@ -486,6 +491,41 @@ const NuovoViaggio = () => {
   const [saving, setSaving] = useState(false);
   const [destinationError, setDestinationError] = useState(false);
 
+  // Id di bozza, stabile per tutta la vita di questo form: prima le foto si
+  // potevano aggiungere solo riaprendo il viaggio in Modifica dopo averlo già
+  // salvato, perché le chiavi foto (photoStorage.ts) richiedono un id di
+  // viaggio che addTrip generava solo al salvataggio. Generandolo qui e
+  // passandolo ad addTrip (che ora lo accetta) invece di farne generare uno
+  // nuovo, le foto caricate prima di "Salva viaggio" restano collegate.
+  const draftIdRef = useRef<string | null>(null);
+  if (draftIdRef.current === null) draftIdRef.current = crypto.randomUUID();
+  const draftId = draftIdRef.current;
+
+  // Traccia se qualcosa è stato modificato dopo il primo render: prima non
+  // c'era alcun avviso prima di lasciare la pagina, quindi un tap su "Annulla"
+  // o su un link dell'header per errore buttava via l'intero itinerario senza
+  // chiedere conferma. Il ref salta il giro iniziale (i valori di default non
+  // contano come "modifica").
+  const [dirty, setDirty] = useState(false);
+  const skipDirtyRef = useRef(true);
+  useEffect(() => {
+    if (skipDirtyRef.current) { skipDirtyRef.current = false; return; }
+    setDirty(true);
+  }, [title, dateStart, dateEnd, notes, rating, waypoints, home]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const confirmDiscard = (e: React.MouseEvent) => {
+    if (dirty && !window.confirm("Hai modifiche non salvate. Uscire senza salvare?")) {
+      e.preventDefault();
+    }
+  };
+
   useEffect(() => {
     const t = setTimeout(async () => {
       if (homeQuery.length < 2) { setHomeResults([]); return; }
@@ -523,6 +563,7 @@ const NuovoViaggio = () => {
       return;
     }
     setSaving(true);
+    try {
     const dest = waypoints[waypoints.length - 1];
     const settHome = s.homeCity;
     const distHome = settHome ?? home;
@@ -598,6 +639,7 @@ const NuovoViaggio = () => {
     const highestStop = altsWithCity.length ? altsWithCity.reduce((a, b) => (b.alt! > a.alt! ? b : a)) : null;
     addTrip({
       title: title.trim() || dest.city,
+      // (id passato sotto, non qui: vedi il commento su draftId)
       country: dest.country, city: dest.city,
       trip_date: dateStart, date_end: dateEnd || null,
       notes: notes.trim() || null,
@@ -608,10 +650,17 @@ const NuovoViaggio = () => {
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
       distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null, region_details: regionDetails.length > 0 ? regionDetails : null,
       country_code: dest.country_code, rating: rating || null,
-    });
+    }, draftId); // stesso id già usato dalle foto caricate prima del salvataggio
     toast.success("Viaggio salvato!");
-    setSaving(false);
     navigate("/");
+    } finally {
+      // try/finally invece di un setSaving(false) a fine funzione: se una
+      // delle chiamate sopra dovesse lanciare per un motivo imprevisto (le
+      // fetch verso le API esterne catturano già tutto internamente, ma
+      // meglio non fidarsi ciecamente), il form non deve restare bloccato
+      // per sempre sullo spinner.
+      setSaving(false);
+    }
   };
 
   const days = daysBetween(dateStart, dateEnd);
@@ -797,11 +846,25 @@ const NuovoViaggio = () => {
             )}
           </div>
 
+          {/* Foto — una sezione per tappa (casa, ogni tappa intermedia,
+              destinazione), già possibile prima di salvare il viaggio grazie
+              a draftId (v. sopra). */}
+          {home && <TripPhotos photoKey={homePhotoKey(draftId)} label={home.label || "Casa"}/>}
+          {waypoints.slice(0, -1).map(w => (
+            <TripPhotos key={w.id} photoKey={waypointPhotoKey(draftId, w.id)} label={w.city}/>
+          ))}
+          {waypoints.length > 0 && (
+            <TripPhotos photoKey={destinationPhotoKey(draftId)} label={waypoints[waypoints.length - 1].city}/>
+          )}
+
           {/* Actions */}
           <div style={{ display:"flex", gap:8, paddingTop:4 }}>
-            <Link to="/" style={{ flex:1, textAlign:"center", padding:"10px", borderRadius:10,
+            <Link to="/" onClick={saving ? (e) => e.preventDefault() : confirmDiscard}
+              aria-disabled={saving}
+              style={{ flex:1, textAlign:"center", padding:"10px", borderRadius:10,
               fontSize:13, color:"rgba(255,255,255,0.4)", border:"0.5px solid #1a2d4a",
-              textDecoration:"none", background:"transparent" }}>
+              textDecoration:"none", background:"transparent",
+              opacity: saving ? 0.4 : 1, pointerEvents: saving ? "none" : "auto" }}>
               Annulla
             </Link>
             <button onClick={handleSave} disabled={saving}
@@ -809,9 +872,16 @@ const NuovoViaggio = () => {
                 color:"#060e1e", background:"#60a5fa", border:"none", cursor:"pointer",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
-              Salva viaggio
+              {saving ? "Salvataggio…" : "Salva viaggio"}
             </button>
           </div>
+          {/* Un viaggio con più tappe può richiedere qualche secondo: senza
+              questa riga il form sembra bloccato invece che al lavoro. */}
+          {saving && (
+            <p style={{ fontSize:11, color:"rgba(255,255,255,0.35)", textAlign:"center", margin:0 }}>
+              Recupero regione, meteo e altitudine delle tappe…
+            </p>
+          )}
 
         </div>
       </div>

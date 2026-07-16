@@ -57,8 +57,11 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   // (whiteSpace:pre-wrap le rispetta) occuperebbe comunque troppa card.
   const notesAreLong = !!notes && (notes.length > NOTES_CLAMP_THRESHOLD || notes.split("\n").length > 2);
 
-  const days = trip.date_end && trip.date_end !== trip.trip_date
-    ? Math.round((new Date(trip.date_end).getTime() - new Date(trip.trip_date).getTime()) / 86400000)
+  // Inclusivo (1-5 giugno = 5 giorni), non per differenza di date: stessa
+  // convenzione della heatmap in Statistiche, che prima contava 5 per questo
+  // stesso viaggio mentre qui si leggeva "4g" — numeri diversi per lo stesso dato.
+  const days = trip.date_end
+    ? Math.round((parseLocalDate(trip.date_end).getTime() - parseLocalDate(trip.trip_date).getTime()) / 86400000) + 1
     : null;
 
   const displayTitle = trip.title && trip.title !== trip.city ? trip.title : trip.city;

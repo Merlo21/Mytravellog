@@ -78,7 +78,10 @@ export type RegionInfo = { name: string | null; code: string | null };
 export async function fetchRegion(lat: number, lon: number): Promise<RegionInfo> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
-    const r = await fetch(url, { headers: { "Accept-Language": "en" } });
+    // "it", non "en": un viaggio creato qui e uno modificato in ModificaViaggio.tsx
+    // (che interroga la stessa API in italiano) devono salvare la regione nella
+    // stessa lingua — prima "Tuscany" da uno e "Toscana" dall'altro per lo stesso posto.
+    const r = await fetch(url, { headers: { "Accept-Language": "it", "User-Agent": "NAV-TA/1.0" } });
     if (!r.ok) return { name: null, code: null };
     const d = await r.json();
     // Nominatim non usa lo stesso campo per tutti i paesi: "state" per la
