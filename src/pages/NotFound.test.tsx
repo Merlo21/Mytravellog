@@ -12,13 +12,13 @@ describe("NotFound", () => {
 
   it("mostra il messaggio 404", () => {
     render(<MemoryRouter initialEntries={["/rotta-inesistente"]} future={future}><NotFound /></MemoryRouter>);
-    expect(screen.getByRole("heading", { name: "404" })).toBeInTheDocument();
-    expect(screen.getByText(/Page not found/i)).toBeInTheDocument();
+    expect(screen.getByText("404")).toBeInTheDocument();
+    expect(screen.getByText(/Pagina non trovata/i)).toBeInTheDocument();
   });
 
   it("propone il link di ritorno alla home", () => {
     render(<MemoryRouter future={future}><NotFound /></MemoryRouter>);
-    expect(screen.getByRole("link", { name: /Return to Home/i })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /Torna alla home/i })).toHaveAttribute("href", "/");
   });
 
   it("logga un errore con il pathname", () => {

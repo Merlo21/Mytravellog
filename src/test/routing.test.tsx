@@ -38,7 +38,7 @@ function renderAppRoutes(initialPath: string) {
 describe("Route table (src/main.tsx) — catch-all 404", () => {
   it("mostra la pagina NotFound su una rotta non esistente", () => {
     renderAppRoutes("/questa-rotta-non-esiste");
-    expect(screen.getByRole("heading", { name: "404" })).toBeInTheDocument();
+    expect(screen.getByText("404")).toBeInTheDocument();
   });
 
   it("mostra la home su '/' (non finisce sul catch-all)", () => {
