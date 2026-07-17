@@ -50,6 +50,12 @@ const ModificaViaggio = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const s = useSettings();
+  // NB: loadTrips() è volutamente richiamato ad OGNI render (non memoizzato su
+  // [id]): serve a rilevare il caso "viaggio eliminato mentre la pagina è
+  // aperta" — un memo su [id] non ri-leggerebbe lo storage e il redirect alla
+  // Home non scatterebbe (comportamento voluto, con test dedicato). A scala
+  // realistica (poche centinaia di viaggi) il JSON.parse per render è
+  // trascurabile: l'ottimizzazione non vale la perdita di quel comportamento.
   const trip = loadTrips().find(t => t.id === id);
 
   const [title, setTitle] = useState(trip?.title ?? "");

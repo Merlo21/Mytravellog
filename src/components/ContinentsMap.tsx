@@ -79,7 +79,30 @@ type CountryFeat = {
   path: string;
   centroid: [number, number]; // lon, lat
   polygons: number[][][][]; // list of polygons; each polygon = list of rings of [lon,lat]
+  bbox: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat] — prefiltro per pointInCountry
 };
+
+/**
+ * Bounding box [minLon, minLat, maxLon, maxLat] di un paese. Prefiltro
+ * economico prima del costoso pointInCountry (ray casting su ogni vertice di
+ * ogni ring): se il punto è fuori dal box è sicuramente fuori dal paese.
+ * Conservativo: per i paesi che attraversano ±180° (Russia, Fiji) il box
+ * risulta molto ampio → nessuno speedup ma nemmeno falsi negativi.
+ */
+function computeBbox(polygons: number[][][][]): [number, number, number, number] {
+  let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+  for (const poly of polygons) {
+    for (const ring of poly) {
+      for (const [lon, lat] of ring) {
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      }
+    }
+  }
+  return [minLon, minLat, maxLon, maxLat];
+}
 
 // I confini dei paesi non cambiano a runtime, ma senza cache il topojson
 // (e il ricalcolo di path/centroidi/poligoni per ogni paese) verrebbe
@@ -111,7 +134,7 @@ export function ContinentsMap({ trips }: Props) {
           const c = polyCentroid(f.geometry);
           const polygons = extractPolygons(f.geometry);
           const id = deriveCountryId(f, idx);
-          return { id, name: f.properties?.name ?? id, path, centroid: c, polygons };
+          return { id, name: f.properties?.name ?? id, path, centroid: c, polygons, bbox: computeBbox(polygons) };
         });
         cachedCountryFeats = feats;
         setCountries(feats);
@@ -141,6 +164,7 @@ export function ContinentsMap({ trips }: Props) {
     if (!countries.length) return set;
     for (const p of visitedPoints) {
       for (const c of countries) {
+        if (p.lon < c.bbox[0] || p.lon > c.bbox[2] || p.lat < c.bbox[1] || p.lat > c.bbox[3]) continue;
         if (pointInCountry(p.lon, p.lat, c.polygons)) {
           set.add(c.id);
           break;
@@ -168,6 +192,7 @@ export function ContinentsMap({ trips }: Props) {
       for (const p of points) {
         for (const c of countries) {
           if (touchedIds.has(c.id)) continue;
+          if (p.lon < c.bbox[0] || p.lon > c.bbox[2] || p.lat < c.bbox[1] || p.lat > c.bbox[3]) continue;
           if (pointInCountry(p.lon, p.lat, c.polygons)) touchedIds.add(c.id);
         }
       }
