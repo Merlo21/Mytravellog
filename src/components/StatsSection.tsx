@@ -2,8 +2,6 @@
 import { useMemo, useState } from "react";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { CountryMapModal } from "@/components/CountryMapModal";
-const earthImg = "https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=600&q=80";
-const forestImg = "https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=80";
 
 // Total recognized sovereign countries (UN members + observers, commonly used as 195)
 const TOTAL_COUNTRIES = 195;
@@ -70,18 +68,17 @@ export function StatsSection({ trips }: Props) {
     <section className="mb-8 animate-fade-up">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
         <StatHero
-          image={earthImg}
-          alt="Pianeta Terra dallo spazio"
           value={count.toString()}
           label="paesi visitati"
-          overlayColor="linear-gradient(135deg, rgba(14,55,100,0.6) 0%, rgba(0,20,60,0.35) 100%)"
+          accent="#60a5fa"
+          gradient="linear-gradient(135deg, #0d2847 0%, #0a1628 62%)"
         />
         <StatHero
-          image={forestImg}
-          alt="Strada nella foresta"
           value={`${percentLabel}%`}
           label="del mondo visto"
-          overlayColor="linear-gradient(135deg, rgba(10,60,20,0.6) 0%, rgba(5,30,10,0.35) 100%)"
+          accent="#34d399"
+          gradient="linear-gradient(135deg, #0d3327 0%, #0a1628 62%)"
+          mirror
         />
       </div>
 
@@ -137,21 +134,37 @@ export function StatsSection({ trips }: Props) {
   );
 }
 
+// Prima queste due hero erano foto stock di Unsplash caricate via URL: si
+// rompevano offline, erano l'unico elemento "non nostro" del design e non
+// c'entravano col tema (una foresta per "% del mondo"). Ora sono un globo
+// wireframe disegnato in SVG — coerente con l'identità dell'app (il globo del
+// logo e della Home), a tinta piena col navy, e funziona sempre.
 function StatHero({
-  image, alt, value, label, overlayColor,
-}: { image: string; alt: string; value: string; label: string; overlayColor: string }) {
+  value, label, accent, gradient, mirror = false,
+}: { value: string; label: string; accent: string; gradient: string; mirror?: boolean }) {
   return (
-    <div className="relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-[16/10] group">
-      <img
-        src={image}
-        alt={alt}
-        loading="lazy"
-        width={1024}
-        height={1024}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-      />
-      {/* Themed overlay — semi-transparent to keep texture visible */}
-      <div className="absolute inset-0" style={{background: overlayColor}} />
+    <div className="relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-[16/10] group"
+      style={{ background: gradient }}>
+      {/* Globo wireframe decorativo: grande, parzialmente fuori dal riquadro
+          per dare profondità; specchiato sulla seconda hero così le due card
+          sono una coppia simmetrica invece di due immagini scollegate. */}
+      <svg viewBox="0 0 120 120" aria-hidden="true"
+        className="absolute transition-transform duration-700 group-hover:scale-110"
+        style={{
+          width: "75%", bottom: "-28%", [mirror ? "left" : "right"]: "-18%",
+          opacity: 0.55, color: accent,
+        }}>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" strokeWidth="1"/>
+        <ellipse cx="60" cy="60" rx="52" ry="20" fill="none" stroke="currentColor" strokeWidth="0.7"/>
+        <ellipse cx="60" cy="60" rx="52" ry="40" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.7"/>
+        <ellipse cx="60" cy="60" rx="20" ry="52" fill="none" stroke="currentColor" strokeWidth="0.7"/>
+        <ellipse cx="60" cy="60" rx="40" ry="52" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.7"/>
+        <line x1="8" y1="60" x2="112" y2="60" stroke="currentColor" strokeWidth="0.7"/>
+      </svg>
+      {/* Glow d'accento nell'angolo del globo, per staccarlo dal fondo piatto. */}
+      <div className="absolute inset-0" style={{
+        background: `radial-gradient(circle at ${mirror ? "15%" : "85%"} 90%, ${accent}2e, transparent 55%)`,
+      }}/>
       {/* Bottom fade for text readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       <div className="relative h-full flex flex-col items-center justify-center text-center px-2 sm:px-4">
