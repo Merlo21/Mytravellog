@@ -63,6 +63,13 @@ describe("computeMonthlyTravelDays", () => {
   it("ritorna una mappa vuota senza viaggi", () => {
     expect(computeMonthlyTravelDays([]).size).toBe(0);
   });
+
+  it("non congela su una data corrotta con anno assurdo (span enorme saltato)", () => {
+    // Prima il while iterava giorno per giorno per centinaia di migliaia di
+    // volte; ora lo span oltre ~30 anni viene saltato.
+    const map = computeMonthlyTravelDays([makeTrip({ trip_date: "2024-06-01", date_end: "20250-06-01" })]);
+    expect(map.size).toBe(0);
+  });
 });
 
 describe("daysSinceLastTrip", () => {

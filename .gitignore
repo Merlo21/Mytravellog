@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local editor/agent config e cache TS incrementale
+.claude/
+*.tsbuildinfo

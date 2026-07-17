@@ -11,10 +11,16 @@ const MONTH_LABELS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "S
  */
 export function computeMonthlyTravelDays(trips: Trip[]): Map<string, number> {
   const map = new Map<string, number>();
+  const MAX_SPAN_DAYS = 366 * 30; // ~30 anni: oltre è quasi certamente una data corrotta
   for (const t of trips) {
     const start = parseLocalDate(t.trip_date);
     const end = t.date_end ? parseLocalDate(t.date_end) : start;
     if (end < start) continue;
+    // Guardia: una data malformata (es. anno a 5 cifre "20250-06-01") produce
+    // uno span enorme e il while sotto itererebbe centinaia di migliaia di
+    // volte, congelando la UI. NaN (data non valida) non è finito → saltato.
+    const spanDays = (end.getTime() - start.getTime()) / 86400000;
+    if (!Number.isFinite(spanDays) || spanDays > MAX_SPAN_DAYS) continue;
     const cur = new Date(start);
     while (cur <= end) {
       const key = `${cur.getFullYear()}-${cur.getMonth()}`;
@@ -50,7 +56,8 @@ export function daysSinceLastTrip(trips: Trip[]): number | null {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diff = Math.round((today.getTime() - lastEnd.getTime()) / 86400000);
-  return Math.max(0, diff);
+  // Data corrotta → diff NaN: torna null (mostrato come "—") invece di "NaN".
+  return Number.isFinite(diff) ? Math.max(0, diff) : null;
 }
 
 interface Props {
