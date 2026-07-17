@@ -79,8 +79,13 @@ function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   });
 }
 
-export async function savePhoto(tripId: string, blob: Blob): Promise<string> {
-  const id = crypto.randomUUID();
+/**
+ * `id` è opzionale: normalmente si genera un UUID nuovo, ma il ripristino da
+ * backup passa l'id ORIGINALE della foto (il nome del file su Storage) — così
+ * un secondo restore sovrascrive lo stesso record con db.put invece di
+ * duplicare le foto in ogni galleria ad ogni ripristino.
+ */
+export async function savePhoto(tripId: string, blob: Blob, id: string = crypto.randomUUID()): Promise<string> {
   const data = await blobToArrayBuffer(blob);
   const db = await getDB();
   await db.put(STORE_NAME, { id, tripId, data, type: blob.type, createdAt: new Date().toISOString() });

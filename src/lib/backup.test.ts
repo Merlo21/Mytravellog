@@ -149,10 +149,16 @@ describe("restoreBackup", () => {
     expect(result.error).toMatch(/connessione persa/);
   });
 
+  // In produzione ogni foto ha un id univoco e vive in UNA sola cartella
+  // (path .../{stopKey}/{photo.id}): il mock deve rispecchiarlo, restituendo
+  // la foto solo per la cartella destinazione (user-1/trip-1), non per tutte.
+  const listOnlyDestination = (path: string) =>
+    Promise.resolve({ data: path === "user-1/trip-1" ? [{ name: "foto-1" }] : [], error: null });
+
   it("scarica le foto elencate per ogni viaggio e le salva in IndexedDB", async () => {
     const trips = [makeTrip()];
     mockMaybeSingle.mockResolvedValue({ data: { trips_json: trips }, error: null });
-    mockList.mockResolvedValue({ data: [{ name: "foto-1" }], error: null });
+    mockList.mockImplementation(listOnlyDestination);
     mockDownload.mockResolvedValue({ data: new Blob(["y"], { type: "image/png" }), error: null });
 
     await restoreBackup("user-1");
@@ -160,5 +166,20 @@ describe("restoreBackup", () => {
     const { getPhotosForTrip } = await import("./photoStorage");
     const photos = await getPhotosForTrip("trip-1");
     expect(photos).toHaveLength(1);
+  });
+
+  it("due restore consecutivi NON duplicano le foto (id originale preservato)", async () => {
+    const trips = [makeTrip()];
+    mockMaybeSingle.mockResolvedValue({ data: { trips_json: trips }, error: null });
+    mockList.mockImplementation(listOnlyDestination);
+    mockDownload.mockResolvedValue({ data: new Blob(["y"], { type: "image/png" }), error: null });
+
+    await restoreBackup("user-1");
+    await restoreBackup("user-1");
+
+    const { getPhotosForTrip } = await import("./photoStorage");
+    const photos = await getPhotosForTrip("trip-1");
+    expect(photos).toHaveLength(1); // prima erano 2: savePhoto generava un id nuovo ad ogni restore
+    expect(photos[0].id).toBe("foto-1");
   });
 });

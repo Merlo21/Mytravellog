@@ -88,7 +88,9 @@ export async function restoreBackup(userId: string): Promise<RestoreResult> {
       const { data: files } = await supabase.storage.from("trip-photos").list(`${userId}/${stopKey}`);
       for (const file of files ?? []) {
         const { data: blob } = await supabase.storage.from("trip-photos").download(`${userId}/${stopKey}/${file.name}`);
-        if (blob) await savePhoto(stopKey, blob);
+        // file.name è l'id originale della foto (path di backup .../{stopKey}/{photo.id}):
+        // riusandolo, un secondo restore sovrascrive invece di duplicare.
+        if (blob) await savePhoto(stopKey, blob, file.name);
       }
     }
   }
