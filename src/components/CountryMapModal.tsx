@@ -343,6 +343,13 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
 
   const visitedList = collectVisitedRegions(trips);
 
+  // Esc chiude il modale (prima solo click fuori / X).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   useEffect(() => {
     const load = async () => {
       try {

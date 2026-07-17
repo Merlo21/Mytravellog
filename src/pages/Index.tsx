@@ -109,6 +109,19 @@ function HomeInner() {
   const refresh = () => setTrips(loadTrips());
   useEffect(() => { refresh(); }, []);
 
+  // Esc chiude il popup città (modale) e la mini-card del viaggio selezionato:
+  // prima erano chiudibili solo col mouse (click fuori / X).
+  useEffect(() => {
+    if (!selectedCity && !selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSelectedCity(null);
+      setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedCity, selectedId]);
+
   // Ricalcola distanze per viaggi senza distance_from_home_km quando homeCity è impostata
   useEffect(() => {
     if (!homeCity) return;

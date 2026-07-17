@@ -133,6 +133,8 @@ export function TripPhotos({ photoKey, label }: Props) {
             <div key={p.id} style={{ position:"relative", aspectRatio:"1", borderRadius:8, overflow:"hidden", background:"#060e1e" }}>
               <img src={p.url} alt="" onClick={() => setViewerIndex(i)}
                 role="button" aria-label="Apri foto a schermo intero"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setViewerIndex(i); } }}
                 style={{ width:"100%", height:"100%", objectFit:"cover", display:"block", cursor:"pointer" }}/>
               <button type="button" onClick={() => handleDelete(p.id)} aria-label="Elimina foto"
                 style={{ position:"absolute", top:4, right:4, width:20, height:20, borderRadius:6,

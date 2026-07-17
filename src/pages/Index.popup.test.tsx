@@ -113,6 +113,15 @@ describe("Home — mini-card del viaggio selezionato sul globo", () => {
     expect(screen.queryByText("Weekend Roma")).not.toBeInTheDocument();
   });
 
+  it("Escape chiude la mini-card", () => {
+    addTrip(baseTrip());
+    renderHome();
+    fireEvent.click(screen.getByRole("button", { name: "Simula tap pallino" }));
+    expect(screen.getByText("Weekend Roma")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("Weekend Roma")).not.toBeInTheDocument();
+  });
+
   it("'Rivivi in 3D' apre il flyover per quel viaggio, chiudibile", () => {
     addTrip(baseTrip());
     renderHome();

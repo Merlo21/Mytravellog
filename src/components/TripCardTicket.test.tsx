@@ -87,6 +87,16 @@ describe("TripCardTicket — render base", () => {
     renderCard(makeTrip({ country_code: undefined as any }));
     expect(screen.getByText("🌍")).toBeInTheDocument();
   });
+
+  it("comunica la valutazione agli screen reader (le stelle sono solo colore)", () => {
+    renderCard(makeTrip({ rating: 4 }));
+    expect(screen.getByRole("img", { name: "Valutazione: 4 su 5" })).toBeInTheDocument();
+  });
+
+  it("annuncia 'Nessuna valutazione' quando il rating è assente", () => {
+    renderCard(makeTrip({ rating: null }));
+    expect(screen.getByRole("img", { name: "Nessuna valutazione" })).toBeInTheDocument();
+  });
 });
 
 describe("TripCardTicket — date e giorni", () => {

@@ -106,9 +106,14 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
             <div className="font-display" style={{fontSize:14,fontWeight:700,color:"#f0f4ff"}}>{displayTitle}</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>{trip.city}, {trip.country}</div>
           </div>
-          <div style={{display:"flex",gap:1,flexShrink:0}}>
+          {/* Le 5 stelle si distinguono solo per colore: senza aria-label uno
+              screen reader leggerebbe cinque stelle identiche. role=img +
+              label riassuntiva comunicano il voto (o la sua assenza). */}
+          <div style={{display:"flex",gap:1,flexShrink:0}}
+            role="img"
+            aria-label={trip.rating ? `Valutazione: ${trip.rating} su 5` : "Nessuna valutazione"}>
             {[1,2,3,4,5].map(i => (
-              <span key={i} style={{fontSize:10,color:i <= (trip.rating ?? 0) ? "#fbbf24" : "rgba(255,255,255,0.15)"}}>★</span>
+              <span key={i} aria-hidden="true" style={{fontSize:10,color:i <= (trip.rating ?? 0) ? "#fbbf24" : "rgba(255,255,255,0.15)"}}>★</span>
             ))}
           </div>
           <div style={{display:"flex",gap:4,flexShrink:0}}>
@@ -220,6 +225,8 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
         <div style={{padding:"0 20px 14px"}}>
           <div
             onClick={notesAreLong ? () => setNotesExpanded(e => !e) : undefined}
+            onKeyDown={notesAreLong ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setNotesExpanded(v => !v); } } : undefined}
+            tabIndex={notesAreLong ? 0 : undefined}
             role={notesAreLong ? "button" : undefined}
             aria-expanded={notesAreLong ? notesExpanded : undefined}
             aria-label={notesAreLong ? (notesExpanded ? "Comprimi le note" : "Espandi le note") : undefined}
