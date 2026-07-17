@@ -235,7 +235,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
               cursor: notesAreLong ? "pointer" : "default",
             }}>
             <div style={{
-              fontSize:11, lineHeight:1.5, color:"rgba(255,255,255,0.45)", fontStyle:"italic",
+              fontSize:11, lineHeight:1.5, color:"rgba(255,255,255,0.6)", fontStyle:"italic",
               whiteSpace:"pre-wrap", wordBreak:"break-word",
               ...(notesAreLong && !notesExpanded ? {
                 display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" as const, overflow:"hidden",

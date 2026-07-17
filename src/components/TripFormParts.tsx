@@ -598,8 +598,11 @@ export function TripFormFields({
           textTransform:"uppercase", display:"block", marginBottom:6 }}>
           Note <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
         </label>
+        {/* Il testo digitato usa il colore pieno #f0f4ff come il campo Nome:
+            prima era rgba(0.4) (~3.8:1, sotto AA) — cioè il contenuto scritto
+            dall'utente risultava poco leggibile. Il placeholder resta tenue. */}
         <textarea style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
-          padding:"9px 12px", fontSize:13, color:"rgba(255,255,255,0.4)", width:"100%",
+          padding:"9px 12px", fontSize:13, color:"#f0f4ff", width:"100%",
           outline:"none", resize:"none", boxSizing:"border-box", height:80, fontFamily:"inherit" }}
           value={notes} onChange={e => setNotes(e.target.value)}
           placeholder="Aggiungi una nota…"
