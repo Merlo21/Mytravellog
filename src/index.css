@@ -49,7 +49,10 @@ html, body, #root { background-color: #060e1e !important; }
   .btn-primary {
     background: #60a5fa;
     color: #060e1e;
-    border-radius: 0.75rem;
+    /* Pill come gli altri CTA primari "aggiungi viaggio" (Home welcome,
+       Stats empty): prima era rounded-12 e i quattro punti d'ingresso allo
+       stesso identico gesto avevano tre forme diverse. */
+    border-radius: 999px;
     font-weight: 600;
     transition: opacity 0.15s;
   }
@@ -69,6 +72,14 @@ html, body, #root { background-color: #060e1e !important; }
     border-color: #60a5fa;
   }
 }
+
+/* Stagger delle sezioni Statistiche: ognuna ha già .animate-fade-up sul
+   proprio root, ma partivano tutte insieme. animation-delay è una proprietà
+   a sé che agisce sull'animazione già presente, quindi le scala nel tempo
+   senza toccare i componenti (FROZEN). */
+.stats-stagger > *:nth-child(2) { animation-delay: 80ms; }
+.stats-stagger > *:nth-child(3) { animation-delay: 160ms; }
+.stats-stagger > *:nth-child(4) { animation-delay: 240ms; }
 
 /* Anello di focus da tastiera per QUALSIASI elemento interattivo: prima non
    esisteva alcuno stile :focus-visible in tutta l'app (a parte i primitivi

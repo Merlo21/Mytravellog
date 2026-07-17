@@ -12,7 +12,7 @@ import { GeoResult } from "@/lib/geo";
 import { parseLocalDate } from "@/lib/storage";
 import { TripPhotos } from "@/components/TripPhotos";
 import { homePhotoKey, waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
-import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Bike, Route, Search, AlertCircle } from "lucide-react";
+import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Bike, Route, Search, AlertCircle, X } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 
 export type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
@@ -414,7 +414,10 @@ function RouteHero({
                 color:"#f0f4ff", fontSize:13, flex:1 }}
                 value={wpQuery} onChange={e => setWpQuery(e.target.value)} placeholder="Cerca città…"/>
               <button type="button" onClick={() => { setWpQuery(""); setWpOpen(false); }}
-                style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)", fontSize:18 }}>×</button>
+                aria-label="Chiudi ricerca tappa"
+                style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)", display:"flex", alignItems:"center", flexShrink:0 }}>
+                <X className="w-4 h-4"/>
+              </button>
             </div>
             {wpResults.map((r,i) => (
               <button key={i} type="button" onClick={() => onAddWaypoint(r)}

@@ -209,13 +209,18 @@ export default function MieiViaggi() {
                   )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {byYear[year].map(t => (
-                    <div key={t.id} style={{
-                      transition: `opacity ${DELETE_ANIM_MS}ms ease, transform ${DELETE_ANIM_MS}ms ease`,
-                      opacity: leavingId === t.id ? 0 : 1,
-                      transform: leavingId === t.id ? "scale(0.95)" : "none",
-                    }}>
-                      <TripCardTicket trip={t} onDeleteRequested={handleDeleteRequested}/>
+                  {byYear[year].map((t, i) => (
+                    // Wrapper esterno per la comparsa scaglionata (fade-up): il
+                    // transform dell'animazione di eliminazione (scale) vive sul
+                    // div interno, così i due transform non si sovrascrivono.
+                    <div key={t.id} className="animate-fade-up" style={{ animationDelay: `${i * 50}ms` }}>
+                      <div style={{
+                        transition: `opacity ${DELETE_ANIM_MS}ms ease, transform ${DELETE_ANIM_MS}ms ease`,
+                        opacity: leavingId === t.id ? 0 : 1,
+                        transform: leavingId === t.id ? "scale(0.95)" : "none",
+                      }}>
+                        <TripCardTicket trip={t} onDeleteRequested={handleDeleteRequested}/>
+                      </div>
                     </div>
                   ))}
                 </div>

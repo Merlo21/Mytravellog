@@ -45,7 +45,7 @@ const Stats = () => {
           </div>
         </div>
       ) : (
-        <div className="container mx-auto px-6 py-8 space-y-8">
+        <div className="container mx-auto px-6 py-8 space-y-8 stats-stagger">
           <StatsSection trips={trips} />
 
           <ContinentsMap trips={trips} />
