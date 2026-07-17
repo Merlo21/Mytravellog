@@ -87,7 +87,6 @@ html, body, #root { background-color: #060e1e !important; }
 :focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
-  border-radius: 2px;
 }
 
 /* Hover sui bottoni "nudi" (icona, senza className: i pulsanti fantasma con
