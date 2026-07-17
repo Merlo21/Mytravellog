@@ -251,10 +251,24 @@ export function WorldMap({
   useEffect(() => {
     if (!containerRef.current) return;
     let map: any;
+    // init() è asincrona (import dinamico + fetch dello style): senza questa
+    // guardia, uno smonta/rimonta rapido (navigazione Home↔Statistiche, o il
+    // doppio-mount di StrictMode) faceva scattare la cleanup mentre gli await
+    // erano ancora in sospeso — mapRef.current era ancora null, quindi la
+    // cleanup non rimuoveva nulla, ma init arrivava comunque a creare la mappa:
+    // un contesto WebGL orfano mai distrutto ad ogni ciclo. Dopo ~16 il globo
+    // non si inizializzava più. Stesso pattern già usato in TripFlyover.
+    let cancelled = false;
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    // console.warn viene temporaneamente avvolto per silenziare i warning della
+    // proiezione globo: va ripristinato in cleanup, altrimenti ogni mount
+    // annida un wrapper in più permanentemente.
+    let prevWarn: typeof console.warn | null = null;
 
     const init = async () => {
       const ml = await import("maplibre-gl");
       const maplibregl = (ml as any).default || ml;
+      if (cancelled) return;
 
       // Inject CSS
       if (!document.getElementById("ml-css")) {
@@ -266,10 +280,12 @@ export function WorldMap({
 
       // Fetch style (cache-backed) and inject globe projection + glyphs (MapLibre 5.x)
       const style = await fetchMapStyle();
+      if (cancelled) return;
       style.projection = { type: "globe" };
       // Add glyph server so native symbol layers can render text
       style.glyphs = `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`;
 
+      if (!containerRef.current || cancelled) return;
       map = new maplibregl.Map({
         container: containerRef.current!,
         style,
@@ -277,6 +293,9 @@ export function WorldMap({
         zoom: 1.5,
         attributionControl: false,
       });
+      // Se la cleanup è scattata proprio durante l'ultimo await, distruggi
+      // subito la mappa appena creata invece di lasciarla orfana.
+      if (cancelled) { map.remove(); return; }
 
       mapRef.current = map;
       // Nuova istanza mappa = nessun handler registrato: senza questo reset,
@@ -285,13 +304,15 @@ export function WorldMap({
       tripLayerHandlersRef.current.clear();
 
       // Suppress MapLibre globe projection warnings
-      const _warn = console.warn.bind(console);
+      prevWarn = console.warn.bind(console);
+      const _warn = prevWarn;
       console.warn = (...args: any[]) => {
         if (typeof args[0] === 'string' && args[0].includes('globe projection')) return;
         _warn(...args);
       };
 
       map.on("load", () => {
+        if (cancelled) return;
         // Hide all text/symbol layers below zoom 3 so il globo è pulito da lontano
         // (a zoom 1.5-2 default, l'area Europa/Medio Oriente ha così tante etichette
         // di paesi piccoli e vicini tra loro da diventare rumore visivo, specialmente
@@ -360,12 +381,15 @@ export function WorldMap({
       map.on("mousedown", () => dismissGlobeHintRef.current());
       map.on("touchstart", () => dismissGlobeHintRef.current());
 
-      setTimeout(() => { map.resize(); }, 100);
+      resizeTimer = setTimeout(() => { map.resize(); }, 100);
     };
 
     init();
 
     return () => {
+      cancelled = true;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      if (prevWarn) { console.warn = prevWarn; prevWarn = null; }
       stopRotation();
       markersRef.current.forEach(m => m.remove());
       markersRef.current = [];
