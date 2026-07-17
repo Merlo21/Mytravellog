@@ -126,7 +126,7 @@ export function TravelHighlights({ trips }: Props) {
         const Card = ({ item }: { item: HlItem }) => (
           <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderRadius:14,padding:"18px 10px",display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",gap:4}}>
             <item.Icon style={{width:30,height:30,color:item.color,strokeWidth:1.6}}/>
-            <div style={{fontSize:19,fontWeight:800,color:"#f0f4ff",marginTop:4}}>{item.value}</div>
+            <div className="font-mono" style={{fontSize:19,fontWeight:800,color:"#f0f4ff",marginTop:4}}>{item.value}</div>
             <div style={{fontSize:10,letterSpacing:"0.5px",textTransform:"uppercase",fontWeight:700,color:item.color}}>{item.label}</div>
             {item.sub && <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{item.sub}</div>}
           </div>

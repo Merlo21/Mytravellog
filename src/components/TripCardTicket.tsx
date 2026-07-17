@@ -96,14 +96,14 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
         <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10}}>
           <div style={{width:28,height:28,borderRadius:"50%",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",flexShrink:0}}>
             {trip.country_code
-              ? <img src={"https://flagcdn.com/w80/"+trip.country_code.toLowerCase()+".png"} width="28" height="28" alt=""
+              ? <img src={"https://flagcdn.com/w80/"+trip.country_code.toLowerCase()+".png"} width="28" height="28" alt="" loading="lazy"
                   style={{objectFit:"cover"}}
                   onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/>
               : <div style={{width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🌍</div>
             }
           </div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:14,fontWeight:700,color:"#f0f4ff"}}>{displayTitle}</div>
+            <div className="font-display" style={{fontSize:14,fontWeight:700,color:"#f0f4ff"}}>{displayTitle}</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>{trip.city}, {trip.country}</div>
           </div>
           <div style={{display:"flex",gap:1,flexShrink:0}}>

@@ -414,11 +414,12 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         {/* Header */}
         <div style={{ padding: "14px 20px", borderBottom: "0.5px solid #1a2d4a", display: "flex", alignItems: "center", gap: 10 }}>
           {countryCode && (
-            <img src={"https://flagcdn.com/w40/" + countryCode.toLowerCase() + ".png"}
+            <img src={"https://flagcdn.com/w40/" + countryCode.toLowerCase() + ".png"} alt="" loading="lazy"
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
               style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)" }}/>
           )}
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#f0f4ff", flex: 1 }}>{countryName}</div>
-          <button onClick={onClose}
+          <div className="font-display" style={{ fontSize: 16, fontWeight: 700, color: "#f0f4ff", flex: 1 }}>{countryName}</div>
+          <button onClick={onClose} aria-label="Chiudi mappa del paese"
             style={{ width: 28, height: 28, background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
             <X style={{ width: 16, height: 16 }}/>
           </button>

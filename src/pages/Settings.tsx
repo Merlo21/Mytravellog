@@ -102,6 +102,7 @@ function HomeCityPicker({ value, onChange }: { value: HomeCity; onChange: (v: Ho
         />
         {value && (
           <button type="button" onClick={() => { onChange(null); setQuery(""); }}
+            aria-label="Rimuovi la città di residenza"
             className="text-muted-foreground hover:text-foreground">
             <X className="w-4 h-4"/>
           </button>

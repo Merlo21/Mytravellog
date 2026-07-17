@@ -1,12 +1,13 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCardTicket } from "@/components/TripCardTicket";
 import { TripFlyover } from "@/components/TripFlyover";
 import { loadTrips, deleteTrip, Trip } from "@/lib/storage";
 import { deletePhotosForTrip } from "@/lib/photoStorage";
-import { Search, X, Video } from "lucide-react";
+import { Search, X, Video, Plane, Plus } from "lucide-react";
 
 const DELETE_ANIM_MS = 200;
 // Finestra di tempo in cui "Annulla" nel toast può ancora recuperare il
@@ -146,7 +147,7 @@ export default function MieiViaggi() {
               placeholder="Cerca città, paese, titolo…"
             />
             {search && (
-              <button onClick={() => setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)"}}>
+              <button onClick={() => setSearch("")} aria-label="Cancella la ricerca" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)"}}>
                 <X className="w-3.5 h-3.5"/>
               </button>
             )}
@@ -190,9 +191,28 @@ export default function MieiViaggi() {
 
         {/* Trips */}
         {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-16">
-            {search || yearFilter ? "Nessun risultato." : "Nessun viaggio ancora. Aggiungine uno!"}
-          </p>
+          search || yearFilter ? (
+            // Filtro/ricerca attivi: nessun risultato per i criteri correnti.
+            <p className="text-sm text-muted-foreground text-center py-16">Nessun risultato.</p>
+          ) : (
+            // Nessun viaggio ancora: invito ricco, coerente con Home e Statistiche
+            // (prima qui c'era solo una frase nuda, unico dei tre a rompere lo schema).
+            <div style={{paddingTop:64, paddingBottom:64, display:"flex", justifyContent:"center"}}>
+              <div style={{maxWidth:320, textAlign:"center"}}>
+                <div style={{width:48, height:48, borderRadius:"50%", background:"rgba(96,165,250,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px"}}>
+                  <Plane style={{width:22, height:22, color:"#60a5fa"}}/>
+                </div>
+                <div className="font-display" style={{fontSize:15, fontWeight:700, color:"#f0f4ff"}}>Nessun viaggio ancora</div>
+                <p style={{fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.5, margin:"6px 0 16px"}}>
+                  Aggiungi il tuo primo viaggio: comparirà qui, sul globo e nelle statistiche.
+                </p>
+                <Link to="/nuovo-viaggio"
+                  style={{display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6, fontSize:13, fontWeight:600, padding:"10px 22px", borderRadius:999, background:"#60a5fa", color:"#0a1628", textDecoration:"none"}}>
+                  <Plus style={{width:14, height:14}}/> Aggiungi il primo viaggio
+                </Link>
+              </div>
+            </div>
+          )
         ) : (
           <div className="space-y-8">
             {years.map(year => (

@@ -230,7 +230,7 @@ describe("MieiViaggi — ricerca", () => {
     const input = screen.getByPlaceholderText(/cerca città/i);
     fireEvent.change(input, { target: { value: "roma" } });
     expect(screen.getAllByTestId("trip-card")).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: "" })); // X button
+    fireEvent.click(screen.getByRole("button", { name: "Cancella la ricerca" }));
     expect(screen.getAllByTestId("trip-card")).toHaveLength(2);
   });
 

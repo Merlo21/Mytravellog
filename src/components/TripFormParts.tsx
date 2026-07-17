@@ -463,7 +463,7 @@ export function ItineraryPanel(props: RouteHeroProps) {
           <Route className="w-4 h-4" style={{color:"#60a5fa"}}/>
         </div>
         <div>
-          <div style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>Itinerario</div>
+          <div className="font-display" style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>Itinerario</div>
           <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:1 }}>
             Clicca 🏠 per cambiare città di partenza
           </div>

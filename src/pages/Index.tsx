@@ -157,7 +157,7 @@ function HomeInner() {
                 <span style={{color:accent}}>{icon}</span>
               </div>
               <div>
-                <div style={{fontSize:20,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
+                <div className="font-mono" style={{fontSize:20,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
                 <div style={{fontSize:10,letterSpacing:"1.2px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginTop:3}}>{label}</div>
               </div>
             </div>
@@ -219,7 +219,7 @@ function HomeInner() {
                   <div style={{width:48, height:48, borderRadius:"50%", background:"rgba(96,165,250,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px"}}>
                     <Plane style={{width:22, height:22, color:"#60a5fa"}}/>
                   </div>
-                  <div style={{fontSize:15, fontWeight:700, color:"#f0f4ff"}}>Benvenuto su NAV·TA</div>
+                  <div className="font-display" style={{fontSize:15, fontWeight:700, color:"#f0f4ff"}}>Benvenuto su NAV·TA</div>
                   <p style={{fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.5, margin:"6px 0 16px"}}>
                     Aggiungi il tuo primo viaggio e guarda il globo prendere vita.
                   </p>
@@ -253,7 +253,7 @@ function HomeInner() {
                   <div style={{display:"flex", alignItems:"flex-start", gap:10}}>
                     <div style={{width:26, height:26, borderRadius:"50%", overflow:"hidden", border:"1px solid rgba(255,255,255,0.1)", flexShrink:0}}>
                       {selectedTrip.country_code
-                        ? <img src={"https://flagcdn.com/w80/"+selectedTrip.country_code.toLowerCase()+".png"} width="26" height="26" style={{objectFit:"cover"}} alt=""/>
+                        ? <img src={"https://flagcdn.com/w80/"+selectedTrip.country_code.toLowerCase()+".png"} width="26" height="26" loading="lazy" style={{objectFit:"cover"}} alt=""/>
                         : <div style={{width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14}}>🌍</div>}
                     </div>
                     <div style={{flex:1, minWidth:0}}>
@@ -332,7 +332,7 @@ function HomeInner() {
                 <h2 className="font-bold text-base">{selectedCity.name}</h2>
                 <p className="text-xs text-muted-foreground">{selectedCity.country}</p>
               </div>
-              <button onClick={() => setSelectedCity(null)}
+              <button onClick={() => setSelectedCity(null)} aria-label="Chiudi scheda città"
                 className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>

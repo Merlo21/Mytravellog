@@ -100,7 +100,7 @@ export function StatsSection({ trips }: Props) {
                 <img
                   src={`https://flagcdn.com/w20/${(c.code || "").toLowerCase()}.png`}
                   width="20" height="14"
-                  alt={c.name}
+                  alt={c.name} loading="lazy"
                   style={{ borderRadius:2, objectFit:"cover", flexShrink:0 }}
                   onError={e => { (e.target as HTMLImageElement).style.display="none"; }}
                 />
@@ -168,7 +168,7 @@ function StatHero({
       {/* Bottom fade for text readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
       <div className="relative h-full flex flex-col items-center justify-center text-center px-2 sm:px-4">
-        <div className="text-3xl sm:text-6xl font-extrabold text-white tracking-tight"
+        <div className="text-3xl sm:text-6xl font-extrabold text-white tracking-tight font-mono"
           style={{textShadow:"0 2px 20px rgba(0,0,0,0.4)"}}>
           {value}
         </div>

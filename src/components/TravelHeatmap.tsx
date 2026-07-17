@@ -102,7 +102,7 @@ export function TravelHeatmap({ trips }: Props) {
             <CalendarDays className="w-5 h-5" style={{ color: "#60a5fa" }} />
           </div>
           <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>{totalTravelDays}</div>
+            <div className="font-mono" style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>{totalTravelDays}</div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>giorni in viaggio</div>
           </div>
         </div>
@@ -111,7 +111,7 @@ export function TravelHeatmap({ trips }: Props) {
             <Hourglass className="w-5 h-5" style={{ color: "#60a5fa" }} />
           </div>
           <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>
+            <div className="font-mono" style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>
               {abstinence == null ? "—" : abstinence}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>giorni senza viaggiare</div>
