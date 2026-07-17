@@ -99,6 +99,20 @@ describe("StatsSection — tripsByCountry e countries", () => {
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
+  it("non duplica lo stesso paese quando un'occorrenza ha il codice ISO e un'altra no", () => {
+    // Riproduce il bug dello screenshot: destinazione Italia con "IT" +
+    // una tappa Italia senza country_code → prima diventava due chip "Italia"
+    // (chiave code||name) e gonfiava il conteggio; ora deve essere 1.
+    const trips = [makeTrip({
+      country: "Italia", country_code: "IT",
+      waypoints: [{ city: "Firenze", country: "Italia", country_code: "", transport_mode: "car" }],
+    })];
+    renderStats(trips);
+    expect(screen.getAllByText("Italia")).toHaveLength(1);
+    // Col bug ci sarebbero due chip e hero "2": nessun "2" conferma il fix.
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+  });
+
   it("mostra i nomi dei paesi nell'elenco", () => {
     const trips = [
       makeTrip({ country: "Italia",  country_code: "IT" }),

@@ -20,9 +20,18 @@ export function StatsSection({ trips }: Props) {
   const countriesTouchedByTrip = useMemo(() => {
     return trips.map((t) => {
       const seen = new Map<string, { key: string; name: string; code?: string }>();
+      // Deduplica per NOME normalizzato, non per `code || name`: lo stesso
+      // paese può comparire una volta col codice ISO (es. destinazione "IT")
+      // e una senza (es. una tappa con country_code vuoto) → prima diventava
+      // due chiavi distinte, quindi due chip "Italia" e un conteggio gonfiato.
+      // Il nome viene sempre dal geocoder in italiano, quindi è stabile; il
+      // codice si conserva da qualunque occorrenza ce l'abbia (per la bandiera).
       const add = (name: string, code?: string) => {
-        const key = code || name;
-        if (!seen.has(key)) seen.set(key, { key, name, code });
+        if (!name) return;
+        const key = name.trim().toLowerCase();
+        const existing = seen.get(key);
+        if (!existing) seen.set(key, { key, name, code: code || undefined });
+        else if (!existing.code && code) existing.code = code;
       };
       add(t.country, t.country_code);
       for (const w of t.waypoints ?? []) add(w.country, w.country_code);
@@ -48,7 +57,7 @@ export function StatsSection({ trips }: Props) {
     for (const { countries: cs } of countriesTouchedByTrip) {
       for (const c of cs) {
         const existing = map.get(c.key);
-        if (existing) existing.visits += 1;
+        if (existing) { existing.visits += 1; if (!existing.code && c.code) existing.code = c.code; }
         else map.set(c.key, { ...c, visits: 1 });
       }
     }
