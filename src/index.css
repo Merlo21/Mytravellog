@@ -101,6 +101,20 @@ button:not([class]):not(:disabled):hover {
   filter: brightness(1.6);
 }
 
+/* Rispetta chi ha chiesto meno animazioni a livello di sistema operativo:
+   prima nessuna animazione era attenuata. Azzera durate di animazioni e
+   transizioni CSS (fade-up d'ingresso, spin dei loader, hover) per chi ha
+   "riduci movimento" attivo. Le animazioni guidate da JS/rAF (rotazione
+   automatica del globo) sono gestite a parte nei rispettivi componenti. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Hide MapLibre replay button */
 .maplibregl-ctrl-replay { display: none !important; }
 

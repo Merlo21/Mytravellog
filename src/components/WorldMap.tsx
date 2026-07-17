@@ -403,6 +403,10 @@ export function WorldMap({
   // ── Auto-rotate ────────────────────────────────────────────────────────────
   function startRotation() {
     if (rotTimerRef.current) return;
+    // Rispetta "riduci movimento" del sistema: niente rotazione automatica
+    // passiva del globo (le animazioni CSS sono già gestite in index.css).
+    // Guardia in un solo punto → copre tutti i punti che chiamano startRotation.
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const rotate = () => {
       const map = mapRef.current;
       if (!map || playingRef.current) return;
