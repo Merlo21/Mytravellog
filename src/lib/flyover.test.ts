@@ -163,11 +163,11 @@ describe("computeLegCamera", () => {
     expect(cam.pitch).toBe(30);
   });
 
-  it("la durata resta clampata tra 3.5s e 7.5s", () => {
+  it("la durata resta clampata tra 5s e 11s", () => {
     const short = computeLegCamera({ lat: 45.5, lon: 9.2 }, { lat: 45.5001, lon: 9.2001 });
     const long = computeLegCamera({ lat: 45.46, lon: 9.19 }, { lat: 35.68, lon: 139.65 });
-    expect(short.durationMs).toBe(3500);
-    expect(long.durationMs).toBe(7500);
+    expect(short.durationMs).toBe(5000);
+    expect(long.durationMs).toBe(11000);
   });
 
   it("il bearing della camera coincide con bearingBetween per la stessa tratta", () => {
