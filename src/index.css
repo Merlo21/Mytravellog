@@ -81,6 +81,13 @@ html, body, #root { background-color: #060e1e !important; }
 .stats-stagger > *:nth-child(3) { animation-delay: 160ms; }
 .stats-stagger > *:nth-child(4) { animation-delay: 240ms; }
 
+/* Ingresso della cartolina foto nel flyover 3D: fade + scale mantenendo la
+   leggera rotazione da polaroid (translate qui romperebbe il rotate inline). */
+@keyframes flyoverCardIn {
+  from { opacity: 0; transform: rotate(-3deg) scale(0.9); }
+  to   { opacity: 1; transform: rotate(-3deg) scale(1); }
+}
+
 /* Anello di focus da tastiera per QUALSIASI elemento interattivo: prima non
    esisteva alcuno stile :focus-visible in tutta l'app (a parte i primitivi
    shadcn) — navigando con Tab non si vedeva mai dove ci si trovasse. */

@@ -11,7 +11,7 @@ import { Link } from "react-router-dom";
 import { GeoResult } from "@/lib/geo";
 import { parseLocalDate } from "@/lib/storage";
 import { TripPhotos } from "@/components/TripPhotos";
-import { homePhotoKey, waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
+import { waypointPhotoKey, destinationPhotoKey } from "@/lib/photoStorage";
 import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Bike, Route, Search, AlertCircle, X } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 
@@ -636,23 +636,56 @@ export function TripFormFields({
   );
 }
 
-/** Una sezione foto per tappa (casa, ogni tappa intermedia, destinazione). tripId è
- * l'id del viaggio in Modifica, l'id di bozza (draftId) in Nuovo. */
-export function TripPhotosPerStop({ tripId, home, waypoints }: {
+/**
+ * Foto del viaggio: una sola sezione con una fila di chip per scegliere la
+ * tappa, invece di N box impilati (casa + ogni tappa + destinazione) che
+ * riempivano il form e confondevano su quale box fosse quale. La "Casa"
+ * (partenza) è volutamente esclusa: foto della propria residenza raramente
+ * utili. tripId è l'id del viaggio in Modifica, l'id di bozza (draftId) in Nuovo.
+ */
+export function TripPhotosPerStop({ tripId, waypoints }: {
   tripId: string;
   home: { label: string } | null;
   waypoints: Waypoint[];
 }) {
+  // Tappe selezionabili: tappe intermedie + destinazione (l'ultima waypoint).
+  const stops: { key: string; label: string }[] = [];
+  waypoints.slice(0, -1).forEach(w => {
+    if (w.id) stops.push({ key: waypointPhotoKey(tripId, w.id), label: w.city });
+  });
+  if (waypoints.length > 0) {
+    const dest = waypoints[waypoints.length - 1];
+    stops.push({ key: destinationPhotoKey(tripId), label: dest.city });
+  }
+
+  const [selected, setSelected] = useState(0);
+  if (stops.length === 0) return null;
+  // Aggiunte/rimozioni di tappe possono lasciare l'indice fuori range.
+  const idx = selected < stops.length ? selected : stops.length - 1;
+  const current = stops[idx];
+
   return (
-    <>
-      {home && <TripPhotos photoKey={homePhotoKey(tripId)} label={home.label || "Casa"}/>}
-      {waypoints.slice(0, -1).map(w => (
-        <TripPhotos key={w.id} photoKey={waypointPhotoKey(tripId, w.id)} label={w.city}/>
-      ))}
-      {waypoints.length > 0 && (
-        <TripPhotos photoKey={destinationPhotoKey(tripId)} label={waypoints[waypoints.length - 1].city}/>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {stops.length > 1 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }} role="tablist" aria-label="Scegli la tappa">
+          {stops.map((s, i) => (
+            <button key={s.key} type="button" role="tab" aria-selected={i === idx}
+              onClick={() => setSelected(i)}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 999, cursor: "pointer",
+                whiteSpace: "nowrap",
+                background: i === idx ? "rgba(96,165,250,0.15)" : "rgba(255,255,255,0.04)",
+                border: i === idx ? "1px solid #60a5fa" : "0.5px solid #1a2d4a",
+                color: i === idx ? "#60a5fa" : "rgba(255,255,255,0.6)",
+              }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
       )}
-    </>
+      {/* key sul photoKey: cambiare tappa rimonta TripPhotos con la galleria giusta. */}
+      <TripPhotos key={current.key} photoKey={current.key} label={current.label} />
+    </div>
   );
 }
 

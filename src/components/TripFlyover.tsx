@@ -206,7 +206,35 @@ function flyIntro(
   });
 }
 
-const STOP_PHOTO_LIMIT = 3;
+/**
+ * Fa orbitare lentamente la camera attorno al punto attuale (ruota solo il
+ * bearing, tenendo fermi centro/zoom/pitch) per durationMs. Usata mentre a
+ * schermo è mostrata la cartolina foto della tappa: così il 3D resta vivo
+ * invece di congelarsi. Velocità angolare costante (niente easing): un'orbita
+ * che accelera/decelera sembrerebbe uno scatto. Il bearing finale diventa il
+ * punto di partenza del flyLeg successivo (che legge map.getBearing()), quindi
+ * la ripresa del volo è senza salti.
+ */
+function orbitStop(
+  map: any,
+  mountedRef: { current: boolean }, playingRef: { current: boolean },
+  rafIdRef: { current: number | null }, durationMs: number, degrees = 40,
+): Promise<void> {
+  return new Promise(resolve => {
+    const fromBearing = map.getBearing();
+    const start = performance.now();
+    const tick = () => {
+      if (!mountedRef.current || !playingRef.current) { rafIdRef.current = null; resolve(); return; }
+      const rawT = Math.min(1, (performance.now() - start) / durationMs);
+      map.setBearing(fromBearing + degrees * rawT);
+      if (rawT < 1) { rafIdRef.current = requestAnimationFrame(tick); }
+      else { rafIdRef.current = null; resolve(); }
+    };
+    rafIdRef.current = requestAnimationFrame(tick);
+  });
+}
+
+const STOP_PHOTO_LIMIT = 5;
 const STOP_PHOTO_DISPLAY_MS = 1500;
 
 function wait(ms: number): Promise<void> {
@@ -238,6 +266,7 @@ export function TripFlyover({ trips, onClose }: Props) {
   const recordRafIdRef = useRef<number | null>(null);
   const stopPhotoImgsRef = useRef<{ label: string; imgs: HTMLImageElement[] } | null>(null);
   const stopPhotoIndexRef = useRef(0);
+  const orbitRafIdRef = useRef<number | null>(null);
   // Distanza percorsa in tempo reale: aggiornata ad ogni frame da flyLeg (via
   // ref, non stato React, per non causare un re-render a 60fps) e letta sia
   // dal contatore a schermo (via counterElRef, DOM diretto) sia da drawRecordFrame.
@@ -257,20 +286,27 @@ export function TripFlyover({ trips, onClose }: Props) {
 
   const legsRef = useRef<FlightLeg[]>([]);
 
-  /** Alla fine di una tratta, se la tappa raggiunta ha foto le mostra brevemente. */
+  /**
+   * Alla fine di una tratta, se la tappa raggiunta ha foto le mostra come
+   * cartolina in un angolo mentre la camera orbita lentamente sul punto (il
+   * 3D resta vivo, non si congela a schermo intero come prima).
+   */
   const maybeShowStopPhotos = async (stopLabel: string, photoKey: string) => {
     const raw = (await getPhotosForTrip(photoKey)).slice(0, STOP_PHOTO_LIMIT);
     if (raw.length === 0 || !mountedRef.current || !playingRef.current) return;
     const urls = raw.map(p => URL.createObjectURL(photoToBlob(p)));
     // Image() separate dall'<img> React: servono per disegnare la foto sul
-    // canvas di registrazione anche mentre l'overlay a schermo è nel DOM.
+    // canvas di registrazione anche mentre la cartolina a schermo è nel DOM.
     const imgs = urls.map(u => { const img = new Image(); img.src = u; return img; });
     stopPhotoUrlsRef.current = urls;
     stopPhotoImgsRef.current = { label: stopLabel, imgs };
     stopPhotoIndexRef.current = 0;
     setStopPhotoIndex(0);
     setStopPhotos({ label: stopLabel, urls });
-    await wait(urls.length * STOP_PHOTO_DISPLAY_MS);
+    const durationMs = urls.length * STOP_PHOTO_DISPLAY_MS;
+    const map = mapRef.current;
+    if (map) await orbitStop(map, mountedRef, playingRef, orbitRafIdRef, durationMs);
+    else await wait(durationMs);
     urls.forEach(u => URL.revokeObjectURL(u));
     stopPhotoUrlsRef.current = [];
     stopPhotoImgsRef.current = null;
@@ -341,18 +377,39 @@ export function TripFlyover({ trips, onClose }: Props) {
     if (stopInfo && stopInfo.imgs.length > 0) {
       const img = stopInfo.imgs[stopPhotoIndexRef.current % stopInfo.imgs.length];
       if (img.complete && img.naturalWidth > 0) {
-        drawImageCover(ctx, img, 0, 0, recordCanvas.width, recordCanvas.height);
-        const capH = 90 * dpr;
-        const gradient = ctx.createLinearGradient(0, recordCanvas.height - capH, 0, recordCanvas.height);
-        gradient.addColorStop(0, "rgba(0,0,0,0)");
-        gradient.addColorStop(1, "rgba(0,0,0,0.8)");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, recordCanvas.height - capH, recordCanvas.width, capH);
-        ctx.fillStyle = "#fff";
-        ctx.font = `600 ${16 * dpr}px sans-serif`;
+        // Cartolina/polaroid in basso a sinistra — coerente con l'overlay a
+        // schermo (vedi il blocco stopPhotos nel JSX). Non più a tutto frame:
+        // la mappa che orbita dietro resta visibile anche nel video esportato.
+        const pad = 16 * dpr;
+        const cardW = 208 * dpr;
+        const frame = 8 * dpr;
+        const photoW = cardW - frame * 2;
+        const photoH = photoW * 3 / 4;      // foto 4:3
+        const labelH = 24 * dpr;
+        const cardH = frame * 2 + photoH + labelH;
+        const cardX = pad;
+        const cardY = recordCanvas.height - pad - cardH;
+        // cornice bianca con ombra
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = 16 * dpr;
+        ctx.shadowOffsetY = 6 * dpr;
+        ctx.fillStyle = "#fbfbf7";
+        roundRectPath(ctx, cardX, cardY, cardW, cardH, 6 * dpr);
+        ctx.fill();
+        ctx.restore();
+        // foto ritagliata
+        ctx.save();
+        roundRectPath(ctx, cardX + frame, cardY + frame, photoW, photoH, 3 * dpr);
+        ctx.clip();
+        drawImageCover(ctx, img, cardX + frame, cardY + frame, photoW, photoH);
+        ctx.restore();
+        // etichetta città (sotto la foto, come una polaroid)
+        ctx.fillStyle = "#1a1a1a";
+        ctx.font = `700 ${13 * dpr}px sans-serif`;
         ctx.textAlign = "left";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(stopInfo.label, 20 * dpr, recordCanvas.height - 20 * dpr);
+        ctx.textBaseline = "middle";
+        ctx.fillText(stopInfo.label, cardX + frame, cardY + frame + photoH + labelH / 2, photoW);
       }
     }
   };
@@ -577,6 +634,7 @@ export function TripFlyover({ trips, onClose }: Props) {
         objectUrlRef.current = null;
       }
       if (markerRafIdRef.current != null) { cancelAnimationFrame(markerRafIdRef.current); markerRafIdRef.current = null; }
+      if (orbitRafIdRef.current != null) { cancelAnimationFrame(orbitRafIdRef.current); orbitRafIdRef.current = null; }
       if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
       stopPhotoUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
       stopPhotoUrlsRef.current = [];
@@ -656,14 +714,29 @@ export function TripFlyover({ trips, onClose }: Props) {
       )}
 
       {stopPhotos && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "#060e1e" }}>
-          <img src={stopPhotos.urls[stopPhotoIndex]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 20px",
-            background: "linear-gradient(transparent, rgba(0,0,0,0.8))",
-            fontSize: 16, color: "#fff", fontWeight: 600,
-          }}>
-            {stopPhotos.label}
+        // Cartolina/polaroid in basso a sinistra: la camera continua a orbitare
+        // sulla tappa dietro (vedi orbitStop), quindi la foto arricchisce la
+        // scena 3D invece di sostituirla come faceva il vecchio overlay pieno.
+        <div style={{
+          position: "absolute", left: 16, bottom: 20, zIndex: 15, width: 208,
+          background: "#fbfbf7", borderRadius: 6, padding: 8,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.5)", transform: "rotate(-3deg)",
+          animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
+        }}>
+          <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 3", borderRadius: 3, overflow: "hidden", background: "#000" }}>
+            <img src={stopPhotos.urls[stopPhotoIndex]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "6px 2px 2px" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {stopPhotos.label}
+            </span>
+            {stopPhotos.urls.length > 1 && (
+              <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                {stopPhotos.urls.map((_, i) => (
+                  <span key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: i === stopPhotoIndex ? "#1a1a1a" : "rgba(0,0,0,0.2)" }} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
