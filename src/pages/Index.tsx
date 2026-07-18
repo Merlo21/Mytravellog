@@ -72,6 +72,38 @@ export function backfillDistanceFromHome(trip: Trip, homeCity: { lat: number; lo
   };
 }
 
+// Card statistica della Home. Definita a livello di MODULO (non dentro
+// HomeInner): se fosse dichiarata nel render, ogni ri-render creerebbe una
+// nuova funzione — per React un componente "diverso" — che rimonta le card da
+// zero e fa ripartire l'animazione fade-up da opacity 0. Durante la rotazione
+// del globo il mousemove ri-renderizza la Home decine di volte al secondo,
+// quindi le card lampeggiavano/sparivano finché non ci si fermava. Con il tipo
+// stabile React riconcilia il nodo esistente e l'animazione parte una volta sola.
+interface StatCardProps {
+  icon: ReactNode; label: string; value: string; accent: string; bg: string; i?: number;
+}
+function StatCard({ icon, label, value, accent, bg, i = 0 }: StatCardProps) {
+  return (
+    <div className="animate-fade-up" style={{
+      background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12,
+      padding:"14px 16px", display:"flex", alignItems:"center", gap:12,
+      position:"relative", overflow:"hidden",
+      // Comparsa scaglionata: prima le quattro card apparivano di colpo
+      // tutte insieme (nessuna animazione d'ingresso in Home).
+      animationDelay: `${i * 60}ms`,
+    }}>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:accent,borderRadius:"12px 12px 0 0"}}/>
+      <div style={{width:36,height:36,borderRadius:9,background:bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+        <span style={{color:accent}}>{icon}</span>
+      </div>
+      <div>
+        <div className="font-mono" style={{fontSize:20,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
+        <div style={{fontSize:10,letterSpacing:"1.2px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginTop:3}}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
 class ErrorBoundary extends Component<{children:ReactNode},{error:string|null}> {
   state = { error: null };
   static getDerivedStateFromError(e: Error) { return { error: e.message + "\n" + e.stack }; }
@@ -156,25 +188,6 @@ function HomeInner() {
             { icon: <MapPin      className="w-[18px] h-[18px]"/>, label: "Città",    value: stats.cities.toString(),    accent: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
             { icon: <Compass     className="w-[18px] h-[18px]"/>, label: distanceUnit === "imperial" ? "Miglia" : "Km totali", value: fmtDistance(stats.km, distanceUnit), accent: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
           ];
-          const StatCard = ({ icon, label, value, accent, bg, i = 0 }: typeof statItems[number] & { i?: number }) => (
-            <div key={label} className="animate-fade-up" style={{
-              background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:12,
-              padding:"14px 16px", display:"flex", alignItems:"center", gap:12,
-              position:"relative", overflow:"hidden",
-              // Comparsa scaglionata: prima le quattro card apparivano di colpo
-              // tutte insieme (nessuna animazione d'ingresso in Home).
-              animationDelay: `${i * 60}ms`,
-            }}>
-              <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:accent,borderRadius:"12px 12px 0 0"}}/>
-              <div style={{width:36,height:36,borderRadius:9,background:bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                <span style={{color:accent}}>{icon}</span>
-              </div>
-              <div>
-                <div className="font-mono" style={{fontSize:20,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
-                <div style={{fontSize:10,letterSpacing:"1.2px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginTop:3}}>{label}</div>
-              </div>
-            </div>
-          );
           return (
             <>
               {/* Desktop: sempre visibili, struttura invariata */}
