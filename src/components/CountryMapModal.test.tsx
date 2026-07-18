@@ -487,10 +487,33 @@ describe("CountryMapModal — cache persistita in localStorage tra le sessioni",
   });
 
   it("una cache localStorage corrotta viene ignorata e si ricade sul fetch di rete", async () => {
-    localStorage.setItem("geoBoundariesCache:v1:IT", "{non è json valido");
+    localStorage.setItem("geoBoundariesCache:v2:IT", "{non è json valido");
     mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ trips: [makeTrip({ region: "Lazio" })] });
     await waitFor(() => expect(screen.getByText("1 regione su 5")).toBeInTheDocument());
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("CountryMapModal — livello ADM per paese", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("per l'Italia scarica ADM2 (20 regioni vere), non ADM1 (5 macro-aree NUTS-1)", async () => {
+    // geoBoundaries per l'Italia ha come ADM1 le 5 macro-aree statistiche
+    // (Nord-Ovest, Centro, …); le 20 regioni amministrative stanno in ADM2.
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({ countryCode: "IT", countryName: "Italia", trips: [] });
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const metaUrl = (fetch as any).mock.calls[0][0];
+    expect(metaUrl).toContain("/ITA/ADM2/");
+    expect(metaUrl).not.toContain("/ADM1/");
+  });
+
+  it("per gli altri paesi resta ADM1 (default)", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({ countryCode: "DE", countryName: "Germania", trips: [] });
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const metaUrl = (fetch as any).mock.calls[0][0];
+    expect(metaUrl).toContain("/DEU/ADM1/");
   });
 });

@@ -54,11 +54,24 @@ async function fetchGithubRawJson(url: string): Promise<any | null> {
  * (vedi REGION_ALIASES sotto, usata solo come fallback per i viaggi
  * salvati prima che venisse tracciato il codice ISO).
  */
+// Per la maggior parte dei paesi ADM1 è il livello "regioni/stati/province"
+// che ci si aspetta. Alcuni paesi però in geoBoundaries hanno un ADM1 diverso
+// dalle suddivisioni amministrative comuni: l'Italia, ad esempio, ha come ADM1
+// le 5 macro-aree statistiche NUTS-1 (Nord-Ovest, Nord-Est, Centro, Sud,
+// Isole), mentre le 20 regioni vere (Lazio, Toscana, …) stanno in ADM2. Senza
+// questo override la mappa mostrerebbe 5 blocchi e "0 regioni su 5" perché i
+// nomi salvati dai viaggi ("Lazio") non combaciano con le macro-aree ("Centro").
+const ADM_LEVEL_BY_COUNTRY: Record<string, "ADM1" | "ADM2"> = {
+  IT: "ADM2",
+};
+
 async function fetchCountryRegions(countryCode2: string): Promise<any[] | null> {
-  const iso3 = ISO2_TO_ISO3[countryCode2?.toUpperCase()];
+  const code2 = countryCode2?.toUpperCase();
+  const iso3 = ISO2_TO_ISO3[code2];
   if (!iso3) return null;
+  const admLevel = ADM_LEVEL_BY_COUNTRY[code2] ?? "ADM1";
   try {
-    const metaUrl = `https://www.geoboundaries.org/api/current/gbOpen/${iso3}/ADM1/`;
+    const metaUrl = `https://www.geoboundaries.org/api/current/gbOpen/${iso3}/${admLevel}/`;
     const metaR = await fetch(metaUrl);
     if (!metaR.ok) return null;
     const meta = await metaR.json();
@@ -162,7 +175,9 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
 // paesi "pesanti" nella stessa sessione si rischia di esaurirla e vedere
 // "Mappa non disponibile" per un paese in realtà supportato.
 const geoCache: Record<string, any> = {};
-const GEO_LOCALSTORAGE_PREFIX = "geoBoundariesCache:v1:";
+// v2: l'Italia ora scarica ADM2 (20 regioni) invece di ADM1 (5 macro-aree) —
+// le cache v1 esistenti tenevano i confini sbagliati, il bump le invalida.
+const GEO_LOCALSTORAGE_PREFIX = "geoBoundariesCache:v2:";
 
 function readPersistedFeatures(countryCode: string): any[] | null {
   try {
