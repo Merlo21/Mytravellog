@@ -361,8 +361,6 @@ export function TripFlyover({ trips, onClose }: Props) {
   // ref, non stato React, per non causare un re-render a 60fps) e letta sia
   // dal contatore a schermo (via counterElRef, DOM diretto) sia da drawRecordFrame.
   const counterElRef = useRef<HTMLSpanElement>(null);
-  // TEMPORANEO (calibrazione): lettore live del livello di zoom della mappa.
-  const zoomElRef = useRef<HTMLSpanElement>(null);
   const traveledKmRef = useRef(0);
   const totalDistanceKmRef = useRef(0);
   const legLengthsKmRef = useRef<number[]>([]);
@@ -751,11 +749,23 @@ export function TripFlyover({ trips, onClose }: Props) {
     // Finale a mappa FERMA (niente orbita): il fermo-immagine riassuntivo è più
     // leggibile. Con preserveDrawingBuffer la registrazione tiene comunque anche
     // a mappa statica; un repaint esplicito assicura l'ultimo frame nel buffer.
+    // Lo snapshot del rilievo NON è più automatico: da qui la mappa è libera e
+    // l'utente può zoomare/spostare, poi salva la vista che preferisce con "Salva".
     map.triggerRepaint();
     await wait(FINALE_HOLD_MS);
     if (!mountedRef.current) return;
-    await captureReliefSnapshot(map);
     stopRecordingAndBuildDownload();
+  };
+
+  // "Salva" nel finale: cattura la vista corrente (dopo eventuali zoom/spostamenti
+  // dell'utente) come rilievo del viaggio, poi chiude. È quella che finirà come
+  // foglio sul biglietto in "I miei viaggi".
+  const [savingRelief, setSavingRelief] = useState(false);
+  const handleSaveRelief = async () => {
+    if (savingRelief) return;
+    setSavingRelief(true);
+    await captureReliefSnapshot(mapRef.current);
+    onClose();
   };
 
   const handleTogglePlay = () => {
@@ -831,8 +841,6 @@ export function TripFlyover({ trips, onClose }: Props) {
         });
         if (cancelled) { map.remove(); return; }
         mapRef.current = map;
-        // TEMPORANEO (calibrazione zoom): aggiorna il lettore ad ogni movimento.
-        map.on("move", () => { if (zoomElRef.current) zoomElRef.current.textContent = "zoom " + map.getZoom().toFixed(2); });
 
         map.on("load", async () => {
           if (cancelled || !mountedRef.current) return;
@@ -994,15 +1002,6 @@ export function TripFlyover({ trips, onClose }: Props) {
         }}>
         <X className="w-4 h-4" />
       </button>
-
-      {/* TEMPORANEO (calibrazione): livello di zoom live, sotto la X. */}
-      <div style={{
-        position: "absolute", top: 58, left: 16, zIndex: 30,
-        background: "rgba(10,22,40,0.85)", border: "0.5px solid #1a2d4a", borderRadius: 8,
-        padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#fbbf24", fontFamily: "monospace",
-      }}>
-        <span ref={zoomElRef}>zoom —</span>
-      </div>
 
       {phase === "ready" && !finished && (
         <div style={{
@@ -1167,12 +1166,17 @@ export function TripFlyover({ trips, onClose }: Props) {
           })()}
 
           <div style={{ position: "absolute", right: 16, bottom: 20, zIndex: 26, display: "flex", gap: 10 }}>
-            <button onClick={onClose}
+            {/* Single-trip: "Salva" cattura la vista corrente (dopo zoom/pan) come
+                rilievo sul biglietto. Multi-viaggio: non c'è una card a cui legarlo → "Chiudi". */}
+            <button onClick={tripsCount === 1 ? handleSaveRelief : onClose} disabled={savingRelief}
               style={{
-                padding: "8px 16px", borderRadius: 999, background: "rgba(10,22,40,0.85)",
-                border: "0.5px solid #1a2d4a", color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                padding: "8px 16px", borderRadius: 999,
+                background: tripsCount === 1 ? "rgba(96,165,250,0.15)" : "rgba(10,22,40,0.85)",
+                border: tripsCount === 1 ? "1px solid #60a5fa" : "0.5px solid #1a2d4a",
+                color: tripsCount === 1 ? "#60a5fa" : "rgba(255,255,255,0.8)",
+                fontSize: 12, fontWeight: 600, cursor: savingRelief ? "default" : "pointer",
               }}>
-              Chiudi
+              {tripsCount === 1 ? (savingRelief ? "Salvo…" : "Salva") : "Chiudi"}
             </button>
             {downloadUrl && videoBlobRef.current && canShareFile(new File([videoBlobRef.current], "viaggio-3d.webm", { type: "video/webm" })) ? (
               <button onClick={handleShareVideo}
