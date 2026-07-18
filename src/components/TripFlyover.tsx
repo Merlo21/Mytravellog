@@ -659,9 +659,13 @@ export function TripFlyover({ trips, onClose }: Props) {
     try {
       map.once("moveend", finish);
       map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
-        pitch: 55, bearing: 15,
-        padding: { top: 80, right: 70, bottom: 210, left: 250 },
-        duration: 2600, maxZoom: 9,
+        // Centrato orizzontalmente e ZOOMATO sul territorio del percorso (meno
+        // globo/orizzonte): padding contenuto e simmetrico ai lati, un po' più
+        // sotto per non finire dietro al ventaglio foto; tilt più basso e
+        // maxZoom alto per riempire il frame con la zona attraversata.
+        pitch: 45, bearing: 0,
+        padding: { top: 70, right: 70, bottom: 180, left: 70 },
+        duration: 2600, maxZoom: 11,
       });
     } catch { finish(); return; }
     setTimeout(finish, 3400); // salvagente se moveend non scatta
@@ -831,9 +835,18 @@ export function TripFlyover({ trips, onClose }: Props) {
             type: "geojson",
             data: { type: "Feature", geometry: { type: "LineString", coordinates: buildFlyoverRouteCoords(stops, legs) } },
           });
+          // Contorno scuro (casing) SOTTO la linea: fa staccare il tracciato dal
+          // satellite (prima una linea blu sottile si perdeva sullo sfondo).
+          map.addLayer({
+            id: "flyover-route-casing", type: "line", source: "flyover-route",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "rgba(6,14,30,0.65)", "line-width": 8.5 },
+          });
+          // Tracciato in risalto: giallo/ambra (come le puntine), spesso e pieno.
           map.addLayer({
             id: "flyover-route", type: "line", source: "flyover-route",
-            paint: { "line-color": "#60a5fa", "line-width": 3, "line-opacity": 0.85 },
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "#fbbf24", "line-width": 4.5, "line-opacity": 1 },
           });
 
           map.addSource("flyover-stops", {
