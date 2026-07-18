@@ -297,6 +297,11 @@ const STOP_PHOTO_DISPLAY_MS = 1500;
 const FINALE_PHOTO_LIMIT = 5;
 // Quanto resta a schermo/registrata la panoramica finale prima di fermare il video.
 const FINALE_HOLD_MS = 3000;
+// Margini (px) attorno al tracciato nella panoramica finale. Con fitBounds
+// questi margini fissi fanno sì che il percorso riempia SEMPRE il frame allo
+// stesso modo, qualunque sia la sua lunghezza (lo zoom si adatta da solo): più
+// sotto per non finire dietro al ventaglio foto in basso a sinistra.
+const FINALE_PADDING = { top: 50, right: 60, bottom: 110, left: 60 };
 // Ventaglio "francobolli" del finale: carte più grandi e ben distanziate del
 // ventaglio-tappa (STOP), così nel fermo-immagine si vedono TUTTE le foto.
 const FINALE_CARD_W = 132;   // larghezza carta (px "a schermo"; il canvas scala per dpr)
@@ -645,9 +650,10 @@ export function TripFlyover({ trips, onClose }: Props) {
     }
   };
 
-  /** Stacca all'indietro e inquadra l'intero tracciato in prospettiva 3D,
-   *  lasciando libero l'angolo in basso a sinistra (padding asimmetrico) per il
-   *  ventaglio foto + i dettagli. Risolve a fine transizione. */
+  /** Inquadra la panoramica finale con fitBounds: il percorso riempie sempre il
+   *  frame allo stesso modo (margini FINALE_PADDING fissi), qualunque sia la sua
+   *  lunghezza — lo zoom si adatta da solo. Tilt basso, orientamento a nord.
+   *  Risolve a fine transizione. */
   const flyToOverview = (map: any): Promise<void> => new Promise(resolve => {
     const coords = allCoordsRef.current;
     if (!coords.length) { resolve(); return; }
@@ -661,12 +667,8 @@ export function TripFlyover({ trips, onClose }: Props) {
     try {
       map.once("moveend", finish);
       map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
-        // Centrato e ZOOMATO stretto sul territorio del percorso (riempie il
-        // frame, poco globo): padding ridotto e simmetrico ai lati, solo un po'
-        // più sotto per non finire dietro al ventaglio foto; tilt basso e
-        // maxZoom alto per stare vicini alla zona attraversata.
         pitch: 45, bearing: 0,
-        padding: { top: 50, right: 60, bottom: 110, left: 60 },
+        padding: FINALE_PADDING,
         duration: 2600, maxZoom: 12,
       });
     } catch { finish(); return; }
