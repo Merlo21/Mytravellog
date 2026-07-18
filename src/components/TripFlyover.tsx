@@ -659,13 +659,13 @@ export function TripFlyover({ trips, onClose }: Props) {
     try {
       map.once("moveend", finish);
       map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
-        // Centrato orizzontalmente e ZOOMATO sul territorio del percorso (meno
-        // globo/orizzonte): padding contenuto e simmetrico ai lati, un po' più
-        // sotto per non finire dietro al ventaglio foto; tilt più basso e
-        // maxZoom alto per riempire il frame con la zona attraversata.
+        // Centrato e ZOOMATO stretto sul territorio del percorso (riempie il
+        // frame, poco globo): padding ridotto e simmetrico ai lati, solo un po'
+        // più sotto per non finire dietro al ventaglio foto; tilt basso e
+        // maxZoom alto per stare vicini alla zona attraversata.
         pitch: 45, bearing: 0,
-        padding: { top: 70, right: 70, bottom: 180, left: 70 },
-        duration: 2600, maxZoom: 11,
+        padding: { top: 50, right: 60, bottom: 110, left: 60 },
+        duration: 2600, maxZoom: 12,
       });
     } catch { finish(); return; }
     setTimeout(finish, 3400); // salvagente se moveend non scatta
