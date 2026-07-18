@@ -123,7 +123,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   return (
     <>
     <div style={{position:"relative"}}>
-    <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderRadius:16,overflow:"hidden"}}>
+    <div style={{position:"relative",zIndex:1,background:"#0a1628",border:"0.5px solid #1a2d4a",borderRadius:16,overflow:"hidden"}}>
 
       {/* Top */}
       <div style={{padding:"16px 20px 12px"}}>
@@ -288,18 +288,21 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
       )}
     </div>
 
-      {/* Linguetta del rilievo 3D sul bordo destro: appare solo se lo snapshot
-          esiste (flyover già visto almeno una volta). Fuori dall'overflow:hidden
-          della card, così può sporgere; click → anteprima ingrandita. */}
+      {/* Rilievo 3D come "foglio nella busta": il biglietto fa da busta e il
+          rilievo spunta come un foglio (dietro la card, zIndex 0) dal bordo
+          superiore, leggermente ruotato. Appare solo se lo snapshot esiste
+          (flyover già visto). Click sulla parte che sporge → anteprima ingrandita. */}
       {reliefUrl && (
         <button type="button" onClick={() => setReliefOpen(true)}
           aria-label="Vedi il rilievo 3D del viaggio" title="Rilievo 3D del viaggio"
           style={{
-            position:"absolute", right:-10, top:"50%", transform:"translateY(-50%)",
-            width:52, height:52, padding:3, borderRadius:10, border:"0.5px solid #1a2d4a",
-            background:"#0a1628", boxShadow:"0 4px 14px rgba(0,0,0,0.5)", cursor:"pointer", overflow:"hidden",
+            position:"absolute", top:-30, right:26, zIndex:0,
+            width:116, padding:"5px 5px 8px", background:"#fbfbf7",
+            borderRadius:"4px 4px 7px 7px", boxShadow:"0 -3px 12px rgba(0,0,0,0.4)",
+            transform:"rotate(-4deg)", transformOrigin:"bottom center",
+            cursor:"pointer", border:"none",
           }}>
-          <img src={reliefUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:8,display:"block"}}/>
+          <img src={reliefUrl} alt="" style={{width:"100%",height:74,objectFit:"cover",borderRadius:3,display:"block"}}/>
         </button>
       )}
     </div>

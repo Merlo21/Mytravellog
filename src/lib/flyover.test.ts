@@ -150,17 +150,17 @@ describe("bearingBetween", () => {
 });
 
 describe("computeLegCamera", () => {
-  it("usa zoom alto e pitch marcato per tratte brevi (<50km)", () => {
+  it("usa zoom più ravvicinato per tratte brevi (<50km)", () => {
     const cam = computeLegCamera({ lat: 45.5, lon: 9.2 }, { lat: 45.51, lon: 9.21 });
-    expect(cam.zoom).toBe(11);
-    expect(cam.pitch).toBe(60);
+    expect(cam.zoom).toBe(8.5);
+    expect(cam.pitch).toBe(50);
   });
 
-  it("usa zoom basso e pitch ridotto per tratte intercontinentali (>3000km)", () => {
+  it("usa zoom basso per tratte intercontinentali (>3000km)", () => {
     // Milano -> Tokyo, ~9700km
     const cam = computeLegCamera({ lat: 45.46, lon: 9.19 }, { lat: 35.68, lon: 139.65 });
-    expect(cam.zoom).toBe(2.5);
-    expect(cam.pitch).toBe(30);
+    expect(cam.zoom).toBe(3);
+    expect(cam.pitch).toBe(50);
   });
 
   it("la durata resta clampata tra 5s e 11s", () => {
@@ -170,10 +170,12 @@ describe("computeLegCamera", () => {
     expect(long.durationMs).toBe(11000);
   });
 
-  it("il bearing della camera coincide con bearingBetween per la stessa tratta", () => {
-    const from = { lat: 45.5, lon: 9.2 };
-    const to = { lat: 41.9, lon: 12.5 };
-    expect(computeLegCamera(from, to).bearing).toBe(bearingBetween(from, to));
+  it("orientamento fisso: bearing a nord e pitch costante su ogni tratta", () => {
+    const a = computeLegCamera({ lat: 45.5, lon: 9.2 }, { lat: 41.9, lon: 12.5 });
+    const b = computeLegCamera({ lat: 41.9, lon: 12.5 }, { lat: 37.5, lon: 15.1 });
+    expect(a.bearing).toBe(0);
+    expect(b.bearing).toBe(0);
+    expect(a.pitch).toBe(b.pitch);
   });
 });
 

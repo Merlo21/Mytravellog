@@ -101,15 +101,21 @@ export function bearingBetween(a: { lat: number; lon: number }, b: { lat: number
  * è proporzionale alla distanza ma restA in un range godibile (3.5-7.5s).
  */
 export function computeLegCamera(from: { lat: number; lon: number }, to: { lat: number; lon: number }): LegCamera {
-  const bearing = bearingBetween(from, to);
   const km = distanceKm(from.lat, from.lon, to.lat, to.lon);
 
+  // Orientamento FISSO per tutto il volo: bearing a nord e pitch costante. Prima
+  // ogni tratta ruotava la camera verso la propria direzione e cambiava molto il
+  // pitch/zoom → il video "si muoveva troppo" e disorientava tra una tratta e
+  // l'altra. Ora la camera tiene un assetto fermo e si limita a scorrere per
+  // seguire il percorso; lo zoom varia in modo lieve con la distanza della tratta.
+  const bearing = 0;
+  const pitch = 50;
+
   let zoom: number;
-  let pitch: number;
-  if (km < 50) { zoom = 11; pitch = 60; }
-  else if (km < 500) { zoom = 7; pitch = 55; }
-  else if (km < 3000) { zoom = 4.5; pitch = 45; }
-  else { zoom = 2.5; pitch = 30; }
+  if (km < 50) { zoom = 8.5; }
+  else if (km < 500) { zoom = 6.5; }
+  else if (km < 3000) { zoom = 4.5; }
+  else { zoom = 3; }
 
   // Durata della tratta. Rallentata rispetto a prima (era min 3500 / max 7500,
   // km*4): da quando la camera arriva già inquadrata sulla partenza (vedi

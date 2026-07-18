@@ -299,8 +299,8 @@ const FINALE_PHOTO_LIMIT = 5;
 const FINALE_HOLD_MS = 3000;
 // Ventaglio "francobolli" del finale: carte più grandi e ben distanziate del
 // ventaglio-tappa (STOP), così nel fermo-immagine si vedono TUTTE le foto.
-const FINALE_CARD_W = 168;   // larghezza carta (px "a schermo"; il canvas scala per dpr)
-const FINALE_FAN_STEP = 98;  // scostamento orizzontale per carta (~58% di ognuna visibile)
+const FINALE_CARD_W = 132;   // larghezza carta (px "a schermo"; il canvas scala per dpr)
+const FINALE_FAN_STEP = 126; // scostamento orizzontale per carta ≈ larghezza → praticamente affiancate (niente sovrapposizione)
 
 /** Layout di una carta nel ventaglio finale: spread ampio (tutte visibili),
  *  leggero arco simmetrico. Nessuna carta "in primo piano" (a differenza del
@@ -574,14 +574,14 @@ export function TripFlyover({ trips, onClose }: Props) {
           ctx.restore();
         }
       }
-      // pillola dettagli in alto (sotto il contatore)
+      // pillola dettagli in alto a DESTRA (coerente con la card a schermo)
       const title = trips.length > 1 ? `${trips.length} viaggi` : trips[0].title;
       const details = `${title}  ·  ${formatKm(totalDistanceKmRef.current)} km  ·  ${legsRef.current.length} tappe`;
       ctx.font = `700 ${15 * dpr}px sans-serif`;
       const dw = ctx.measureText(details).width + 28 * dpr;
-      const dx = recordCanvas.width / 2 - dw / 2;
-      const dy = 52 * dpr;
-      ctx.fillStyle = "rgba(10,22,40,0.85)";
+      const dx = recordCanvas.width - dw - 16 * dpr;
+      const dy = 16 * dpr;
+      ctx.fillStyle = "rgba(10,22,40,0.9)";
       roundRectPath(ctx, dx, dy, dw, 30 * dpr, 15 * dpr);
       ctx.fill();
       ctx.fillStyle = "#fff";
@@ -838,11 +838,12 @@ export function TripFlyover({ trips, onClose }: Props) {
 
           map.addSource("flyover-stops", {
             type: "geojson",
-            data: { type: "FeatureCollection", features: stops.map(s => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: {} })) },
+            data: { type: "FeatureCollection", features: stops.map(s => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: { name: s.label } })) },
           });
           // Tappe come puntine da mappa (symbol layer con icona disegnata),
           // non più semplici pallini: la punta poggia sulla coordinata e lo
-          // spillo resta "in piedi" sulla mappa inclinata.
+          // spillo resta "in piedi" sulla mappa inclinata. Sopra ogni puntina il
+          // nome della città (label con alone scuro per leggerla sul satellite).
           if (!map.hasImage("flyover-pin")) map.addImage("flyover-pin", createPinImageData(), { pixelRatio: 2 });
           map.addLayer({
             id: "flyover-stops", type: "symbol", source: "flyover-stops",
@@ -853,6 +854,21 @@ export function TripFlyover({ trips, onClose }: Props) {
               "icon-allow-overlap": true,
               "icon-ignore-placement": true,
               "icon-pitch-alignment": "viewport",
+              "text-field": ["get", "name"],
+              "text-font": ["Open Sans Bold"],
+              "text-size": 13,
+              "text-anchor": "bottom",
+              "text-offset": [0, -2.6],
+              "text-allow-overlap": true,
+              "text-ignore-placement": true,
+              "text-optional": true,
+              "text-pitch-alignment": "viewport",
+            },
+            paint: {
+              "text-color": "#ffffff",
+              "text-halo-color": "rgba(6,14,30,0.9)",
+              "text-halo-width": 1.6,
+              "text-halo-blur": 0.5,
             },
           });
 
@@ -943,16 +959,17 @@ export function TripFlyover({ trips, onClose }: Props) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          position: "relative", width: "100%", height: "100%", maxWidth: 1200, maxHeight: 900,
+          position: "relative", width: "100%", height: "100%", maxWidth: 940, maxHeight: 640,
           background: "#060e1e", border: "0.5px solid #1a2d4a", borderRadius: 16,
           overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
           animation: "flyoverModalIn 0.28s cubic-bezier(0.22,1,0.36,1) both",
         }}>
         <div style={{ position: "absolute", inset: 0 }} ref={containerRef} />
 
+      {/* Chiudi in alto a SINISTRA: la card dei dati viaggio ora sta in alto a destra. */}
       <button onClick={onClose} aria-label="Chiudi"
         style={{
-          position: "absolute", top: 16, right: 16, width: 34, height: 34, borderRadius: 10, zIndex: 30,
+          position: "absolute", top: 16, left: 16, width: 34, height: 34, borderRadius: 10, zIndex: 30,
           background: "rgba(10,22,40,0.8)", border: "0.5px solid #1a2d4a", cursor: "pointer",
           color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
@@ -1066,16 +1083,31 @@ export function TripFlyover({ trips, onClose }: Props) {
       {finished && (
         <>
           <div style={{
-            position: "absolute", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 25,
-            background: "rgba(10,22,40,0.9)", border: "0.5px solid #1a2d4a", borderRadius: 14,
-            padding: "10px 18px", textAlign: "center", maxWidth: "80%",
+            position: "absolute", top: 16, right: 16, zIndex: 25, maxWidth: "70%",
+            background: "rgba(10,22,40,0.92)", border: "0.5px solid #1a2d4a", borderRadius: 14,
+            padding: "12px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
             animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
           }}>
-            <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
-              {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {tripsCount === 1 && trips[0].country_code && (
+                <img src={"https://flagcdn.com/w40/" + trips[0].country_code.toLowerCase() + ".png"} alt="" width="22" height="16"
+                  style={{ borderRadius: 3, objectFit: "cover", flexShrink: 0 }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              )}
+              <div className="font-display" style={{ fontSize: 15, fontWeight: 700, color: "#f0f4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>
-              {dateRangeLabel ? `${dateRangeLabel}  ·  ` : ""}{formatKm(totalDistanceKmRef.current)} km  ·  {legs.length} tappe
+            {dateRangeLabel && (
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>{dateRangeLabel}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              {[{ v: formatKm(totalDistanceKmRef.current), l: "km" }, { v: String(legs.length), l: "tappe" }].map(s => (
+                <div key={s.l} style={{ background: "rgba(255,255,255,0.06)", border: "0.5px solid #1a2d4a", borderRadius: 10, padding: "5px 12px", textAlign: "center" }}>
+                  <div className="font-mono" style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>{s.v}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.6, marginTop: 2 }}>{s.l}</div>
+                </div>
+              ))}
             </div>
           </div>
 
