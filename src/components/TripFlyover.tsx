@@ -377,18 +377,19 @@ export function TripFlyover({ trips, onClose }: Props) {
     if (stopInfo && stopInfo.imgs.length > 0) {
       const img = stopInfo.imgs[stopPhotoIndexRef.current % stopInfo.imgs.length];
       if (img.complete && img.naturalWidth > 0) {
-        // Cartolina/polaroid in basso a sinistra — coerente con l'overlay a
-        // schermo (vedi il blocco stopPhotos nel JSX). Non più a tutto frame:
-        // la mappa che orbita dietro resta visibile anche nel video esportato.
+        // Cartolina/polaroid in alto a sinistra, sotto il contatore km —
+        // coerente con l'overlay a schermo (vedi il blocco stopPhotos nel JSX).
+        // Non più a tutto frame: la mappa che orbita dietro resta visibile anche
+        // nel video esportato. Larghezza min(208px, 46% del frame) come a schermo.
         const pad = 16 * dpr;
-        const cardW = 208 * dpr;
+        const cardW = Math.min(208 * dpr, recordCanvas.width * 0.46);
         const frame = 8 * dpr;
         const photoW = cardW - frame * 2;
         const photoH = photoW * 3 / 4;      // foto 4:3
         const labelH = 24 * dpr;
         const cardH = frame * 2 + photoH + labelH;
         const cardX = pad;
-        const cardY = recordCanvas.height - pad - cardH;
+        const cardY = 56 * dpr;             // sotto la pillola del contatore (top:16 + ~28 alto)
         // cornice bianca con ombra
         ctx.save();
         ctx.shadowColor = "rgba(0,0,0,0.5)";
@@ -714,11 +715,13 @@ export function TripFlyover({ trips, onClose }: Props) {
       )}
 
       {stopPhotos && (
-        // Cartolina/polaroid in basso a sinistra: la camera continua a orbitare
-        // sulla tappa dietro (vedi orbitStop), quindi la foto arricchisce la
-        // scena 3D invece di sostituirla come faceva il vecchio overlay pieno.
+        // Cartolina/polaroid in alto a sinistra, sotto il contatore km: la
+        // camera continua a orbitare sulla tappa dietro (vedi orbitStop), quindi
+        // la foto arricchisce la scena 3D invece di sostituirla come faceva il
+        // vecchio overlay pieno. In alto (non in basso) per non sovrapporsi ai
+        // controlli play/pausa centrati in fondo, che su mobile la toccherebbero.
         <div style={{
-          position: "absolute", left: 16, bottom: 20, zIndex: 15, width: 208,
+          position: "absolute", left: 16, top: 60, zIndex: 15, width: "min(208px, 46vw)",
           background: "#fbfbf7", borderRadius: 6, padding: 8,
           boxShadow: "0 8px 24px rgba(0,0,0,0.5)", transform: "rotate(-3deg)",
           animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
