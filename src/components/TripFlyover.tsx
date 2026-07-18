@@ -356,6 +356,8 @@ export function TripFlyover({ trips, onClose }: Props) {
   // ref, non stato React, per non causare un re-render a 60fps) e letta sia
   // dal contatore a schermo (via counterElRef, DOM diretto) sia da drawRecordFrame.
   const counterElRef = useRef<HTMLSpanElement>(null);
+  // TEMPORANEO (calibrazione): lettore live del livello di zoom della mappa.
+  const zoomElRef = useRef<HTMLSpanElement>(null);
   const traveledKmRef = useRef(0);
   const totalDistanceKmRef = useRef(0);
   const legLengthsKmRef = useRef<number[]>([]);
@@ -827,6 +829,8 @@ export function TripFlyover({ trips, onClose }: Props) {
         });
         if (cancelled) { map.remove(); return; }
         mapRef.current = map;
+        // TEMPORANEO (calibrazione zoom): aggiorna il lettore ad ogni movimento.
+        map.on("move", () => { if (zoomElRef.current) zoomElRef.current.textContent = "zoom " + map.getZoom().toFixed(2); });
 
         map.on("load", async () => {
           if (cancelled || !mountedRef.current) return;
@@ -988,6 +992,15 @@ export function TripFlyover({ trips, onClose }: Props) {
         }}>
         <X className="w-4 h-4" />
       </button>
+
+      {/* TEMPORANEO (calibrazione): livello di zoom live, sotto la X. */}
+      <div style={{
+        position: "absolute", top: 58, left: 16, zIndex: 30,
+        background: "rgba(10,22,40,0.85)", border: "0.5px solid #1a2d4a", borderRadius: 8,
+        padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#fbbf24", fontFamily: "monospace",
+      }}>
+        <span ref={zoomElRef}>zoom —</span>
+      </div>
 
       {phase === "ready" && !finished && (
         <div style={{
