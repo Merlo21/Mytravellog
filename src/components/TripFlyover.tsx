@@ -38,6 +38,25 @@ function drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x:
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
+/**
+ * Layout di una carta nel "ventaglio" (mano di carte) quando una tappa ha più
+ * foto. Le carte si aprono verso destra da un pivot in basso a sinistra; la
+ * carta `current` si fa avanti dritta, ingrandita e sollevata. Al variare di
+ * `current` (ogni STOP_PHOTO_DISPLAY_MS) le carte transitano tra il loro slot e
+ * il primo piano → effetto "sfoglia". Valori in px/gradi "a schermo"; il canvas
+ * di registrazione li scala per dpr. `z`: la carta corrente sopra a tutte.
+ */
+export function fanCardLayout(i: number, current: number, n: number) {
+  const isFront = i === current;
+  return {
+    tx: i * 16,
+    ty: (isFront ? -12 : 0) + i * 2,
+    rotate: isFront ? 0 : 4 + i * 5,
+    scale: isFront ? 1.08 : 1,
+    z: isFront ? n + 1 : i,
+  };
+}
+
 function createFlyoverMarkerEl(): HTMLDivElement {
   const el = document.createElement("div");
   el.style.cssText =
@@ -374,43 +393,78 @@ export function TripFlyover({ trips, onClose }: Props) {
     ctx.fillText(counterText, recordCanvas.width / 2, 14 * dpr + 14 * dpr + dpr);
 
     const stopInfo = stopPhotoImgsRef.current;
-    if (stopInfo && stopInfo.imgs.length > 0) {
-      const img = stopInfo.imgs[stopPhotoIndexRef.current % stopInfo.imgs.length];
-      if (img.complete && img.naturalWidth > 0) {
-        // Cartolina/polaroid in alto a sinistra, sotto il contatore km —
-        // coerente con l'overlay a schermo (vedi il blocco stopPhotos nel JSX).
-        // Non più a tutto frame: la mappa che orbita dietro resta visibile anche
-        // nel video esportato. Larghezza min(208px, 46% del frame) come a schermo.
-        const pad = 16 * dpr;
+    if (stopInfo && stopInfo.imgs.length > 0 && stopInfo.imgs.every(im => im.complete && im.naturalWidth > 0)) {
+      const n = stopInfo.imgs.length;
+      const current = stopPhotoIndexRef.current % n;
+      const pad = 16 * dpr;
+      const topY = 56 * dpr;               // sotto la pillola del contatore (top:16 + ~28 alto)
+
+      if (n === 1) {
+        // Foto singola: cartolina/polaroid con etichetta interna (come a schermo).
         const cardW = Math.min(208 * dpr, recordCanvas.width * 0.46);
         const frame = 8 * dpr;
         const photoW = cardW - frame * 2;
-        const photoH = photoW * 3 / 4;      // foto 4:3
+        const photoH = photoW * 3 / 4;
         const labelH = 24 * dpr;
         const cardH = frame * 2 + photoH + labelH;
-        const cardX = pad;
-        const cardY = 56 * dpr;             // sotto la pillola del contatore (top:16 + ~28 alto)
-        // cornice bianca con ombra
         ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 16 * dpr;
-        ctx.shadowOffsetY = 6 * dpr;
+        ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 16 * dpr; ctx.shadowOffsetY = 6 * dpr;
         ctx.fillStyle = "#fbfbf7";
-        roundRectPath(ctx, cardX, cardY, cardW, cardH, 6 * dpr);
+        roundRectPath(ctx, pad, topY, cardW, cardH, 6 * dpr);
         ctx.fill();
         ctx.restore();
-        // foto ritagliata
         ctx.save();
-        roundRectPath(ctx, cardX + frame, cardY + frame, photoW, photoH, 3 * dpr);
+        roundRectPath(ctx, pad + frame, topY + frame, photoW, photoH, 3 * dpr);
         ctx.clip();
-        drawImageCover(ctx, img, cardX + frame, cardY + frame, photoW, photoH);
+        drawImageCover(ctx, stopInfo.imgs[0], pad + frame, topY + frame, photoW, photoH);
         ctx.restore();
-        // etichetta città (sotto la foto, come una polaroid)
         ctx.fillStyle = "#1a1a1a";
         ctx.font = `700 ${13 * dpr}px sans-serif`;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(stopInfo.label, cardX + frame, cardY + frame + photoH + labelH / 2, photoW);
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(stopInfo.label, pad + frame, topY + frame + photoH + labelH / 2, photoW);
+      } else {
+        // Più foto: ventaglio "mano di carte" (stesso layout dell'overlay a
+        // schermo, vedi fanCardLayout), pivot in basso a sinistra.
+        const cardW = Math.min(140 * dpr, recordCanvas.width * 0.34);
+        const frame = 6 * dpr;
+        const photoW = cardW - frame * 2;
+        const photoH = photoW * 3 / 4;
+        const cardH = photoH + frame * 2;
+        const pivotY = topY + cardH;        // bordo inferiore delle carte
+        // Disegna dal fondo del ventaglio verso la carta corrente (z crescente).
+        const order = stopInfo.imgs.map((_, i) => i).sort((a, b) => fanCardLayout(a, current, n).z - fanCardLayout(b, current, n).z);
+        for (const i of order) {
+          const t = fanCardLayout(i, current, n);
+          ctx.save();
+          ctx.translate(pad + t.tx * dpr, pivotY + t.ty * dpr);
+          ctx.rotate((t.rotate * Math.PI) / 180);
+          ctx.scale(t.scale, t.scale);
+          // carta con bordo inferiore-sinistro nell'origine: rettangolo (0,-cardH)→(cardW,0)
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 12 * dpr; ctx.shadowOffsetY = 4 * dpr;
+          ctx.fillStyle = "#fbfbf7";
+          roundRectPath(ctx, 0, -cardH, cardW, cardH, 5 * dpr);
+          ctx.fill();
+          ctx.restore();
+          ctx.save();
+          roundRectPath(ctx, frame, -cardH + frame, photoW, photoH, 3 * dpr);
+          ctx.clip();
+          drawImageCover(ctx, stopInfo.imgs[i], frame, -cardH + frame, photoW, photoH);
+          ctx.restore();
+          ctx.restore();
+        }
+        // Etichetta città in una pillola scura sotto il ventaglio (le carte non
+        // hanno più una didascalia interna condivisa).
+        const labelText = stopInfo.label;
+        ctx.font = `700 ${13 * dpr}px sans-serif`;
+        const lw = ctx.measureText(labelText).width + 20 * dpr;
+        const ly = pivotY + 16 * dpr;
+        ctx.fillStyle = "rgba(10,22,40,0.85)";
+        roundRectPath(ctx, pad, ly, lw, 24 * dpr, 12 * dpr);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(labelText, pad + 10 * dpr, ly + 12 * dpr + dpr);
       }
     }
   };
@@ -714,12 +768,12 @@ export function TripFlyover({ trips, onClose }: Props) {
         </div>
       )}
 
-      {stopPhotos && (
-        // Cartolina/polaroid in alto a sinistra, sotto il contatore km: la
-        // camera continua a orbitare sulla tappa dietro (vedi orbitStop), quindi
-        // la foto arricchisce la scena 3D invece di sostituirla come faceva il
-        // vecchio overlay pieno. In alto (non in basso) per non sovrapporsi ai
-        // controlli play/pausa centrati in fondo, che su mobile la toccherebbero.
+      {/* Foto della tappa in alto a sinistra, sotto il contatore km: la camera
+          orbita sulla tappa dietro (vedi orbitStop), quindi le foto arricchiscono
+          la scena 3D invece di sostituirla. In alto (non in basso) per non
+          sovrapporsi ai controlli play/pausa centrati in fondo. */}
+      {stopPhotos && stopPhotos.urls.length === 1 && (
+        // Una sola foto: cartolina/polaroid con etichetta interna.
         <div style={{
           position: "absolute", left: 16, top: 60, zIndex: 15, width: "min(208px, 46vw)",
           background: "#fbfbf7", borderRadius: 6, padding: 8,
@@ -727,19 +781,46 @@ export function TripFlyover({ trips, onClose }: Props) {
           animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
         }}>
           <div style={{ position: "relative", width: "100%", aspectRatio: "4 / 3", borderRadius: 3, overflow: "hidden", background: "#000" }}>
-            <img src={stopPhotos.urls[stopPhotoIndex]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            <img src={stopPhotos.urls[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, padding: "6px 2px 2px" }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {stopPhotos.label}
-            </span>
-            {stopPhotos.urls.length > 1 && (
-              <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                {stopPhotos.urls.map((_, i) => (
-                  <span key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: i === stopPhotoIndex ? "#1a1a1a" : "rgba(0,0,0,0.2)" }} />
-                ))}
-              </div>
-            )}
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "6px 2px 2px" }}>
+            {stopPhotos.label}
+          </div>
+        </div>
+      )}
+
+      {stopPhotos && stopPhotos.urls.length > 1 && (
+        // Più foto: ventaglio "mano di carte" che si sfoglia (vedi fanCardLayout).
+        <div style={{
+          position: "absolute", left: 16, top: 60, zIndex: 15,
+          animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
+        }}>
+          <div style={{ position: "relative", width: 140 + (stopPhotos.urls.length - 1) * 16, height: 135 }}>
+            {stopPhotos.urls.map((u, i) => {
+              const t = fanCardLayout(i, stopPhotoIndex, stopPhotos.urls.length);
+              return (
+                <div key={i} style={{
+                  position: "absolute", left: 0, bottom: 0, width: 140,
+                  transformOrigin: "bottom left",
+                  transform: `translate(${t.tx}px, ${t.ty}px) rotate(${t.rotate}deg) scale(${t.scale})`,
+                  transition: "transform 0.5s cubic-bezier(0.22,1,0.36,1)",
+                  zIndex: t.z,
+                  background: "#fbfbf7", borderRadius: 5, padding: 6,
+                  boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
+                }}>
+                  <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 3, overflow: "hidden", background: "#000" }}>
+                    <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{
+            display: "inline-block", marginTop: 8, fontSize: 12, fontWeight: 700, color: "#fff",
+            background: "rgba(10,22,40,0.85)", borderRadius: 999, padding: "4px 10px",
+            maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {stopPhotos.label}
           </div>
         </div>
       )}
