@@ -31,6 +31,16 @@ export function waypointPhotoKey(tripId: string, waypointId: string): string {
   return `${tripId}:waypoint:${waypointId}`;
 }
 
+/**
+ * Chiave dell'immagine "rilievo 3D" del viaggio: lo snapshot della panoramica
+ * finale del flyover (percorso + puntine). NON è tra stopPhotoKeys — così non
+ * viene mai mostrata come foto di tappa nel flyover — ma va cancellata insieme
+ * al viaggio (vedi deletePhotosForTrip).
+ */
+export function reliefPhotoKey(tripId: string): string {
+  return `${tripId}:relief`;
+}
+
 /** Tutte le possibili chiavi foto di un viaggio (destinazione, casa, ogni tappa con id). */
 export function stopPhotoKeys(trip: Pick<Trip, "id" | "waypoints">): string[] {
   const keys = [destinationPhotoKey(trip.id), homePhotoKey(trip.id)];
@@ -97,6 +107,21 @@ export async function getPhotosForTrip(tripId: string): Promise<Photo[]> {
   return db.getAllFromIndex(STORE_NAME, "by-trip", tripId);
 }
 
+/**
+ * Salva (o sovrascrive) lo snapshot del rilievo 3D di un viaggio. Usa un id
+ * stabile derivato dal tripId, così ri-generarlo a fine flyover rimpiazza la
+ * versione precedente invece di accumulare immagini.
+ */
+export async function saveReliefImage(tripId: string, blob: Blob): Promise<void> {
+  await savePhoto(reliefPhotoKey(tripId), blob, `relief:${tripId}`);
+}
+
+/** Blob del rilievo 3D salvato per un viaggio, o null se non è mai stato generato. */
+export async function getReliefImage(tripId: string): Promise<Blob | null> {
+  const photos = await getPhotosForTrip(reliefPhotoKey(tripId));
+  return photos.length > 0 ? photoToBlob(photos[0]) : null;
+}
+
 /** Ricostruisce un Blob visualizzabile/scaricabile da una Photo salvata. */
 export function photoToBlob(photo: Photo): Blob {
   return new Blob([photo.data], { type: photo.type });
@@ -107,10 +132,10 @@ export async function deletePhoto(id: string): Promise<void> {
   await db.delete(STORE_NAME, id);
 }
 
-/** Cancella le foto di tutte le tappe del viaggio (casa, ogni waypoint, destinazione). */
+/** Cancella le foto di tutte le tappe del viaggio (casa, ogni waypoint, destinazione) + il rilievo 3D. */
 export async function deletePhotosForTrip(trip: Pick<Trip, "id" | "waypoints">): Promise<void> {
   const db = await getDB();
-  for (const key of stopPhotoKeys(trip)) {
+  for (const key of [...stopPhotoKeys(trip), reliefPhotoKey(trip.id)]) {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const index = tx.store.index("by-trip");
     let cursor = await index.openCursor(key);

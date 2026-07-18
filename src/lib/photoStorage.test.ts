@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   savePhoto, getPhotosForTrip, deletePhoto, deletePhotosForTrip, photoToBlob, __resetPhotoDB,
   destinationPhotoKey, homePhotoKey, waypointPhotoKey, stopPhotoKeys,
+  reliefPhotoKey, saveReliefImage, getReliefImage,
 } from "./photoStorage";
 
 function makeBlob(content = "fake-image-bytes"): Blob {
@@ -84,6 +85,34 @@ describe("photoStorage", () => {
     const id1 = await savePhoto("trip-1", makeBlob());
     const id2 = await savePhoto("trip-1", makeBlob());
     expect(id1).not.toBe(id2);
+  });
+
+  describe("rilievo 3D del viaggio", () => {
+    it("reliefPhotoKey è distinta e non compare tra stopPhotoKeys", () => {
+      expect(reliefPhotoKey("trip-1")).toBe("trip-1:relief");
+      expect(stopPhotoKeys({ id: "trip-1", waypoints: [] })).not.toContain("trip-1:relief");
+    });
+
+    it("saveReliefImage salva e getReliefImage ritrova lo stesso blob", async () => {
+      expect(await getReliefImage("trip-1")).toBeNull();
+      await saveReliefImage("trip-1", makeBlob("relief-bytes"));
+      const blob = await getReliefImage("trip-1");
+      expect(blob).not.toBeNull();
+      expect(blob!.type).toBe("image/jpeg");
+    });
+
+    it("saveReliefImage sovrascrive invece di accumulare (id stabile)", async () => {
+      await saveReliefImage("trip-1", makeBlob("v1"));
+      await saveReliefImage("trip-1", makeBlob("v2"));
+      const all = await getPhotosForTrip(reliefPhotoKey("trip-1"));
+      expect(all).toHaveLength(1);
+    });
+
+    it("deletePhotosForTrip cancella anche il rilievo del viaggio", async () => {
+      await saveReliefImage("trip-1", makeBlob());
+      await deletePhotosForTrip({ id: "trip-1", waypoints: [] });
+      expect(await getReliefImage("trip-1")).toBeNull();
+    });
   });
 
   describe("chiavi foto per tappa", () => {

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, pathLengthKm, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
-import { getPhotosForTrip, photoToBlob } from "@/lib/photoStorage";
+import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
 import { X, Play, Pause, Download, Share2, Loader2 } from "lucide-react";
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
@@ -56,6 +56,43 @@ export function fanCardLayout(i: number, current: number, n: number) {
     scale: isFront ? 1.08 : 1,
     z: isFront ? n + 1 : i,
   };
+}
+
+/**
+ * Immagine di una "puntina da mappa" (testa tonda ambra + punta), disegnata su
+ * canvas e usata come icon-image di un symbol layer per le tappe. Essendo un
+ * layer WebGL della mappa (non un marker HTML) finisce automaticamente anche
+ * nel video registrato, senza compositing manuale. icon-anchor "bottom" mette
+ * la punta sulla coordinata; icon-pitch-alignment viewport la tiene "in piedi"
+ * sulla mappa inclinata, come uno spillo su una mappa di sughero.
+ */
+function createPinImageData(): ImageData {
+  const s = 64;
+  const c = document.createElement("canvas");
+  c.width = s; c.height = s;
+  const ctx = c.getContext("2d")!;
+  const cx = s / 2, headCy = s * 0.32, headR = s * 0.24, tipY = s * 0.92;
+  // corpo (testa + punta) in un'unica sagoma ambra, con ombra
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "#fbbf24";
+  ctx.beginPath();
+  ctx.moveTo(cx - headR * 0.7, headCy + headR * 0.6);
+  ctx.lineTo(cx, tipY);
+  ctx.lineTo(cx + headR * 0.7, headCy + headR * 0.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, headCy, headR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // anello bianco + foro centrale
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#fff";
+  ctx.beginPath(); ctx.arc(cx, headCy, headR, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(cx, headCy, headR * 0.42, 0, Math.PI * 2); ctx.fill();
+  return ctx.getImageData(0, 0, s, s);
 }
 
 function createFlyoverMarkerEl(): HTMLDivElement {
@@ -256,6 +293,10 @@ function orbitStop(
 
 const STOP_PHOTO_LIMIT = 5;
 const STOP_PHOTO_DISPLAY_MS = 1500;
+// Quante foto (una per tappa, in ordine) entrano nel ventaglio della panoramica finale.
+const FINALE_PHOTO_LIMIT = 5;
+// Quanto resta a schermo/registrata la panoramica finale prima di fermare il video.
+const FINALE_HOLD_MS = 3000;
 
 function wait(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -287,6 +328,13 @@ export function TripFlyover({ trips, onClose }: Props) {
   const stopPhotoImgsRef = useRef<{ label: string; imgs: HTMLImageElement[] } | null>(null);
   const stopPhotoIndexRef = useRef(0);
   const orbitRafIdRef = useRef<number | null>(null);
+  // Panoramica finale: coordinate dell'intero tracciato (per inquadrare tutto),
+  // chiavi foto di ogni tappa (per il ventaglio finale) e le immagini/URL
+  // caricati, da comporre nel video e da revocare al cleanup.
+  const allCoordsRef = useRef<[number, number][]>([]);
+  const finalePhotoKeysRef = useRef<string[]>([]);
+  const finaleImgsRef = useRef<HTMLImageElement[] | null>(null);
+  const finaleUrlsRef = useRef<string[]>([]);
   // Distanza percorsa in tempo reale: aggiornata ad ogni frame da flyLeg (via
   // ref, non stato React, per non causare un re-render a 60fps) e letta sia
   // dal contatore a schermo (via counterElRef, DOM diretto) sia da drawRecordFrame.
@@ -303,6 +351,8 @@ export function TripFlyover({ trips, onClose }: Props) {
   const [stopPhotos, setStopPhotos] = useState<{ label: string; urls: string[] } | null>(null);
   const [stopPhotoIndex, setStopPhotoIndex] = useState(0);
   const stopPhotoUrlsRef = useRef<string[]>([]);
+  // URL delle foto mostrate a ventaglio nella panoramica finale (on-screen).
+  const [finalePhotos, setFinalePhotos] = useState<string[]>([]);
 
   const legsRef = useRef<FlightLeg[]>([]);
 
@@ -468,6 +518,55 @@ export function TripFlyover({ trips, onClose }: Props) {
         ctx.fillText(labelText, pad + 10 * dpr, ly + 12 * dpr + dpr);
       }
     }
+
+    // Panoramica finale nel video: dettagli del viaggio in una pillola in alto
+    // e le foto a ventaglio "francobollo" in basso a sinistra (angolo fisso, la
+    // camera ha già inquadrato il tracciato nello spazio libero — vedi flyToOverview).
+    const finaleImgs = finaleImgsRef.current;
+    if (finaleImgs) {
+      if (finaleImgs.length > 0 && finaleImgs.every(im => im.complete && im.naturalWidth > 0)) {
+        const n = finaleImgs.length;
+        const cardW = Math.min(150 * dpr, recordCanvas.width * 0.32);
+        const frame = 6 * dpr;
+        const photoW = cardW - frame * 2;
+        const photoH = photoW * 3 / 4;
+        const cardH = photoH + frame * 2;
+        const baseX = 20 * dpr;
+        const pivotY = recordCanvas.height - 26 * dpr;
+        const order = finaleImgs.map((_, i) => i).sort((a, b) => fanCardLayout(a, -1, n).z - fanCardLayout(b, -1, n).z);
+        for (const i of order) {
+          const t = fanCardLayout(i, -1, n);
+          ctx.save();
+          ctx.translate(baseX + t.tx * dpr, pivotY + t.ty * dpr);
+          ctx.rotate((t.rotate * Math.PI) / 180);
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 12 * dpr; ctx.shadowOffsetY = 4 * dpr;
+          ctx.fillStyle = "#fbfbf7";
+          roundRectPath(ctx, 0, -cardH, cardW, cardH, 5 * dpr);
+          ctx.fill();
+          ctx.restore();
+          ctx.save();
+          roundRectPath(ctx, frame, -cardH + frame, photoW, photoH, 3 * dpr);
+          ctx.clip();
+          drawImageCover(ctx, finaleImgs[i], frame, -cardH + frame, photoW, photoH);
+          ctx.restore();
+          ctx.restore();
+        }
+      }
+      // pillola dettagli in alto (sotto il contatore)
+      const title = trips.length > 1 ? `${trips.length} viaggi` : trips[0].title;
+      const details = `${title}  ·  ${formatKm(totalDistanceKmRef.current)} km  ·  ${legsRef.current.length} tappe`;
+      ctx.font = `700 ${15 * dpr}px sans-serif`;
+      const dw = ctx.measureText(details).width + 28 * dpr;
+      const dx = recordCanvas.width / 2 - dw / 2;
+      const dy = 52 * dpr;
+      ctx.fillStyle = "rgba(10,22,40,0.85)";
+      roundRectPath(ctx, dx, dy, dw, 30 * dpr, 15 * dpr);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(details, dx + 14 * dpr, dy + 15 * dpr + dpr);
+    }
   };
 
   const startRecording = () => {
@@ -523,6 +622,65 @@ export function TripFlyover({ trips, onClose }: Props) {
     }
   };
 
+  /** Stacca all'indietro e inquadra l'intero tracciato in prospettiva 3D,
+   *  lasciando libero l'angolo in basso a sinistra (padding asimmetrico) per il
+   *  ventaglio foto + i dettagli. Risolve a fine transizione. */
+  const flyToOverview = (map: any): Promise<void> => new Promise(resolve => {
+    const coords = allCoordsRef.current;
+    if (!coords.length) { resolve(); return; }
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+    for (const [lon, lat] of coords) {
+      minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
+      minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+    }
+    let done = false;
+    const finish = () => { if (done) return; done = true; resolve(); };
+    try {
+      map.once("moveend", finish);
+      map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
+        pitch: 55, bearing: 15,
+        padding: { top: 80, right: 70, bottom: 210, left: 250 },
+        duration: 2600, maxZoom: 9,
+      });
+    } catch { finish(); return; }
+    setTimeout(finish, 3400); // salvagente se moveend non scatta
+  });
+
+  /** Carica fino a FINALE_PHOTO_LIMIT foto (una per tappa) per il ventaglio finale. */
+  const collectFinalePhotos = async (): Promise<void> => {
+    const urls: string[] = [];
+    for (const key of finalePhotoKeysRef.current) {
+      if (urls.length >= FINALE_PHOTO_LIMIT) break;
+      const raw = await getPhotosForTrip(key);
+      if (raw.length > 0) urls.push(URL.createObjectURL(photoToBlob(raw[0])));
+    }
+    finaleUrlsRef.current = urls;
+    finaleImgsRef.current = urls.map(u => { const img = new Image(); img.src = u; return img; });
+    setFinalePhotos(urls);
+  };
+
+  /** Cattura uno snapshot della panoramica (mappa + tracciato + puntine) e lo
+   *  salva come "rilievo 3D" del viaggio — solo per i flyover di un singolo
+   *  viaggio (per un recap multi-viaggio non c'è una card a cui legarlo). */
+  const captureReliefSnapshot = async (map: any): Promise<void> => {
+    if (trips.length !== 1) return;
+    try {
+      const mapCanvas = containerRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
+      if (!mapCanvas) return;
+      const snap = document.createElement("canvas");
+      snap.width = mapCanvas.width; snap.height = mapCanvas.height;
+      const sctx = snap.getContext("2d");
+      if (!sctx) return;
+      // drawImage dal canvas WebGL va fatto nello stesso frame (prima del clear):
+      // qui il record loop sta ancora girando, quindi il buffer è valido.
+      sctx.drawImage(mapCanvas, 0, 0);
+      const blob: Blob | null = await new Promise(res => snap.toBlob(res, "image/jpeg", 0.85));
+      if (blob) await saveReliefImage(trips[0].id, blob);
+    } catch {
+      // snapshot non riuscito (es. contesto WebGL perso): non bloccare il finale.
+    }
+  };
+
   const playFrom = async (startIndex: number, map: any) => {
     const legs = legsRef.current;
     let i = startIndex;
@@ -550,9 +708,23 @@ export function TripFlyover({ trips, onClose }: Props) {
     }
     if (!mountedRef.current) return;
     legIndexRef.current = legs.length;
+    // Panoramica finale: carica le foto per il ventaglio, stacca all'indietro
+    // per inquadrare tutto il tracciato con le puntine, poi mostra dettagli +
+    // ventaglio (compositi anche nel video), cattura lo snapshot del rilievo e
+    // infine ferma la registrazione.
+    await collectFinalePhotos();
+    if (!mountedRef.current) return;
+    await flyToOverview(map);
+    if (!mountedRef.current) return;
     setFinished(true);
     setPlaying(false);
     playingRef.current = false;
+    // Orbita lenta sulla panoramica: chiude in bellezza E tiene la mappa viva
+    // (MapLibre ferma non ridisegnerebbe → video/snapshot neri). playingRef è
+    // già false, quindi passo un flag locale sempre "true" per farla completare.
+    await orbitStop(map, mountedRef, { current: true }, orbitRafIdRef, FINALE_HOLD_MS, 25);
+    if (!mountedRef.current) return;
+    await captureReliefSnapshot(map);
     stopRecordingAndBuildDownload();
   };
 
@@ -586,6 +758,9 @@ export function TripFlyover({ trips, onClose }: Props) {
     legsRef.current = legs;
     legLengthsKmRef.current = legs.map(leg => pathLengthKm(leg.pathCoords));
     totalDistanceKmRef.current = legLengthsKmRef.current.reduce((sum, km) => sum + km, 0);
+    allCoordsRef.current = buildFlyoverRouteCoords(stops, legs);
+    // Una foto per tappa (chiavi uniche) per il ventaglio della panoramica finale.
+    finalePhotoKeysRef.current = Array.from(new Set(stops.map(s => s.photoKey)));
 
     if (legs.length === 0) {
       setPhase("empty");
@@ -619,6 +794,10 @@ export function TripFlyover({ trips, onClose }: Props) {
           center: [stops[0].lon, stops[0].lat],
           zoom: 2,
           attributionControl: false,
+          // Necessario per catturare lo snapshot del rilievo (drawImage/toBlob
+          // dal canvas WebGL) anche quando la mappa è ferma a fine volo — senza,
+          // il buffer viene svuotato dopo il compositing e uscirebbe nero.
+          preserveDrawingBuffer: true,
         });
         if (cancelled) { map.remove(); return; }
         mapRef.current = map;
@@ -639,9 +818,20 @@ export function TripFlyover({ trips, onClose }: Props) {
             type: "geojson",
             data: { type: "FeatureCollection", features: stops.map(s => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: {} })) },
           });
+          // Tappe come puntine da mappa (symbol layer con icona disegnata),
+          // non più semplici pallini: la punta poggia sulla coordinata e lo
+          // spillo resta "in piedi" sulla mappa inclinata.
+          if (!map.hasImage("flyover-pin")) map.addImage("flyover-pin", createPinImageData(), { pixelRatio: 2 });
           map.addLayer({
-            id: "flyover-stops", type: "circle", source: "flyover-stops",
-            paint: { "circle-radius": 5, "circle-color": "#fbbf24", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 },
+            id: "flyover-stops", type: "symbol", source: "flyover-stops",
+            layout: {
+              "icon-image": "flyover-pin",
+              "icon-size": 0.9,
+              "icon-anchor": "bottom",
+              "icon-allow-overlap": true,
+              "icon-ignore-placement": true,
+              "icon-pitch-alignment": "viewport",
+            },
           });
 
           const markerEl = createFlyoverMarkerEl();
@@ -694,6 +884,8 @@ export function TripFlyover({ trips, onClose }: Props) {
       if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
       stopPhotoUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
       stopPhotoUrlsRef.current = [];
+      finaleUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
+      finaleUrlsRef.current = [];
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -846,61 +1038,75 @@ export function TripFlyover({ trips, onClose }: Props) {
         </div>
       )}
 
+      {/* Panoramica finale: NON copre la mappa (il tracciato in 3D con le
+          puntine resta visibile). Dettagli in alto, foto a ventaglio in basso a
+          sinistra (angolo fisso, non sul percorso), bottoni in basso a destra. */}
       {finished && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 25, display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(6,14,30,0.55)",
-        }}>
+        <>
           <div style={{
-            width: 280, background: "#0e1c33", border: "1px solid #1a2d4a", borderRadius: 16,
-            padding: "24px 24px 20px", textAlign: "center", boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
+            position: "absolute", top: 52, left: "50%", transform: "translateX(-50%)", zIndex: 25,
+            background: "rgba(10,22,40,0.9)", border: "0.5px solid #1a2d4a", borderRadius: 14,
+            padding: "10px 18px", textAlign: "center", maxWidth: "80%",
+            animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
           }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
+            <div className="font-display" style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
               {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
             </div>
-            {dateRangeLabel && (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{dateRangeLabel}</div>
-            )}
-            <div style={{ display: "flex", justifyContent: "center", gap: 24, margin: "18px 0" }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{formatKm(totalDistanceKmRef.current)}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>km</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{legs.length}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 }}>tappe</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={onClose}
-                style={{
-                  padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.08)",
-                  border: "0.5px solid #1a2d4a", color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                }}>
-                Chiudi
-              </button>
-              {downloadUrl && videoBlobRef.current && canShareFile(new File([videoBlobRef.current], "viaggio-3d.webm", { type: "video/webm" })) ? (
-                <button onClick={handleShareVideo}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                    padding: "8px 16px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
-                    border: "1px solid #60a5fa", color: "#60a5fa",
-                  }}>
-                  <Share2 className="w-3.5 h-3.5" /> Condividi
-                </button>
-              ) : downloadUrl && (
-                <a href={downloadUrl} download="viaggio-3d.webm"
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
-                    padding: "8px 16px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
-                    border: "1px solid #60a5fa", color: "#60a5fa", textDecoration: "none",
-                  }}>
-                  <Download className="w-3.5 h-3.5" /> Video
-                </a>
-              )}
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>
+              {dateRangeLabel ? `${dateRangeLabel}  ·  ` : ""}{formatKm(totalDistanceKmRef.current)} km  ·  {legs.length} tappe
             </div>
           </div>
-        </div>
+
+          {finalePhotos.length > 0 && (
+            <div style={{ position: "absolute", left: 20, bottom: 20, zIndex: 25 }}>
+              <div style={{ position: "relative", width: 150 + (finalePhotos.length - 1) * 16, height: 130 }}>
+                {finalePhotos.map((u, i) => {
+                  const t = fanCardLayout(i, -1, finalePhotos.length);
+                  return (
+                    <div key={i} style={{
+                      position: "absolute", left: 0, bottom: 0, width: 150, transformOrigin: "bottom left",
+                      transform: `translate(${t.tx}px, ${t.ty}px) rotate(${t.rotate}deg)`, zIndex: t.z,
+                      background: "#fbfbf7", borderRadius: 5, padding: 6, boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
+                    }}>
+                      <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 3, overflow: "hidden", background: "#000" }}>
+                        <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ position: "absolute", right: 16, bottom: 20, zIndex: 26, display: "flex", gap: 10 }}>
+            <button onClick={onClose}
+              style={{
+                padding: "8px 16px", borderRadius: 999, background: "rgba(10,22,40,0.85)",
+                border: "0.5px solid #1a2d4a", color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}>
+              Chiudi
+            </button>
+            {downloadUrl && videoBlobRef.current && canShareFile(new File([videoBlobRef.current], "viaggio-3d.webm", { type: "video/webm" })) ? (
+              <button onClick={handleShareVideo}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  padding: "8px 16px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
+                  border: "1px solid #60a5fa", color: "#60a5fa",
+                }}>
+                <Share2 className="w-3.5 h-3.5" /> Condividi
+              </button>
+            ) : downloadUrl && (
+              <a href={downloadUrl} download="viaggio-3d.webm"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+                  padding: "8px 16px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
+                  border: "1px solid #60a5fa", color: "#60a5fa", textDecoration: "none",
+                }}>
+                <Download className="w-3.5 h-3.5" /> Video
+              </a>
+            )}
+          </div>
+        </>
       )}
       </div>
     </div>,
