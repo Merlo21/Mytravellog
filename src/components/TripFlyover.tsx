@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, pathLengthKm, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
@@ -707,13 +708,33 @@ export function TripFlyover({ trips, onClose }: Props) {
       : `${formatTripDate(trips[0].trip_date)} → ${formatTripDate(trips[0].date_end)}`)
     : null;
 
-  return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 100,
-      background: "rgba(0,0,0,0.9)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <div style={{ position: "absolute", inset: 0 }} ref={containerRef} />
+  // Portal su document.body: senza, il modale (position:fixed) viene confinato
+  // al primo antenato con un `transform` — es. il wrapper .animate-fade-up della
+  // card viaggio in MieiViaggi (translateY resta applicato con fill:both) —
+  // che diventa il blocco di contenimento e clippa il popup dentro la card
+  // invece che sul viewport. Il portal lo rende figlio diretto di body.
+  return createPortal(
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24,
+      }}>
+      {/* Card grande centrata (non più a tutto schermo bordo-a-bordo): stesso
+          linguaggio del popup regioni (scrim scuro sfocato, angoli arrotondati,
+          apertura fade+scale, chiusura cliccando fuori) ma GRANDE, per non
+          sacrificare l'immersione 3D né la risoluzione del video esportato. */}
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: "relative", width: "100%", height: "100%", maxWidth: 1200, maxHeight: 900,
+          background: "#060e1e", border: "0.5px solid #1a2d4a", borderRadius: 16,
+          overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+          animation: "flyoverModalIn 0.28s cubic-bezier(0.22,1,0.36,1) both",
+        }}>
+        <div style={{ position: "absolute", inset: 0 }} ref={containerRef} />
 
       <button onClick={onClose} aria-label="Chiudi"
         style={{
@@ -881,6 +902,8 @@ export function TripFlyover({ trips, onClose }: Props) {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }

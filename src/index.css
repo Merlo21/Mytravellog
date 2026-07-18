@@ -88,6 +88,13 @@ html, body, #root { background-color: #060e1e !important; }
   to   { opacity: 1; transform: rotate(-3deg) scale(1); }
 }
 
+/* Apertura del flyover 3D come popup grande: fade + leggero scale, stesso
+   linguaggio del popup regioni ma applicato alla card grande centrata. */
+@keyframes flyoverModalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 /* Anello di focus da tastiera per QUALSIASI elemento interattivo: prima non
    esisteva alcuno stile :focus-visible in tutta l'app (a parte i primitivi
    shadcn) — navigando con Tab non si vedeva mai dove ci si trovasse. */
