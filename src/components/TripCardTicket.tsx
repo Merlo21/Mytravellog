@@ -1,11 +1,13 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Trip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
-import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video } from "lucide-react";
+import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video, X } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 import { useNavigate } from "react-router-dom";
 import { TripFlyover } from "@/components/TripFlyover";
+import { getReliefImage } from "@/lib/photoStorage";
 
 const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string; Icon: React.ElementType }> = {
   plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", label: "Aereo",   Icon: Plane      },
@@ -49,6 +51,38 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showFlyover, setShowFlyover] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  // Miniatura del "rilievo 3D" salvato a fine flyover (snapshot in IndexedDB):
+  // appare come linguetta sul bordo destro della card; click → si ingrandisce.
+  const [reliefUrl, setReliefUrl] = useState<string | null>(null);
+  const [reliefOpen, setReliefOpen] = useState(false);
+  const reliefUrlRef = useRef<string | null>(null);
+
+  const refreshRelief = async () => {
+    let blob: Blob | null = null;
+    try {
+      blob = await getReliefImage(trip.id);
+    } catch {
+      // IndexedDB non disponibile (es. modalità privata o ambiente di test):
+      // nessuna miniatura, la card resta comunque pienamente funzionante.
+      return;
+    }
+    if (reliefUrlRef.current) { URL.revokeObjectURL(reliefUrlRef.current); reliefUrlRef.current = null; }
+    if (blob) { const u = URL.createObjectURL(blob); reliefUrlRef.current = u; setReliefUrl(u); }
+    else setReliefUrl(null);
+  };
+  useEffect(() => {
+    refreshRelief();
+    return () => { if (reliefUrlRef.current) URL.revokeObjectURL(reliefUrlRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip.id]);
+
+  // Esc chiude l'anteprima ingrandita del rilievo.
+  useEffect(() => {
+    if (!reliefOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setReliefOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [reliefOpen]);
   const { distanceUnit, temperatureUnit } = useSettings();
   const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_TRANSPORT;
 
@@ -88,6 +122,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
 
   return (
     <>
+    <div style={{position:"relative"}}>
     <div style={{background:"#0a1628",border:"0.5px solid #1a2d4a",borderRadius:16,overflow:"hidden"}}>
 
       {/* Top */}
@@ -252,7 +287,46 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
         </div>
       )}
     </div>
-    {showFlyover && <TripFlyover trips={[trip]} onClose={() => setShowFlyover(false)} />}
+
+      {/* Linguetta del rilievo 3D sul bordo destro: appare solo se lo snapshot
+          esiste (flyover già visto almeno una volta). Fuori dall'overflow:hidden
+          della card, così può sporgere; click → anteprima ingrandita. */}
+      {reliefUrl && (
+        <button type="button" onClick={() => setReliefOpen(true)}
+          aria-label="Vedi il rilievo 3D del viaggio" title="Rilievo 3D del viaggio"
+          style={{
+            position:"absolute", right:-10, top:"50%", transform:"translateY(-50%)",
+            width:52, height:52, padding:3, borderRadius:10, border:"0.5px solid #1a2d4a",
+            background:"#0a1628", boxShadow:"0 4px 14px rgba(0,0,0,0.5)", cursor:"pointer", overflow:"hidden",
+          }}>
+          <img src={reliefUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:8,display:"block"}}/>
+        </button>
+      )}
+    </div>
+
+    {/* onClose ricarica il rilievo: se il flyover l'ha appena generato, la
+        linguetta compare senza ricaricare la pagina. */}
+    {showFlyover && <TripFlyover trips={[trip]} onClose={() => { setShowFlyover(false); refreshRelief(); }} />}
+
+    {reliefOpen && reliefUrl && createPortal(
+      <div onClick={() => setReliefOpen(false)}
+        style={{
+          position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.85)", backdropFilter:"blur(4px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24,
+        }}>
+        <img src={reliefUrl} alt={`Rilievo 3D di ${displayTitle}`} onClick={e => e.stopPropagation()}
+          style={{maxWidth:"92vw",maxHeight:"88vh",objectFit:"contain",borderRadius:12,boxShadow:"0 20px 60px rgba(0,0,0,0.6)"}}/>
+        <button onClick={() => setReliefOpen(false)} aria-label="Chiudi anteprima rilievo"
+          style={{
+            position:"absolute", top:16, right:16, width:34, height:34, borderRadius:10,
+            background:"rgba(10,22,40,0.8)", border:"0.5px solid #1a2d4a", cursor:"pointer",
+            color:"rgba(255,255,255,0.7)", display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+          <X style={{width:16,height:16}}/>
+        </button>
+      </div>,
+      document.body
+    )}
     </>
   );
 }
