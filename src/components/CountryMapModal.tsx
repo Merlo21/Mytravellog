@@ -56,13 +56,16 @@ async function fetchGithubRawJson(url: string): Promise<any | null> {
  */
 // Per la maggior parte dei paesi ADM1 è il livello "regioni/stati/province"
 // che ci si aspetta. Alcuni paesi però in geoBoundaries hanno un ADM1 diverso
-// dalle suddivisioni amministrative comuni: l'Italia, ad esempio, ha come ADM1
-// le 5 macro-aree statistiche NUTS-1 (Nord-Ovest, Nord-Est, Centro, Sud,
-// Isole), mentre le 20 regioni vere (Lazio, Toscana, …) stanno in ADM2. Senza
-// questo override la mappa mostrerebbe 5 blocchi e "0 regioni su 5" perché i
-// nomi salvati dai viaggi ("Lazio") non combaciano con le macro-aree ("Centro").
+// dalle suddivisioni amministrative comuni e le regioni vere stanno in ADM2:
+//  - Italia: ADM1 = 5 macro-aree statistiche NUTS-1 (Nord-Ovest, Centro, …);
+//    le 20 regioni vere (Lazio, Toscana, …) sono in ADM2.
+//  - Grecia: ADM1 = 8 raggruppamenti macro; le 13 periferie vere (Attica,
+//    Creta, …) + Monte Athos sono in ADM2.
+// Senza override la mappa mostrerebbe i blocchi macro e "0 regioni" perché i
+// nomi salvati dai viaggi non combaciano con quelli delle macro-aree.
 const ADM_LEVEL_BY_COUNTRY: Record<string, "ADM1" | "ADM2"> = {
   IT: "ADM2",
+  GR: "ADM2",
 };
 
 async function fetchCountryRegions(countryCode2: string): Promise<any[] | null> {
@@ -164,6 +167,27 @@ const REGION_ALIASES: Record<string, Record<string, string>> = {
     "burgenland": "burgenland",
     "salzburg": "salzburg",
     "vorarlberg": "vorarlberg",
+  },
+  GR: {
+    // Grecia (ADM2): geoBoundaries usa nomi traslitterati ("Attikis") senza
+    // codice ISO, mentre Nominatim restituisce le periferie in greco e anch'esso
+    // senza ISO — quindi l'unico abbinamento possibile è per nome, via questi
+    // alias. Le CHIAVI sono già normalizzate (minuscolo, accenti rimossi) come
+    // le confronta regionMatches; i VALORI sono lo shapeName esatto del GeoJSON.
+    "περιφερεια ανατολικης μακεδονιας και θρακης": "Anatolikis Makedonias kai Thr*", // Macedonia Or. e Tracia
+    "περιφερεια κεντρικης μακεδονιας": "Kentrikis Makedonias",   // Macedonia Centrale
+    "περιφερεια δυτικης μακεδονιας": "Dytikis Makedonias",       // Macedonia Occidentale
+    "περιφερεια ηπειρου": "Ipeiroy",                             // Epiro
+    "περιφερεια θεσσαλιας": "Thessalias",                        // Tessaglia
+    "περιφερεια στερεας ελλαδας": "Stereas Elladas",             // Grecia Centrale
+    "περιφερεια ιονιων νησων": "Ionion Nison",                   // Isole Ionie
+    "περιφερεια δυτικης ελλαδας": "Dytikis Elladas",             // Grecia Occidentale
+    "περιφερεια πελοποννησου": "Peloponnisoy",                   // Peloponneso
+    "περιφερεια αττικης": "Attikis",                             // Attica
+    "περιφερεια βορειου αιγαιου": "Voreioy Aigaioy",             // Egeo Settentrionale
+    "περιφερεια νοτιου αιγαιου": "Notioy Aigaioy",               // Egeo Meridionale
+    "περιφερεια κρητης": "Kritis",                               // Creta
+    "αυτονομη μοναστικη πολιτεια αγιου ορους": "Agion Oros",     // Monte Athos
   },
 };
 

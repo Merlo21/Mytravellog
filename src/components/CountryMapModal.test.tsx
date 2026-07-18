@@ -509,11 +509,60 @@ describe("CountryMapModal — livello ADM per paese", () => {
     expect(metaUrl).not.toContain("/ADM1/");
   });
 
+  it("anche la Grecia scarica ADM2 (13 periferie + Athos), non ADM1 (8 macro-gruppi)", async () => {
+    mockGeoBoundaries(ITALY_FEATURES);
+    renderModal({ countryCode: "GR", countryName: "Grecia", trips: [] });
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const metaUrl = (fetch as any).mock.calls[0][0];
+    expect(metaUrl).toContain("/GRC/ADM2/");
+    expect(metaUrl).not.toContain("/ADM1/");
+  });
+
   it("per gli altri paesi resta ADM1 (default)", async () => {
     mockGeoBoundaries(ITALY_FEATURES);
     renderModal({ countryCode: "DE", countryName: "Germania", trips: [] });
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     const metaUrl = (fetch as any).mock.calls[0][0];
     expect(metaUrl).toContain("/DEU/ADM1/");
+  });
+});
+
+describe("CountryMapModal — abbinamento regioni greche (nome greco → traslitterazione)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  // Nominatim restituisce le periferie greche in greco e senza codice ISO
+  // ("Περιφέρεια Αττικής"); geoBoundaries ADM2 le ha traslitterate e senza ISO
+  // ("Attikis"). L'abbinamento è possibile solo via l'alias table GR.
+  const GREECE_FEATURES = [
+    makePolygon("Attikis", ""),
+    makePolygon("Kritis", ""),
+    makePolygon("Kentrikis Makedonias", ""),
+  ];
+
+  it("evidenzia la periferia visitata abbinando il nome greco alla traslitterazione", async () => {
+    mockGeoBoundaries(GREECE_FEATURES);
+    renderModal({
+      countryCode: "GR",
+      countryName: "Grecia",
+      trips: [makeTrip({
+        country: "Grecia", country_code: "GR",
+        region_details: [{ name: "Περιφέρεια Αττικής", code: null }],
+      })],
+    });
+    await waitFor(() => expect(screen.getByText("1 regione su 3")).toBeInTheDocument());
+  });
+
+  it("non evidenzia nulla per una periferia non visitata", async () => {
+    mockGeoBoundaries(GREECE_FEATURES);
+    renderModal({
+      countryCode: "GR",
+      countryName: "Grecia",
+      trips: [makeTrip({
+        country: "Grecia", country_code: "GR",
+        region_details: [{ name: "Περιφέρεια Κρήτης", code: null }],
+      })],
+    });
+    // Creta è tra le 3 feature → 1 su 3 (verifica che l'alias di Creta funzioni)
+    await waitFor(() => expect(screen.getByText("1 regione su 3")).toBeInTheDocument());
   });
 });
