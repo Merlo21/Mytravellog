@@ -959,7 +959,7 @@ export function TripFlyover({ trips, onClose }: Props) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          position: "relative", width: "100%", height: "100%", maxWidth: 940, maxHeight: 640,
+          position: "relative", width: "100%", height: "100%", maxWidth: 880, maxHeight: 600,
           background: "#060e1e", border: "0.5px solid #1a2d4a", borderRadius: 16,
           overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
           animation: "flyoverModalIn 0.28s cubic-bezier(0.22,1,0.36,1) both",

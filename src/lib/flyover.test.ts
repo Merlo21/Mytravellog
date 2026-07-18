@@ -163,11 +163,11 @@ describe("computeLegCamera", () => {
     expect(cam.pitch).toBe(50);
   });
 
-  it("la durata resta clampata tra 5s e 11s", () => {
+  it("la durata resta clampata tra 7s e 16s", () => {
     const short = computeLegCamera({ lat: 45.5, lon: 9.2 }, { lat: 45.5001, lon: 9.2001 });
     const long = computeLegCamera({ lat: 45.46, lon: 9.19 }, { lat: 35.68, lon: 139.65 });
-    expect(short.durationMs).toBe(5000);
-    expect(long.durationMs).toBe(11000);
+    expect(short.durationMs).toBe(7000);
+    expect(long.durationMs).toBe(16000);
   });
 
   it("orientamento fisso: bearing a nord e pitch costante su ogni tratta", () => {

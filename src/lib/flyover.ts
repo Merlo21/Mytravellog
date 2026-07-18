@@ -117,11 +117,11 @@ export function computeLegCamera(from: { lat: number; lon: number }, to: { lat: 
   else if (km < 3000) { zoom = 4.5; }
   else { zoom = 3; }
 
-  // Durata della tratta. Rallentata rispetto a prima (era min 3500 / max 7500,
-  // km*4): da quando la camera arriva già inquadrata sulla partenza (vedi
-  // flyIntro in TripFlyover) il viaggio avviene tutto a zoom ravvicinato, e la
-  // stessa distanza nello stesso tempo sfrecciava troppo. Ora più disteso.
-  const durationMs = Math.min(11000, Math.max(5000, km * 6));
+  // Durata della tratta = quanto tempo marker e camera impiegano a percorrerla
+  // (condivisa da entrambi, così restano sincronizzati). Rallentata di nuovo:
+  // il pallino del mezzo risultava ancora troppo veloce. Range più ampio e più
+  // lento (prima min 5000 / max 11000, km*6) per un viaggio disteso e calmo.
+  const durationMs = Math.min(16000, Math.max(7000, km * 9));
 
   return { zoom, pitch, bearing, durationMs };
 }
