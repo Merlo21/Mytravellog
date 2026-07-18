@@ -297,6 +297,23 @@ const STOP_PHOTO_DISPLAY_MS = 1500;
 const FINALE_PHOTO_LIMIT = 5;
 // Quanto resta a schermo/registrata la panoramica finale prima di fermare il video.
 const FINALE_HOLD_MS = 3000;
+// Ventaglio "francobolli" del finale: carte più grandi e ben distanziate del
+// ventaglio-tappa (STOP), così nel fermo-immagine si vedono TUTTE le foto.
+const FINALE_CARD_W = 168;   // larghezza carta (px "a schermo"; il canvas scala per dpr)
+const FINALE_FAN_STEP = 98;  // scostamento orizzontale per carta (~58% di ognuna visibile)
+
+/** Layout di una carta nel ventaglio finale: spread ampio (tutte visibili),
+ *  leggero arco simmetrico. Nessuna carta "in primo piano" (a differenza del
+ *  ventaglio-tappa che si sfoglia). */
+export function finaleFanLayout(i: number, n: number) {
+  const center = (n - 1) / 2;
+  return {
+    tx: i * FINALE_FAN_STEP,
+    ty: Math.abs(i - center) * 3,
+    rotate: (i - center) * 3,
+    z: i,
+  };
+}
 
 function wait(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -526,18 +543,22 @@ export function TripFlyover({ trips, onClose }: Props) {
     if (finaleImgs) {
       if (finaleImgs.length > 0 && finaleImgs.every(im => im.complete && im.naturalWidth > 0)) {
         const n = finaleImgs.length;
-        const cardW = Math.min(150 * dpr, recordCanvas.width * 0.32);
-        const frame = 6 * dpr;
+        // Scala il ventaglio per farlo stare sempre nel frame (schermi stretti).
+        const fanCssW = FINALE_CARD_W + (n - 1) * FINALE_FAN_STEP;
+        const fit = Math.min(1, (recordCanvas.width / dpr - 40) / fanCssW);
+        const u = dpr * fit;
+        const cardW = FINALE_CARD_W * u;
+        const frame = 6 * u;
         const photoW = cardW - frame * 2;
         const photoH = photoW * 3 / 4;
         const cardH = photoH + frame * 2;
         const baseX = 20 * dpr;
         const pivotY = recordCanvas.height - 26 * dpr;
-        const order = finaleImgs.map((_, i) => i).sort((a, b) => fanCardLayout(a, -1, n).z - fanCardLayout(b, -1, n).z);
+        const order = finaleImgs.map((_, i) => i).sort((a, b) => finaleFanLayout(a, n).z - finaleFanLayout(b, n).z);
         for (const i of order) {
-          const t = fanCardLayout(i, -1, n);
+          const t = finaleFanLayout(i, n);
           ctx.save();
-          ctx.translate(baseX + t.tx * dpr, pivotY + t.ty * dpr);
+          ctx.translate(baseX + t.tx * u, pivotY + t.ty * u);
           ctx.rotate((t.rotate * Math.PI) / 180);
           ctx.save();
           ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 12 * dpr; ctx.shadowOffsetY = 4 * dpr;
@@ -719,10 +740,11 @@ export function TripFlyover({ trips, onClose }: Props) {
     setFinished(true);
     setPlaying(false);
     playingRef.current = false;
-    // Orbita lenta sulla panoramica: chiude in bellezza E tiene la mappa viva
-    // (MapLibre ferma non ridisegnerebbe → video/snapshot neri). playingRef è
-    // già false, quindi passo un flag locale sempre "true" per farla completare.
-    await orbitStop(map, mountedRef, { current: true }, orbitRafIdRef, FINALE_HOLD_MS, 25);
+    // Finale a mappa FERMA (niente orbita): il fermo-immagine riassuntivo è più
+    // leggibile. Con preserveDrawingBuffer la registrazione tiene comunque anche
+    // a mappa statica; un repaint esplicito assicura l'ultimo frame nel buffer.
+    map.triggerRepaint();
+    await wait(FINALE_HOLD_MS);
     if (!mountedRef.current) return;
     await captureReliefSnapshot(map);
     stopRecordingAndBuildDownload();
@@ -1057,26 +1079,32 @@ export function TripFlyover({ trips, onClose }: Props) {
             </div>
           </div>
 
-          {finalePhotos.length > 0 && (
-            <div style={{ position: "absolute", left: 20, bottom: 20, zIndex: 25 }}>
-              <div style={{ position: "relative", width: 150 + (finalePhotos.length - 1) * 16, height: 130 }}>
-                {finalePhotos.map((u, i) => {
-                  const t = fanCardLayout(i, -1, finalePhotos.length);
-                  return (
-                    <div key={i} style={{
-                      position: "absolute", left: 0, bottom: 0, width: 150, transformOrigin: "bottom left",
-                      transform: `translate(${t.tx}px, ${t.ty}px) rotate(${t.rotate}deg)`, zIndex: t.z,
-                      background: "#fbfbf7", borderRadius: 5, padding: 6, boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
-                    }}>
-                      <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 3, overflow: "hidden", background: "#000" }}>
-                        <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          {finalePhotos.length > 0 && (() => {
+            const n = finalePhotos.length;
+            const fanW = FINALE_CARD_W + (n - 1) * FINALE_FAN_STEP;
+            // scala per stare nel viewport su schermi stretti (pivot in basso a sinistra)
+            const fanScale = Math.min(1, (window.innerWidth * 0.9 - 40) / fanW);
+            return (
+              <div style={{ position: "absolute", left: 20, bottom: 20, zIndex: 25, transformOrigin: "bottom left", transform: `scale(${fanScale})` }}>
+                <div style={{ position: "relative", width: fanW, height: FINALE_CARD_W * 0.75 + 30 }}>
+                  {finalePhotos.map((u, i) => {
+                    const t = finaleFanLayout(i, n);
+                    return (
+                      <div key={i} style={{
+                        position: "absolute", left: 0, bottom: 0, width: FINALE_CARD_W, transformOrigin: "bottom left",
+                        transform: `translate(${t.tx}px, ${t.ty}px) rotate(${t.rotate}deg)`, zIndex: t.z,
+                        background: "#fbfbf7", borderRadius: 6, padding: 6, boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
+                      }}>
+                        <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 3, overflow: "hidden", background: "#000" }}>
+                          <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div style={{ position: "absolute", right: 16, bottom: 20, zIndex: 26, display: "flex", gap: 10 }}>
             <button onClick={onClose}

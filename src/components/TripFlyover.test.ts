@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { canRecordVideo, fanCardLayout } from "./TripFlyover";
+import { canRecordVideo, fanCardLayout, finaleFanLayout } from "./TripFlyover";
 
 describe("canRecordVideo", () => {
   const originalCaptureStream = (HTMLCanvasElement.prototype as any).captureStream;
@@ -63,5 +63,28 @@ describe("fanCardLayout — ventaglio 'mano di carte' delle foto per tappa", () 
     expect(fanCardLayout(0, 0, n).rotate).toBe(0); // corrente=0 → carta 0 dritta
     expect(fanCardLayout(0, 1, n).rotate).not.toBe(0); // corrente=1 → carta 0 torna nel ventaglio
     expect(fanCardLayout(1, 1, n).rotate).toBe(0); // corrente=1 → carta 1 dritta
+  });
+});
+
+describe("finaleFanLayout — ventaglio del finale (tutte le foto visibili)", () => {
+  it("le carte sono spaziate abbastanza da vedersi tutte (offset ≥ ~metà carta)", () => {
+    const n = 5;
+    for (let i = 1; i < n; i++) {
+      const dx = finaleFanLayout(i, n).tx - finaleFanLayout(i - 1, n).tx;
+      expect(dx).toBeGreaterThanOrEqual(84); // ~50% di una carta da 168px
+    }
+  });
+
+  it("è un ventaglio simmetrico (rotazioni opposte ai due estremi, nessuna carta 'in primo piano')", () => {
+    const n = 5;
+    const first = finaleFanLayout(0, n).rotate;
+    const last = finaleFanLayout(n - 1, n).rotate;
+    expect(first).toBeCloseTo(-last, 5);      // simmetrico attorno al centro
+    expect(finaleFanLayout(2, n).rotate).toBe(0); // la centrale dritta
+  });
+
+  it("z crescente da sinistra a destra (l'ordine di sovrapposizione è stabile)", () => {
+    const n = 4;
+    expect(finaleFanLayout(0, n).z).toBeLessThan(finaleFanLayout(3, n).z);
   });
 });
