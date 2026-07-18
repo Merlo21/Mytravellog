@@ -29,11 +29,21 @@ const TRANSPORT_BADGE: Record<string, { color: string; label: string }> = {
 export function computeHomeStats(trips: Trip[]) {
   const countries = new Set<string>();
   const cities = new Set<string>();
+  // Deduplica i paesi per NOME normalizzato, non per `country_code || country`:
+  // lo stesso paese può comparire col codice ISO (destinazione "IT") e senza
+  // (una tappa con country_code vuoto → "Italia"), che col vecchio metodo erano
+  // due chiavi diverse e gonfiavano il conteggio (es. "2 paesi" per un viaggio
+  // tutto in Italia). Il nome viene dal geocoder in italiano, quindi è stabile.
+  // Stessa logica di StatsSection ("Elenco dei paesi").
+  const addCountry = (name?: string, code?: string) => {
+    const key = (name || code || "").trim().toLowerCase();
+    if (key) countries.add(key);
+  };
   for (const t of trips) {
-    countries.add(t.country_code || t.country);
+    addCountry(t.country, t.country_code);
     cities.add(`${t.city}|${t.country}`);
     for (const w of t.waypoints ?? []) {
-      countries.add(w.country_code || w.country);
+      addCountry(w.country, w.country_code);
       cities.add(`${w.city}|${w.country}`);
     }
   }

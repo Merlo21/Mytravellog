@@ -68,6 +68,17 @@ describe("computeHomeStats", () => {
     expect(stats.cities).toBe(1);
   });
 
+  it("conta 1 paese anche se una tappa ha country_code vuoto e la destinazione no (dedup per nome)", () => {
+    // Riproduce il bug della card Home "2 paesi" per un viaggio tutto in Italia:
+    // destinazione con "IT" + tappa senza codice → prima erano due chiavi
+    // ("IT" e "Italia"), ora deduplicate per nome a un solo paese.
+    const trips = [makeTrip({
+      country: "Italia", country_code: "IT", city: "Spoleto",
+      waypoints: [{ city: "Tivoli", country: "Italia", country_code: "", transport_mode: "car" }],
+    })];
+    expect(computeHomeStats(trips).countries).toBe(1);
+  });
+
   it("somma i km di tutti i viaggi", () => {
     const trips = [
       makeTrip({ distance_from_home_km: 100 }),
