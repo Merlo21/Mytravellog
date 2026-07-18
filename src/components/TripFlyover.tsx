@@ -165,6 +165,47 @@ function flyLeg(
   });
 }
 
+/**
+ * Inquadratura d'arrivo sul punto di PARTENZA prima che il viaggio inizi.
+ * Senza, la mappa partiva dalla vista mondo (zoom 2) e la prima tratta
+ * zoomava e traslava insieme: quando l'inquadratura era finalmente leggibile,
+ * il marker era già a metà tratta ("quando il video inizia siamo molto avanti
+ * nel percorso"). Qui la camera vola prima a inquadrare stops[0] con lo
+ * zoom/pitch/bearing della prima tratta, marker fermo sulla partenza; poi il
+ * viaggio parte con la camera già a posto (nessuno zoom simultaneo alla
+ * traslazione). Pilotata a mano come flyLeg per coerenza. */
+function flyIntro(
+  map: any,
+  target: { center: [number, number]; zoom: number; pitch: number; bearing: number },
+  mountedRef: { current: boolean }, playingRef: { current: boolean },
+  rafIdRef: { current: number | null }, durationMs: number,
+): Promise<void> {
+  return new Promise(resolve => {
+    const fromCenter = map.getCenter();
+    const fromZoom = map.getZoom();
+    const fromPitch = map.getPitch();
+    const fromBearing = map.getBearing();
+    const start = performance.now();
+    const tick = () => {
+      if (!mountedRef.current || !playingRef.current) { resolve(); return; }
+      const rawT = Math.min(1, (performance.now() - start) / durationMs);
+      const t = easeInOutCubic(rawT);
+      map.jumpTo({
+        center: [
+          fromCenter.lng + (target.center[0] - fromCenter.lng) * t,
+          fromCenter.lat + (target.center[1] - fromCenter.lat) * t,
+        ],
+        zoom: fromZoom + (target.zoom - fromZoom) * t,
+        pitch: fromPitch + (target.pitch - fromPitch) * t,
+        bearing: lerpBearing(fromBearing, target.bearing, t),
+      });
+      if (rawT < 1) { rafIdRef.current = requestAnimationFrame(tick); }
+      else { rafIdRef.current = null; resolve(); }
+    };
+    rafIdRef.current = requestAnimationFrame(tick);
+  });
+}
+
 const STOP_PHOTO_LIMIT = 3;
 const STOP_PHOTO_DISPLAY_MS = 1500;
 
@@ -469,7 +510,7 @@ export function TripFlyover({ trips, onClose }: Props) {
         if (cancelled) { map.remove(); return; }
         mapRef.current = map;
 
-        map.on("load", () => {
+        map.on("load", async () => {
           if (cancelled || !mountedRef.current) return;
 
           map.addSource("flyover-route", {
@@ -498,10 +539,21 @@ export function TripFlyover({ trips, onClose }: Props) {
 
           setPhase("ready");
           setTimeout(() => { map.resize(); }, 100);
+          // Mostra subito il totale reale invece di "0 / 0 km" durante l'intro.
+          if (counterElRef.current) counterElRef.current.textContent = `0 / ${formatKm(totalDistanceKmRef.current)} km`;
 
           startRecording();
           playingRef.current = true;
           setPlaying(true);
+
+          // Inquadratura d'arrivo sulla partenza, poi il viaggio parte da lì.
+          const first = legs[0].camera;
+          await flyIntro(
+            map,
+            { center: [stops[0].lon, stops[0].lat], zoom: first.zoom, pitch: first.pitch, bearing: first.bearing },
+            mountedRef, playingRef, markerRafIdRef, 1400,
+          );
+          if (cancelled || !mountedRef.current || !playingRef.current) return;
           playFrom(0, map);
         });
       } catch {
