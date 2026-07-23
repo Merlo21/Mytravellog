@@ -28,6 +28,7 @@ async function buildSatelliteStyle(): Promise<any> {
 export function buildLinesStyle(): any {
   return {
     version: 8,
+    projection: { type: "globe" }, // inclinata come il satellite
     glyphs: `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`,
     sources: {
       omt: { type: "vector", url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}` },
@@ -36,15 +37,17 @@ export function buildLinesStyle(): any {
       { id: "bg", type: "background", paint: { "background-color": "#000000" } },
       {
         id: "coastline", type: "fill", source: "omt", "source-layer": "water",
-        paint: { "fill-color": "#000000", "fill-outline-color": "rgba(255,255,255,0.4)" },
+        paint: { "fill-color": "#000000", "fill-outline-color": "rgba(255,255,255,0.45)" },
       },
       {
         id: "country-borders", type: "line", source: "omt", "source-layer": "boundary",
         filter: ["all", ["<=", ["get", "admin_level"], 2], ["!=", ["get", "maritime"], 1]],
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "rgba(255,255,255,0.85)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 1, 0.5, 4, 1.1, 8, 1.8],
+          // Bianco quasi pieno e spessore più marcato/uniforme: prima i confini
+          // risultavano a tratti troppo sottili ("non in grassetto").
+          "line-color": "rgba(255,255,255,0.95)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 1, 1, 4, 2, 8, 3.2],
         },
       },
     ],
@@ -222,9 +225,8 @@ export function TripFlyover({ trips, onClose }: Props) {
   }, [onClose]);
 
   /** Inquadra l'intero tracciato con fitBounds: il percorso riempie sempre il
-   *  frame allo stesso modo (margini fissi), qualunque sia la lunghezza. Il
-   *  pitch dipende dalla vista: inclinato sul satellite (rilievo), piatto sulle
-   *  linee (senza terreno l'inclinazione darebbe solo prospettiva vuota). */
+   *  frame allo stesso modo (margini fissi), qualunque sia la lunghezza.
+   *  Inclinata (pitch 45) in entrambe le viste. */
   const flyToOverview = (map: any, pitch = 45): Promise<void> => new Promise(resolve => {
     const coords = allCoordsRef.current;
     if (!coords.length) { resolve(); return; }
@@ -329,7 +331,11 @@ export function TripFlyover({ trips, onClose }: Props) {
       });
       if (!mapRef.current || !mountedRef.current) return;
       addOverlayLayers(map);
-      await flyToOverview(map, mode === "satellite" ? 45 : 0);
+      // Entrambe le viste inclinate (pitch 45): l'utente vuole la vista a linee
+      // "come l'altra". Sul mercato senza terreno è solo un piano inclinato, ma
+      // con la proiezione globo (impostata anche in buildLinesStyle) il colpo
+      // d'occhio è identico al satellite.
+      await flyToOverview(map, 45);
     } catch { /* se il cambio stile fallisce, resta la vista precedente */ }
     finally {
       switchingRef.current = false;
