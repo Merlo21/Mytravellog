@@ -555,6 +555,56 @@ export function TripFlyover({ trips, onClose }: Props) {
       }
     }
 
+    // Costellazione: DIDASCALIA senza riquadro (serif elegante, monocromatica),
+    // allineata a destra, come la caption di una stampa celeste. Disegnata qui
+    // così lo snapshot è fedele alla vista a schermo, poi si esce.
+    if (styleMode === "constellation") {
+      const u = dpr;
+      const pad = 20 * u;
+      const rightX = c.width - pad;
+      const title = tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title;
+      const flags = flagImgs.filter(im => im.complete && im.naturalWidth > 0);
+      const flagW = 22 * u, flagH = 15 * u, flagStep = 16 * u, fgap = 9 * u;
+      const flagsW = flags.length > 0 ? (flagW + (flags.length - 1) * flagStep + fgap) : 0;
+      const titleCy = pad + 13 * u;
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5 * u; ctx.shadowOffsetY = 1 * u;
+      // bandiere flat, allineate al bordo destro
+      for (let i = 0; i < flags.length; i++) {
+        const fx = rightX - flagW - (flags.length - 1 - i) * flagStep;
+        ctx.fillStyle = "#fff";
+        roundRectPath(ctx, fx - 1.2 * u, titleCy - flagH / 2 - 1.2 * u, flagW + 2.4 * u, flagH + 2.4 * u, 2 * u);
+        ctx.fill();
+        ctx.save();
+        roundRectPath(ctx, fx, titleCy - flagH / 2, flagW, flagH, 1.5 * u);
+        ctx.clip();
+        drawImageCover(ctx, flags[i], fx, titleCy - flagH / 2, flagW, flagH);
+        ctx.restore();
+      }
+      // titolo serif, ancorato a destra (subito a sinistra delle bandiere)
+      ctx.font = `600 ${24 * u}px "Cormorant Garamond", serif`;
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      ctx.fillText(title, rightX - flagsW, titleCy);
+      // date corsive
+      let y = pad + 30 * u;
+      if (dateRangeLabel) {
+        ctx.font = `italic ${12 * u}px "Noto Serif", serif`;
+        ctx.fillStyle = "rgba(255,255,255,0.68)";
+        ctx.textBaseline = "top";
+        ctx.fillText(dateRangeLabel, rightX, y);
+        y += 20 * u;
+      }
+      // km · tappe (serif)
+      ctx.font = `600 ${16 * u}px "Cormorant Garamond", serif`;
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.textBaseline = "top";
+      ctx.fillText(`${formatKm(totalKmRef.current)} km  ·  ${legsRef.current.length} tappe`, rightX, y);
+      ctx.restore();
+      ctx.textAlign = "left";
+      return c;
+    }
+
     // Card dati in alto a destra — FEDELE a quella a schermo (bandiere a
     // ventaglio + titolo + date + pill km/tappe), così il poster salvato è
     // identico a ciò che si vede.
@@ -697,6 +747,8 @@ export function TripFlyover({ trips, onClose }: Props) {
           await Promise.all([
             (document as any).fonts.load('16px "Special Elite"'),
             (document as any).fonts.load('700 15px "Courier Prime"'),
+            (document as any).fonts.load('600 24px "Cormorant Garamond"'),
+            (document as any).fonts.load('italic 12px "Noto Serif"'),
           ]);
         }
       } catch { /* font non disponibili: si usa il fallback */ }
@@ -801,7 +853,7 @@ export function TripFlyover({ trips, onClose }: Props) {
         if (!document.getElementById("flyover-fonts")) {
           const f = document.createElement("link");
           f.id = "flyover-fonts"; f.rel = "stylesheet";
-          f.href = "https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap";
+          f.href = "https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Cormorant+Garamond:ital,wght@0,600;1,500&family=Noto+Serif:ital@0;1&display=swap";
           document.head.appendChild(f);
         }
 
@@ -933,10 +985,39 @@ export function TripFlyover({ trips, onClose }: Props) {
 
         {poster && (
           <>
-            {/* Dati viaggio, in alto a destra, con bandiere dei paesi a ventaglio.
-                Sulla vista Linee la card diventa "vetro nero + numeri ambra" con
-                titolo/date da macchina da scrivere (Special Elite), coerente con
-                il poster bianco/nero; sul satellite resta la card navy. */}
+            {/* Dati viaggio, in alto a destra. Tre stili di card:
+                - satellite: vetro navy (font di marca + numeri mono),
+                - linee: vetro nero + numeri ambra (macchina da scrivere),
+                - costellazione: DIDASCALIA senza riquadro, serif elegante
+                  (Cormorant) monocromatica, come la caption di una stampa celeste. */}
+            {styleMode === "constellation" ? (
+              <div style={{
+                position: "absolute", top: 20, right: 20, zIndex: 25, maxWidth: "72%",
+                textAlign: "right", textShadow: "0 1px 5px rgba(0,0,0,0.9)",
+                animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 9 }}>
+                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 25, color: "#fff", lineHeight: 1, letterSpacing: 0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
+                  </div>
+                  {flagCodes.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                      {flagCodes.map((c, i) => (
+                        <img key={c + i} src={"https://flagcdn.com/w40/" + c + ".png"} alt="" width="22" height="15"
+                          style={{ borderRadius: 2, objectFit: "cover", border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 1px 4px rgba(0,0,0,0.45)", marginLeft: i === 0 ? 0 : -6, position: "relative", zIndex: i }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {dateRangeLabel && (
+                  <div style={{ fontFamily: "'Noto Serif', serif", fontStyle: "italic", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 6 }}>{dateRangeLabel}</div>
+                )}
+                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: "rgba(255,255,255,0.9)", marginTop: 8, letterSpacing: 0.5 }}>
+                  <b style={{ fontWeight: 600 }}>{formatKm(totalKmRef.current)}</b> km &nbsp;·&nbsp; <b style={{ fontWeight: 600 }}>{legs.length}</b> tappe
+                </div>
+              </div>
+            ) : (
             <div style={{
               position: "absolute", top: 16, right: 16, zIndex: 25, maxWidth: "70%",
               background: darkCard ? "rgba(8,10,14,0.62)" : "rgba(10,22,40,0.92)",
@@ -988,6 +1069,7 @@ export function TripFlyover({ trips, onClose }: Props) {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Ventaglio foto in basso a sinistra. */}
             {finalePhotos.length > 0 && (() => {
