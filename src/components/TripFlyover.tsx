@@ -201,6 +201,7 @@ export function TripFlyover({ trips, onClose }: Props) {
 
   const tripsCount = trips.length;
   const legs = legsRef.current;
+  const linesMode = styleMode === "lines";
   const dateRangeLabel = tripsCount === 1
     ? (trips[0].trip_date === trips[0].date_end
       ? formatTripDate(trips[0].trip_date)
@@ -423,17 +424,28 @@ export function TripFlyover({ trips, onClose }: Props) {
     // ventaglio + titolo + date + pill km/tappe), così il poster salvato è
     // identico a ciò che si vede.
     const u = dpr;
+    const lines = styleMode === "lines";
+    // Card fedele alla vista: satellite = vetro navy + numeri bianchi (mono);
+    // linee = vetro nero + numeri ambra, titolo/date "macchina da scrivere".
+    const cardBg = lines ? "rgba(8,10,14,0.62)" : "rgba(10,22,40,0.92)";
+    const cardBorder = lines ? "rgba(255,255,255,0.28)" : "#1a2d4a";
+    const titleFont = lines ? `${15 * u}px "Special Elite", monospace` : `700 ${15 * u}px "Space Grotesk", sans-serif`;
+    const dateFont = lines ? `${11 * u}px "Special Elite", monospace` : `400 ${11 * u}px sans-serif`;
+    const pillBg = lines ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.06)";
+    const pillBorder = lines ? "rgba(251,191,36,0.35)" : "#1a2d4a";
+    const pillNumColor = lines ? "#fbbf24" : "#fff";
+    const pillNumFont = lines ? `700 ${15 * u}px "Courier Prime", monospace` : `700 ${15 * u}px "JetBrains Mono", monospace`;
     const innerPad = 14 * u;
     const flagW = 24 * u, flagH = 17 * u, flagStep = 15 * u; // ~9px di sovrapposizione
     const title = tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title;
     const flags = flagImgs.filter(im => im.complete && im.naturalWidth > 0);
 
-    ctx.font = `700 ${15 * u}px "Space Grotesk", sans-serif`;
+    ctx.font = titleFont;
     const titleW = ctx.measureText(title).width;
     const flagsW = flags.length > 0 ? (flagW + (flags.length - 1) * flagStep + 8 * u) : 0;
     const headerW = flagsW + titleW;
 
-    ctx.font = `400 ${11 * u}px sans-serif`;
+    ctx.font = dateFont;
     const datesW = dateRangeLabel ? ctx.measureText(dateRangeLabel).width : 0;
 
     const pills = [
@@ -441,7 +453,7 @@ export function TripFlyover({ trips, onClose }: Props) {
       { v: String(legsRef.current.length), l: "TAPPE" },
     ];
     const pillWs = pills.map(p => {
-      ctx.font = `700 ${15 * u}px "JetBrains Mono", monospace`;
+      ctx.font = pillNumFont;
       const nw = ctx.measureText(p.v).width;
       ctx.font = `700 ${9 * u}px sans-serif`;
       const lw = ctx.measureText(p.l).width;
@@ -456,10 +468,10 @@ export function TripFlyover({ trips, onClose }: Props) {
     const cardX = c.width - cardW - 16 * u;
     const cardY = 16 * u;
 
-    ctx.fillStyle = "rgba(10,22,40,0.92)";
+    ctx.fillStyle = cardBg;
     roundRectPath(ctx, cardX, cardY, cardW, cardH, 14 * u);
     ctx.fill();
-    ctx.lineWidth = Math.max(1, 0.5 * u); ctx.strokeStyle = "#1a2d4a"; ctx.stroke();
+    ctx.lineWidth = Math.max(1, 0.5 * u); ctx.strokeStyle = cardBorder; ctx.stroke();
 
     // header: bandiere a ventaglio + titolo, centrati verticalmente
     const headerCy = cardY + innerPad + headerH / 2;
@@ -478,7 +490,7 @@ export function TripFlyover({ trips, onClose }: Props) {
       ctx.restore();
       ctx.restore();
     }
-    ctx.font = `700 ${15 * u}px "Space Grotesk", sans-serif`;
+    ctx.font = titleFont;
     ctx.fillStyle = "#f0f4ff";
     ctx.textAlign = "left"; ctx.textBaseline = "middle";
     ctx.fillText(title, hx + flagsW, headerCy);
@@ -486,7 +498,7 @@ export function TripFlyover({ trips, onClose }: Props) {
     // date
     let cursorY = cardY + innerPad + headerH;
     if (dateRangeLabel) {
-      ctx.font = `400 ${11 * u}px sans-serif`;
+      ctx.font = dateFont;
       ctx.fillStyle = "rgba(255,255,255,0.5)";
       ctx.textBaseline = "top";
       ctx.fillText(dateRangeLabel, hx, cursorY);
@@ -498,13 +510,13 @@ export function TripFlyover({ trips, onClose }: Props) {
     let px = hx;
     for (let i = 0; i < pills.length; i++) {
       const pw = pillWs[i];
-      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillStyle = pillBg;
       roundRectPath(ctx, px, pillY, pw, pillH, 10 * u);
       ctx.fill();
-      ctx.lineWidth = Math.max(1, 0.5 * u); ctx.strokeStyle = "#1a2d4a"; ctx.stroke();
+      ctx.lineWidth = Math.max(1, 0.5 * u); ctx.strokeStyle = pillBorder; ctx.stroke();
       ctx.textAlign = "center";
-      ctx.fillStyle = "#fff";
-      ctx.font = `700 ${15 * u}px "JetBrains Mono", monospace`;
+      ctx.fillStyle = pillNumColor;
+      ctx.font = pillNumFont;
       ctx.textBaseline = "alphabetic";
       ctx.fillText(pills[i].v, px + pw / 2, pillY + 20 * u);
       ctx.fillStyle = "rgba(255,255,255,0.45)";
@@ -543,6 +555,16 @@ export function TripFlyover({ trips, onClose }: Props) {
       const mapCanvas = containerRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
       if (!mapCanvas) return null;
       const flagImgs = await loadFlagImages();
+      // Assicura i font della card (typewriter) prima di disegnarli su canvas:
+      // senza, il primo snapshot userebbe un fallback monospazio.
+      try {
+        if ((document as any).fonts?.load) {
+          await Promise.all([
+            (document as any).fonts.load('16px "Special Elite"'),
+            (document as any).fonts.load('700 15px "Courier Prime"'),
+          ]);
+        }
+      } catch { /* font non disponibili: si usa il fallback */ }
       // Attendi un frame appena renderizzato prima di catturare.
       await new Promise<void>(res => {
         if (!map) { res(); return; }
@@ -623,6 +645,16 @@ export function TripFlyover({ trips, onClose }: Props) {
           link.id = "ml-css"; link.rel = "stylesheet";
           link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.0.0/dist/maplibre-gl.css";
           document.head.appendChild(link);
+        }
+
+        // Font "da diario di viaggio" per la card sulla vista Linee (titolo/date
+        // macchina da scrivere + numeri monospazio). Caricati anche per lo
+        // snapshot: la card è ridisegnata su canvas in composePoster.
+        if (!document.getElementById("flyover-fonts")) {
+          const f = document.createElement("link");
+          f.id = "flyover-fonts"; f.rel = "stylesheet";
+          f.href = "https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap";
+          document.head.appendChild(f);
         }
 
         const style = await buildSatelliteStyle();
@@ -752,10 +784,14 @@ export function TripFlyover({ trips, onClose }: Props) {
 
         {poster && (
           <>
-            {/* Dati viaggio, in alto a destra, con bandiere dei paesi a ventaglio. */}
+            {/* Dati viaggio, in alto a destra, con bandiere dei paesi a ventaglio.
+                Sulla vista Linee la card diventa "vetro nero + numeri ambra" con
+                titolo/date da macchina da scrivere (Special Elite), coerente con
+                il poster bianco/nero; sul satellite resta la card navy. */}
             <div style={{
               position: "absolute", top: 16, right: 16, zIndex: 25, maxWidth: "70%",
-              background: "rgba(10,22,40,0.92)", border: "0.5px solid #1a2d4a", borderRadius: 14,
+              background: linesMode ? "rgba(8,10,14,0.62)" : "rgba(10,22,40,0.92)",
+              border: `0.5px solid ${linesMode ? "rgba(255,255,255,0.28)" : "#1a2d4a"}`, borderRadius: 14,
               padding: "12px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
               animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
             }}>
@@ -775,17 +811,29 @@ export function TripFlyover({ trips, onClose }: Props) {
                     ))}
                   </div>
                 )}
-                <div className="font-display" style={{ fontSize: 15, fontWeight: 700, color: "#f0f4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <div className={linesMode ? undefined : "font-display"} style={{
+                  fontSize: linesMode ? 16 : 15, fontWeight: linesMode ? 400 : 700, color: "#f0f4ff",
+                  fontFamily: linesMode ? "'Special Elite', monospace" : undefined,
+                  letterSpacing: linesMode ? 0.3 : undefined,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
                   {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
                 </div>
               </div>
               {dateRangeLabel && (
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>{dateRangeLabel}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3, fontFamily: linesMode ? "'Special Elite', monospace" : undefined }}>{dateRangeLabel}</div>
               )}
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 {[{ v: formatKm(totalKmRef.current), l: "km" }, { v: String(legs.length), l: "tappe" }].map(s => (
-                  <div key={s.l} style={{ background: "rgba(255,255,255,0.06)", border: "0.5px solid #1a2d4a", borderRadius: 10, padding: "5px 12px", textAlign: "center" }}>
-                    <div className="font-mono" style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>{s.v}</div>
+                  <div key={s.l} style={{
+                    background: linesMode ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.06)",
+                    border: `0.5px solid ${linesMode ? "rgba(251,191,36,0.35)" : "#1a2d4a"}`,
+                    borderRadius: 10, padding: "5px 12px", textAlign: "center",
+                  }}>
+                    <div className={linesMode ? undefined : "font-mono"} style={{
+                      fontSize: 15, fontWeight: 700, color: linesMode ? "#fbbf24" : "#fff", lineHeight: 1.1,
+                      fontFamily: linesMode ? "'Courier Prime', monospace" : undefined,
+                    }}>{s.v}</div>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.6, marginTop: 2 }}>{s.l}</div>
                   </div>
                 ))}
