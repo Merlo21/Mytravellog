@@ -35,7 +35,7 @@ function loadModeIcon(Icon: any, color: string): Promise<HTMLImageElement> {
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
 
-type MapStyleMode = "satellite" | "lines";
+type MapStyleMode = "satellite" | "lines" | "constellation";
 
 /** Stile satellite (attuale): imagery MapTiler su globo inclinato. */
 async function buildSatelliteStyle(): Promise<any> {
@@ -87,6 +87,56 @@ export function buildLinesStyle(): any {
       },
     ],
   };
+}
+
+// Confini "a costellazione": più tenui e sottili della vista Linee, per fare da
+// sfondo stellato senza rubare contrasto al tracciato/alle stelle. Pensata come
+// master di stampa (resina + LED): piatta dall'alto, alto contrasto b/n.
+const CONST_WIDTH = ["interpolate", ["linear"], ["zoom"], 1, 0.35, 4, 0.7, 8, 1.1];
+const CONST_COLOR = "rgba(255,255,255,0.32)";
+
+export function buildConstellationStyle(): any {
+  return {
+    version: 8,
+    glyphs: `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`,
+    sources: {
+      omt: { type: "vector", url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}` },
+    },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": "#000000" } },
+      {
+        id: "coastline", type: "line", source: "omt", "source-layer": "water",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": CONST_COLOR, "line-width": CONST_WIDTH },
+      },
+      {
+        id: "country-borders", type: "line", source: "omt", "source-layer": "boundary",
+        filter: ["all", ["<=", ["get", "admin_level"], 2], ["!=", ["get", "maritime"], 1]],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": CONST_COLOR, "line-width": CONST_WIDTH },
+      },
+    ],
+  };
+}
+
+/** Nodo "stella": nucleo bianco pieno + alone morbido (radial gradient). Usato
+ *  come icon-image delle tappe nella vista Costellazione — i punti-LED naturali. */
+function createStarImageData(): ImageData {
+  const s = 48;
+  const c = document.createElement("canvas");
+  c.width = s; c.height = s;
+  const ctx = c.getContext("2d")!;
+  const cx = s / 2, cy = s / 2;
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, s / 2);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.16, "rgba(255,255,255,0.95)");
+  g.addColorStop(0.4, "rgba(255,255,255,0.28)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, s, s);
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(cx, cy, s * 0.11, 0, Math.PI * 2); ctx.fill();
+  return ctx.getImageData(0, 0, s, s);
 }
 
 /** Rettangolo con angoli arrotondati (per comporre il poster su canvas). */
@@ -270,7 +320,7 @@ export function TripFlyover({ trips, onClose }: Props) {
 
   const tripsCount = trips.length;
   const legs = legsRef.current;
-  const linesMode = styleMode === "lines";
+  const darkCard = styleMode !== "satellite"; // card "diario di viaggio" su Linee e Costellazione
   const dateRangeLabel = tripsCount === 1
     ? (trips[0].trip_date === trips[0].date_end
       ? formatTripDate(trips[0].trip_date)
@@ -330,9 +380,10 @@ export function TripFlyover({ trips, onClose }: Props) {
    * personalizzati): le guardie `getSource`/`getLayer`/`hasImage` evitano i
    * doppioni al primo caricamento e ricreano tutto dopo un cambio stile.
    */
-  const addOverlayLayers = (map: any) => {
+  const addOverlayLayers = (map: any, mode: MapStyleMode) => {
     const stops = stopsRef.current;
     if (!stops.length) return;
+    const constellation = mode === "constellation";
     if (!map.getSource("flyover-route")) {
       map.addSource("flyover-route", {
         type: "geojson",
@@ -340,17 +391,23 @@ export function TripFlyover({ trips, onClose }: Props) {
       });
     }
     if (!map.getLayer("flyover-route-casing")) {
+      // Casing: alone bianco morbido (costellazione) o contorno scuro (satellite/linee).
       map.addLayer({
         id: "flyover-route-casing", type: "line", source: "flyover-route",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "rgba(6,14,30,0.65)", "line-width": 8.5 },
+        paint: constellation
+          ? { "line-color": "rgba(255,255,255,0.18)", "line-width": 9, "line-blur": 4 }
+          : { "line-color": "rgba(6,14,30,0.65)", "line-width": 8.5 },
       });
     }
     if (!map.getLayer("flyover-route")) {
+      // Tracciato: bianco luminoso (costellazione) o ambra (satellite/linee).
       map.addLayer({
         id: "flyover-route", type: "line", source: "flyover-route",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#fbbf24", "line-width": 4.5, "line-opacity": 1 },
+        paint: constellation
+          ? { "line-color": "#ffffff", "line-width": 2.5, "line-opacity": 1 }
+          : { "line-color": "#fbbf24", "line-width": 4.5, "line-opacity": 1 },
       });
     }
     if (!map.getSource("flyover-stops")) {
@@ -360,8 +417,9 @@ export function TripFlyover({ trips, onClose }: Props) {
       });
     }
     if (!map.hasImage("flyover-pin")) map.addImage("flyover-pin", createPinImageData(), { pixelRatio: 2 });
-    // Pin della tappa finale col medaglione del mezzo (se disponibile).
-    const hasFinalPin = !!finalPinDataRef.current;
+    if (constellation && !map.hasImage("flyover-star")) map.addImage("flyover-star", createStarImageData(), { pixelRatio: 2 });
+    // Pin della tappa finale col medaglione del mezzo (solo viste con puntine).
+    const hasFinalPin = !constellation && !!finalPinDataRef.current;
     if (hasFinalPin && !map.hasImage("flyover-pin-final")) {
       map.addImage("flyover-pin-final", finalPinDataRef.current as ImageData, { pixelRatio: 2 });
     }
@@ -369,17 +427,21 @@ export function TripFlyover({ trips, onClose }: Props) {
       map.addLayer({
         id: "flyover-stops", type: "symbol", source: "flyover-stops",
         layout: {
-          "icon-image": hasFinalPin ? ["case", ["get", "final"], "flyover-pin-final", "flyover-pin"] : "flyover-pin",
-          "icon-size": 0.9,
-          "icon-anchor": "bottom",
+          "icon-image": constellation
+            ? "flyover-star"
+            : (hasFinalPin ? ["case", ["get", "final"], "flyover-pin-final", "flyover-pin"] : "flyover-pin"),
+          "icon-size": constellation ? 0.8 : 0.9,
+          "icon-anchor": constellation ? "center" : "bottom",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-pitch-alignment": "viewport",
           "text-field": ["get", "name"],
-          "text-font": ["Open Sans Bold"],
+          // Costellazione: serif corsivo elegante (fallback a un sans se MapTiler
+          // non serve Noto Serif Italic). Altre viste: bold sans come prima.
+          "text-font": constellation ? ["Noto Serif Italic", "Open Sans Regular"] : ["Open Sans Bold"],
           "text-size": 13,
-          "text-anchor": "bottom",
-          "text-offset": [0, -2.6],
+          "text-anchor": constellation ? "bottom" : "bottom",
+          "text-offset": constellation ? [0, -1.1] : [0, -2.6],
           "text-allow-overlap": true,
           "text-ignore-placement": true,
           "text-optional": true,
@@ -387,23 +449,27 @@ export function TripFlyover({ trips, onClose }: Props) {
         },
         paint: {
           "text-color": "#ffffff",
-          "text-halo-color": "rgba(6,14,30,0.9)",
-          "text-halo-width": 1.6,
+          "text-halo-color": constellation ? "rgba(0,0,0,0.85)" : "rgba(6,14,30,0.9)",
+          "text-halo-width": constellation ? 1.2 : 1.6,
           "text-halo-blur": 0.5,
         },
       });
     }
   };
 
-  /** Passa da satellite a linee (e viceversa): sostituisce lo stile, ri-aggiunge
-   *  gli overlay e rianima l'inquadratura col pitch giusto per la vista. */
+  /** Cambia vista (satellite / linee / costellazione): sostituisce lo stile,
+   *  ri-aggiunge gli overlay col look giusto e rianima l'inquadratura. Satellite
+   *  e Linee inclinate (pitch 45); Costellazione piatta dall'alto (master di
+   *  stampa, niente prospettiva). */
   const applyStyle = async (mode: MapStyleMode) => {
     const map = mapRef.current;
     if (!map || switchingRef.current) return;
     switchingRef.current = true;
     setSwitching(true);
     try {
-      const style = mode === "satellite" ? await buildSatelliteStyle() : buildLinesStyle();
+      const style = mode === "satellite" ? await buildSatelliteStyle()
+        : mode === "lines" ? buildLinesStyle()
+        : buildConstellationStyle();
       if (!mapRef.current) return;
       map.setStyle(style, { diff: false });
       await new Promise<void>(res => {
@@ -413,12 +479,8 @@ export function TripFlyover({ trips, onClose }: Props) {
         setTimeout(fin, 2500); // salvagente se l'evento non scatta
       });
       if (!mapRef.current || !mountedRef.current) return;
-      addOverlayLayers(map);
-      // Entrambe le viste inclinate (pitch 45): l'utente vuole la vista a linee
-      // "come l'altra". Sul mercato senza terreno è solo un piano inclinato, ma
-      // con la proiezione globo (impostata anche in buildLinesStyle) il colpo
-      // d'occhio è identico al satellite.
-      await flyToOverview(map, 45);
+      addOverlayLayers(map, mode);
+      await flyToOverview(map, mode === "constellation" ? 0 : 45);
     } catch { /* se il cambio stile fallisce, resta la vista precedente */ }
     finally {
       switchingRef.current = false;
@@ -426,11 +488,10 @@ export function TripFlyover({ trips, onClose }: Props) {
     }
   };
 
-  const toggleStyle = () => {
-    if (switchingRef.current) return;
-    const next: MapStyleMode = styleMode === "satellite" ? "lines" : "satellite";
-    setStyleMode(next);
-    applyStyle(next);
+  const selectStyle = (mode: MapStyleMode) => {
+    if (switchingRef.current || mode === styleMode) return;
+    setStyleMode(mode);
+    applyStyle(mode);
   };
 
   /** Carica fino a FINALE_PHOTO_LIMIT foto (una per tappa) per il ventaglio. */
@@ -498,9 +559,9 @@ export function TripFlyover({ trips, onClose }: Props) {
     // ventaglio + titolo + date + pill km/tappe), così il poster salvato è
     // identico a ciò che si vede.
     const u = dpr;
-    const lines = styleMode === "lines";
+    const lines = styleMode !== "satellite"; // card "diario di viaggio" su Linee e Costellazione
     // Card fedele alla vista: satellite = vetro navy + numeri bianchi (mono);
-    // linee = vetro nero + numeri ambra, titolo/date "macchina da scrivere".
+    // linee/costellazione = vetro nero + numeri ambra, titolo/date "macchina da scrivere".
     const cardBg = lines ? "rgba(8,10,14,0.62)" : "rgba(10,22,40,0.92)";
     const cardBorder = lines ? "rgba(255,255,255,0.28)" : "#1a2d4a";
     const titleFont = lines ? `${15 * u}px "Special Elite", monospace` : `700 ${15 * u}px "Space Grotesk", sans-serif`;
@@ -764,7 +825,7 @@ export function TripFlyover({ trips, onClose }: Props) {
         map.on("load", async () => {
           if (cancelled || !mountedRef.current) return;
 
-          addOverlayLayers(map);
+          addOverlayLayers(map, "satellite");
 
           setPhase("ready");
           setTimeout(() => { map.resize(); }, 100);
@@ -826,20 +887,21 @@ export function TripFlyover({ trips, onClose }: Props) {
           <X className="w-4 h-4" />
         </button>
 
-        {/* Toggle vista: satellite inclinato ⇄ linee bianco/nero piatto. */}
+        {/* Toggle vista: satellite inclinato · linee b/n · costellazione (stampa). */}
         {phase === "ready" && (
           <div style={{
             position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 30,
             display: "flex", gap: 2, padding: 3, borderRadius: 999,
             background: "rgba(10,22,40,0.8)", border: "0.5px solid #1a2d4a", backdropFilter: "blur(2px)",
           }}>
-            {([["satellite", "Satellite"], ["lines", "Linee"]] as const).map(([mode, label]) => {
+            {([["satellite", "Satellite"], ["lines", "Linee"], ["constellation", "Costellazione"]] as const).map(([mode, label]) => {
               const active = styleMode === mode;
               return (
-                <button key={mode} onClick={() => { if (!active) toggleStyle(); }} disabled={switching}
+                <button key={mode} onClick={() => selectStyle(mode)} disabled={switching}
                   aria-pressed={active}
                   style={{
-                    padding: "5px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, border: "none",
+                    padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600, border: "none",
+                    whiteSpace: "nowrap",
                     cursor: switching ? "default" : "pointer",
                     background: active ? "rgba(96,165,250,0.18)" : "transparent",
                     color: active ? "#60a5fa" : "rgba(255,255,255,0.6)",
@@ -877,8 +939,8 @@ export function TripFlyover({ trips, onClose }: Props) {
                 il poster bianco/nero; sul satellite resta la card navy. */}
             <div style={{
               position: "absolute", top: 16, right: 16, zIndex: 25, maxWidth: "70%",
-              background: linesMode ? "rgba(8,10,14,0.62)" : "rgba(10,22,40,0.92)",
-              border: `0.5px solid ${linesMode ? "rgba(255,255,255,0.28)" : "#1a2d4a"}`, borderRadius: 14,
+              background: darkCard ? "rgba(8,10,14,0.62)" : "rgba(10,22,40,0.92)",
+              border: `0.5px solid ${darkCard ? "rgba(255,255,255,0.28)" : "#1a2d4a"}`, borderRadius: 14,
               padding: "12px 14px", boxShadow: "0 8px 24px rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
               animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
             }}>
@@ -898,28 +960,28 @@ export function TripFlyover({ trips, onClose }: Props) {
                     ))}
                   </div>
                 )}
-                <div className={linesMode ? undefined : "font-display"} style={{
-                  fontSize: linesMode ? 16 : 15, fontWeight: linesMode ? 400 : 700, color: "#f0f4ff",
-                  fontFamily: linesMode ? "'Special Elite', monospace" : undefined,
-                  letterSpacing: linesMode ? 0.3 : undefined,
+                <div className={darkCard ? undefined : "font-display"} style={{
+                  fontSize: darkCard ? 16 : 15, fontWeight: darkCard ? 400 : 700, color: "#f0f4ff",
+                  fontFamily: darkCard ? "'Special Elite', monospace" : undefined,
+                  letterSpacing: darkCard ? 0.3 : undefined,
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}>
                   {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
                 </div>
               </div>
               {dateRangeLabel && (
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3, fontFamily: linesMode ? "'Special Elite', monospace" : undefined }}>{dateRangeLabel}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3, fontFamily: darkCard ? "'Special Elite', monospace" : undefined }}>{dateRangeLabel}</div>
               )}
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 {[{ v: formatKm(totalKmRef.current), l: "km" }, { v: String(legs.length), l: "tappe" }].map(s => (
                   <div key={s.l} style={{
-                    background: linesMode ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.06)",
-                    border: `0.5px solid ${linesMode ? "rgba(251,191,36,0.35)" : "#1a2d4a"}`,
+                    background: darkCard ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.06)",
+                    border: `0.5px solid ${darkCard ? "rgba(251,191,36,0.35)" : "#1a2d4a"}`,
                     borderRadius: 10, padding: "5px 12px", textAlign: "center",
                   }}>
-                    <div className={linesMode ? undefined : "font-mono"} style={{
-                      fontSize: 15, fontWeight: 700, color: linesMode ? "#fbbf24" : "#fff", lineHeight: 1.1,
-                      fontFamily: linesMode ? "'Courier Prime', monospace" : undefined,
+                    <div className={darkCard ? undefined : "font-mono"} style={{
+                      fontSize: 15, fontWeight: 700, color: darkCard ? "#fbbf24" : "#fff", lineHeight: 1.1,
+                      fontFamily: darkCard ? "'Courier Prime', monospace" : undefined,
                     }}>{s.v}</div>
                     <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.6, marginTop: 2 }}>{s.l}</div>
                   </div>
