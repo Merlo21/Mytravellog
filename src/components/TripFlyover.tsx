@@ -1,10 +1,37 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, createElement } from "react";
 import { createPortal } from "react-dom";
+import { renderToStaticMarkup } from "react-dom/server";
 import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, tripTotalKm, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
-import { X, Share2, Loader2 } from "lucide-react";
+import { X, Share2, Loader2, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
+import { Motorcycle } from "@/components/icons/Motorcycle";
+
+// Icona + colore del mezzo, IDENTICI alle card (TripCardTicket TRANSPORT_STYLE):
+// il medaglione sulla tappa finale usa la stessa simbologia.
+const TRANSPORT_MAP: Record<string, { color: string; Icon: any }> = {
+  plane: { color: "#378ADD", Icon: Plane },
+  train: { color: "#BA7517", Icon: Train },
+  car:   { color: "#A855F7", Icon: Car },
+  ship:  { color: "#0F6E56", Icon: Ship },
+  walk:  { color: "#D85A30", Icon: Footprints },
+  bici:  { color: "#22C55E", Icon: Bike },
+  moto:  { color: "#EAB308", Icon: Motorcycle },
+};
+
+/** Rasterizza un'icona (lucide o Motorcycle) in un'immagine, via SVG data URI. */
+function loadModeIcon(Icon: any, color: string): Promise<HTMLImageElement> {
+  const svg = renderToStaticMarkup(createElement(Icon, { color, stroke: color, width: 48, height: 48, strokeWidth: 2.4 }));
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("icon load error"));
+    img.src = url;
+    setTimeout(() => (img.complete && img.naturalWidth > 0 ? resolve(img) : reject(new Error("icon load timeout"))), 2000);
+  });
+}
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
 
@@ -115,6 +142,47 @@ function createPinImageData(): ImageData {
   return ctx.getImageData(0, 0, s, s);
 }
 
+/**
+ * Come createPinImageData, ma con un "medaglione" del mezzo agganciato in basso
+ * a destra della testa: cerchio del colore del mezzo (identico alle card) +
+ * icona bianca. Usato SOLO per la tappa finale. Essendo un icon-image di symbol
+ * layer, finisce automaticamente anche nello snapshot del poster.
+ */
+function createFinalPinImageData(iconImg: HTMLImageElement, color: string): ImageData {
+  const s = 64;
+  const c = document.createElement("canvas");
+  c.width = s; c.height = s;
+  const ctx = c.getContext("2d")!;
+  const cx = s / 2, headCy = s * 0.32, headR = s * 0.24, tipY = s * 0.92;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "#fbbf24";
+  ctx.beginPath();
+  ctx.moveTo(cx - headR * 0.7, headCy + headR * 0.6);
+  ctx.lineTo(cx, tipY);
+  ctx.lineTo(cx + headR * 0.7, headCy + headR * 0.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, headCy, headR, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = "#fff";
+  ctx.beginPath(); ctx.arc(cx, headCy, headR, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(cx, headCy, headR * 0.42, 0, Math.PI * 2); ctx.fill();
+  // Medaglione mezzo, basso-destra della testa.
+  const bx = cx + headR * 0.9, by = headCy + headR * 0.95, br = s * 0.185;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#0a1628";
+  ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.stroke();
+  const isz = br * 1.5;
+  ctx.drawImage(iconImg, bx - isz / 2, by - isz / 2, isz, isz);
+  return ctx.getImageData(0, 0, s, s);
+}
+
 /** Coordinate [lon,lat] dell'intera rotta, tratto stradale reale quando disponibile. */
 function buildFlyoverRouteCoords(stops: { lat: number; lon: number }[], legs: FlightLeg[]): [number, number][] {
   const coords: [number, number][] = [[stops[0].lon, stops[0].lat]];
@@ -190,6 +258,7 @@ export function TripFlyover({ trips, onClose }: Props) {
   const totalKmRef = useRef(0);
   const legsRef = useRef<FlightLeg[]>([]);
   const stopsRef = useRef<{ lat: number; lon: number; label: string }[]>([]);
+  const finalPinDataRef = useRef<ImageData | null>(null);
   const switchingRef = useRef(false);
 
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "empty">("loading");
@@ -287,15 +356,20 @@ export function TripFlyover({ trips, onClose }: Props) {
     if (!map.getSource("flyover-stops")) {
       map.addSource("flyover-stops", {
         type: "geojson",
-        data: { type: "FeatureCollection", features: stops.map(s => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: { name: s.label } })) },
+        data: { type: "FeatureCollection", features: stops.map((s, i) => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: { name: s.label, final: i === stops.length - 1 } })) },
       });
     }
     if (!map.hasImage("flyover-pin")) map.addImage("flyover-pin", createPinImageData(), { pixelRatio: 2 });
+    // Pin della tappa finale col medaglione del mezzo (se disponibile).
+    const hasFinalPin = !!finalPinDataRef.current;
+    if (hasFinalPin && !map.hasImage("flyover-pin-final")) {
+      map.addImage("flyover-pin-final", finalPinDataRef.current as ImageData, { pixelRatio: 2 });
+    }
     if (!map.getLayer("flyover-stops")) {
       map.addLayer({
         id: "flyover-stops", type: "symbol", source: "flyover-stops",
         layout: {
-          "icon-image": "flyover-pin",
+          "icon-image": hasFinalPin ? ["case", ["get", "final"], "flyover-pin-final", "flyover-pin"] : "flyover-pin",
           "icon-size": 0.9,
           "icon-anchor": "bottom",
           "icon-allow-overlap": true,
@@ -639,6 +713,19 @@ export function TripFlyover({ trips, onClose }: Props) {
         const ml = await import("maplibre-gl");
         const maplibregl = (ml as any).default || ml;
         if (cancelled) return;
+
+        // Medaglione del mezzo sulla tappa finale: rasterizza l'icona del mezzo
+        // dell'ultima tratta (stessa simbologia delle card) nel pin finale.
+        // Se manca il mezzo o l'icona non carica, la tappa finale usa il pin normale.
+        const finalMode = legsLocal[legsLocal.length - 1]?.to.transportMode;
+        const tstyle = finalMode ? TRANSPORT_MAP[finalMode] : null;
+        if (tstyle && !finalPinDataRef.current) {
+          try {
+            const iconImg = await loadModeIcon(tstyle.Icon, "#ffffff");
+            if (cancelled) return;
+            finalPinDataRef.current = createFinalPinImageData(iconImg, tstyle.color);
+          } catch { /* nessun medaglione: pin normale */ }
+        }
 
         if (!document.getElementById("ml-css")) {
           const link = document.createElement("link");
