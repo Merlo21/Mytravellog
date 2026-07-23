@@ -79,13 +79,16 @@ describe("computeHomeStats", () => {
     expect(computeHomeStats(trips).countries).toBe(1);
   });
 
-  it("somma i km di tutti i viaggi", () => {
+  it("somma i km percorsi dei viaggi (via tripTotalKm: strada reale / linea d'aria)", () => {
+    // ~111 km per grado di latitudine; niente route_geometry → linea d'aria.
     const trips = [
-      makeTrip({ distance_from_home_km: 100 }),
-      makeTrip({ distance_from_home_km: 250 }),
-      makeTrip({ distance_from_home_km: null }),
+      makeTrip({ home_latitude: 45, home_longitude: 9, latitude: 46, longitude: 9 }), // ~111 km
+      makeTrip({ home_latitude: 45, home_longitude: 9, latitude: 47, longitude: 9 }), // ~222 km
+      makeTrip({ home_latitude: null, latitude: 46, longitude: 9 }),                  // niente casa → 0
     ];
-    expect(computeHomeStats(trips).km).toBe(350);
+    const km = computeHomeStats(trips).km;
+    expect(km).toBeGreaterThan(320);
+    expect(km).toBeLessThan(345);
   });
 
   it("conta i giorni: 1 giorno se manca date_end o è uguale a trip_date", () => {

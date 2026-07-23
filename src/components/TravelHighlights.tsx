@@ -6,6 +6,7 @@ import { Motorcycle } from "@/components/icons/Motorcycle";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { distanceKm } from "@/lib/geo";
+import { tripTotalKm } from "@/lib/flyover";
 
 interface Props {
   trips: LocalTrip[];
@@ -85,8 +86,11 @@ export function TravelHighlights({ trips }: Props) {
       .sort((a, b) => (a.coldest_temp_c ?? a.temperature_c!) - (b.coldest_temp_c ?? b.temperature_c!))[0],
     [trips]
   );
+  // Km percorsi: stradali reali dove disponibile (tripTotalKm), coerente con
+  // Home/card/poster. (Il "più distante da casa" qui sotto resta invece la
+  // distanza max in linea d'aria — è un'altra metrica.)
   const totalKm = useMemo(
-    () => trips.reduce((sum, t) => sum + (t.distance_from_home_km ?? 0), 0),
+    () => trips.reduce((sum, t) => sum + tripTotalKm(t), 0),
     [trips]
   );
   const aroundWorld = totalKm / EARTH_CIRCUMFERENCE_KM;

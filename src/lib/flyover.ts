@@ -171,6 +171,18 @@ export function buildFlightLegs(stops: FlightStop[]): FlightLeg[] {
   return legs;
 }
 
+/**
+ * Km totali "percorsi" di un viaggio: somma delle tratte seguendo la STRADA
+ * reale dove disponibile (route_geometry, per auto/bici/moto), altrimenti la
+ * linea d'aria. Fonte UNICA usata ovunque (Home, Statistiche, card, poster) così
+ * il numero è coerente e corretto per i mezzi che seguono la strada — invece del
+ * vecchio `distance_from_home_km` salvato, che era sempre in linea d'aria.
+ */
+export function tripTotalKm(trip: Trip): number {
+  const legs = buildFlightLegs(buildFlightPath([trip]));
+  return legs.reduce((sum, leg) => sum + pathLengthKm(leg.pathCoords), 0);
+}
+
 /** Lunghezza approssimata (km) di un percorso [lon,lat][], sommando ogni segmento. */
 export function pathLengthKm(path: [number, number][]): number {
   let total = 0;

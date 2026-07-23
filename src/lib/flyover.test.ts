@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, FlightStop } from "./flyover";
+import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, tripTotalKm, FlightStop } from "./flyover";
+import { distanceKm } from "./geo";
 import type { Trip } from "./storage";
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -311,5 +312,39 @@ describe("pointAlongPath", () => {
 
   it("un percorso vuoto non lancia un errore", () => {
     expect(pointAlongPath([], 0.5)).toEqual([0, 0]);
+  });
+});
+
+describe("tripTotalKm", () => {
+  it("senza route_geometry usa la linea d'aria casa → destinazione", () => {
+    const trip = makeTrip(); // Milano (45.5, 9.2) → Roma (41.9, 12.5)
+    const straight = distanceKm(45.5, 9.2, 41.9, 12.5);
+    expect(tripTotalKm(trip)).toBeCloseTo(straight, 0);
+  });
+
+  it("con route_geometry (mezzo su strada) conta il percorso reale, più lungo della linea d'aria", () => {
+    const straight = makeTrip();
+    const road = makeTrip({
+      transport_mode: "car",
+      // deviazione verso est: casa → (20, 45.5) → destinazione, più lunga della retta
+      route_geometry: [[9.2, 45.5], [20, 45.5], [12.5, 41.9]],
+    });
+    expect(tripTotalKm(road)).toBeGreaterThan(tripTotalKm(straight));
+  });
+
+  it("ritorna 0 se manca la casa (nessuna tratta da percorrere)", () => {
+    const trip = makeTrip({ home_latitude: null, home_longitude: null });
+    expect(tripTotalKm(trip)).toBe(0);
+  });
+
+  it("somma le tratte di un viaggio multi-tappa", () => {
+    // Milano → Torino → Roma: somma delle due tratte, non la retta Milano→Roma
+    const trip = makeTrip({
+      waypoints: [{ city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 }],
+      latitude: 41.9, longitude: 12.5,
+    });
+    const legMi_To = distanceKm(45.5, 9.2, 45.07, 7.68);
+    const legTo_Ro = distanceKm(45.07, 7.68, 41.9, 12.5);
+    expect(tripTotalKm(trip)).toBeCloseTo(legMi_To + legTo_Ro, 0);
   });
 });

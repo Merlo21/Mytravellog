@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trip, formatTripDate } from "@/lib/storage";
-import { buildFlightPath, buildFlightLegs, pathLengthKm, FlightLeg } from "@/lib/flyover";
+import { buildFlightPath, buildFlightLegs, tripTotalKm, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
 import { X, Share2, Loader2 } from "lucide-react";
@@ -435,7 +435,9 @@ export function TripFlyover({ trips, onClose }: Props) {
     const stops = buildFlightPath(trips);
     const legsLocal = buildFlightLegs(stops);
     legsRef.current = legsLocal;
-    totalKmRef.current = legsLocal.reduce((sum, leg) => sum + pathLengthKm(leg.pathCoords), 0);
+    // Km percorsi: stessa fonte UNICA di Home/Statistiche/card (tripTotalKm =
+    // stradali reali dove c'è route_geometry, linea d'aria altrimenti).
+    totalKmRef.current = trips.reduce((sum, t) => sum + tripTotalKm(t), 0);
     allCoordsRef.current = buildFlyoverRouteCoords(stops, legsLocal);
     finalePhotoKeysRef.current = Array.from(new Set(stops.map(s => s.photoKey)));
 

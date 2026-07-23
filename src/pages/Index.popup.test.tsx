@@ -99,9 +99,11 @@ describe("Home — mini-card del viaggio selezionato sul globo", () => {
     expect(screen.getByText("Weekend Roma")).toBeInTheDocument();
     expect(screen.getByText("Roma, Italia")).toBeInTheDocument();
     expect(screen.getByText("Auto")).toBeInTheDocument();
-    // "480 km" compare anche nella stat card "Km totali" della Home: con la
-    // mini-card aperta deve comparire almeno due volte.
-    expect(screen.getAllByText("480 km").length).toBeGreaterThanOrEqual(2);
+    // I km sono quelli percorsi (tripTotalKm): senza route_geometry è la linea
+    // d'aria Milano→Roma ≈ 477 km, NON i 480 memorizzati in distance_from_home_km.
+    // Lo stesso valore compare anche nella stat card "Km totali" della Home: con
+    // la mini-card aperta deve comparire almeno due volte.
+    expect(screen.getAllByText("477 km").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/01 giu 2024/)).toBeInTheDocument();
   });
 

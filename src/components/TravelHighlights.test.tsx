@@ -151,13 +151,16 @@ describe("TravelHighlights — hottest / coldest", () => {
 });
 
 describe("TravelHighlights — totalKm, aroundWorld, toMoon", () => {
-  it("mostra distanza totale somma dei distance_from_home_km", () => {
+  it("mostra la distanza totale = somma dei km percorsi (tripTotalKm)", () => {
+    // Casa (45,9) → dest (46,9) ≈ 111 km ciascuno, niente route_geometry → linea
+    // d'aria. Totale ≈ 222 km (il valore non viene più da distance_from_home_km).
     const trips = [
-      makeTrip({ distance_from_home_km: 1000 }),
-      makeTrip({ distance_from_home_km: 2000 }),
+      makeTrip({ home_latitude: 45, home_longitude: 9, latitude: 46, longitude: 9 }),
+      makeTrip({ home_latitude: 45, home_longitude: 9, latitude: 46, longitude: 9 }),
     ];
     renderHighlights(trips);
-    expect(screen.getAllByText("3000 km").length).toBeGreaterThanOrEqual(1);
+    const near222 = (content: string) => /^\d+ km$/.test(content) && Math.abs(parseInt(content) - 222) <= 6;
+    expect(screen.getAllByText(near222).length).toBeGreaterThanOrEqual(1);
   });
 
   it("mostra 0 km totali con trips=[] (in più celle: totale + breakdown per mezzo)", () => {

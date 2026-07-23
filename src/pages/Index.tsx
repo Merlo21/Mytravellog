@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, Component, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, formatTripDate, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
+import { tripTotalKm } from "@/lib/flyover";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { Compass, Globe, MapPin, Pencil, Plane, Plus, Video, X, ChevronDown } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
@@ -47,7 +48,9 @@ export function computeHomeStats(trips: Trip[]) {
       cities.add(`${w.city}|${w.country}`);
     }
   }
-  const km = trips.reduce((s, t) => s + (t.distance_from_home_km ?? 0), 0);
+  // Km "percorsi": stradali reali dove c'è route_geometry (auto/bici/moto),
+  // linea d'aria altrimenti — coerente con Statistiche/card/poster (tripTotalKm).
+  const km = trips.reduce((s, t) => s + tripTotalKm(t), 0);
   const days = trips.reduce((s, t) => {
     if (!t.date_end || t.date_end === t.trip_date) return s + 1;
     const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
@@ -320,8 +323,8 @@ function HomeInner() {
                         {TRANSPORT_BADGE[selectedTrip.transport_mode].label}
                       </span>
                     )}
-                    {selectedTrip.distance_from_home_km != null && (
-                      <span style={{fontSize:11, color:"rgba(255,255,255,0.35)"}}>{fmtDistance(selectedTrip.distance_from_home_km, distanceUnit)}</span>
+                    {tripTotalKm(selectedTrip) > 0 && (
+                      <span style={{fontSize:11, color:"rgba(255,255,255,0.35)"}}>{fmtDistance(tripTotalKm(selectedTrip), distanceUnit)}</span>
                     )}
                   </div>
 

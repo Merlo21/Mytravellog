@@ -300,13 +300,14 @@ describe("TripCardTicket — note", () => {
 describe("TripCardTicket — distanza e temperatura", () => {
   beforeEach(() => localStorage.clear());
 
-  it("mostra la distanza formattata se distance_from_home_km è presente", () => {
-    renderCard(makeTrip({ distance_from_home_km: 480 }));
-    expect(screen.getByText("480 km")).toBeInTheDocument();
+  it("mostra i km percorsi se il viaggio ha casa e destinazione (via tripTotalKm)", () => {
+    // Casa (45,9) → dest (46,9) ≈ 111 km, niente route_geometry → linea d'aria.
+    renderCard(makeTrip({ home_latitude: 45, home_longitude: 9, latitude: 46, longitude: 9 }));
+    expect(screen.getByText((c) => /^\d+ km$/.test(c) && Math.abs(parseInt(c) - 111) <= 5)).toBeInTheDocument();
   });
 
-  it("non mostra distanza se distance_from_home_km è null", () => {
-    renderCard(makeTrip({ distance_from_home_km: null }));
+  it("non mostra distanza se manca la posizione di casa (nessun percorso)", () => {
+    renderCard(makeTrip({ home_latitude: null, home_longitude: null }));
     expect(screen.queryByText(/km$/)).not.toBeInTheDocument();
   });
 

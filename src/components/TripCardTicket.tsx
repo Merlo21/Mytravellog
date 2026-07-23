@@ -8,6 +8,7 @@ import { Motorcycle } from "@/components/icons/Motorcycle";
 import { useNavigate } from "react-router-dom";
 import { TripFlyover } from "@/components/TripFlyover";
 import { getReliefImage } from "@/lib/photoStorage";
+import { tripTotalKm } from "@/lib/flyover";
 
 const TRANSPORT_STYLE: Record<string, { color: string; bg: string; label: string; Icon: React.ElementType }> = {
   plane: { color: "#378ADD", bg: "rgba(55,138,221,0.12)", label: "Aereo",   Icon: Plane      },
@@ -100,6 +101,8 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
 
   const displayTitle = trip.title && trip.title !== trip.city ? trip.title : trip.city;
   const hasWaypoints = trip.waypoints && trip.waypoints.length > 0;
+  // Km percorsi: stradali reali dove disponibile (coerente con Home/Statistiche/poster).
+  const tripKm = tripTotalKm(trip);
 
   const stops = hasWaypoints
     ? [trip.home_label?.split(",")[0] ?? "Casa", ...trip.waypoints!.map((w: any) => w.city), trip.city]
@@ -240,10 +243,10 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
             </span>
           </>
         )}
-        {trip.distance_from_home_km != null && (
+        {tripKm > 0 && (
           <>
             <div style={{width:1,height:10,background:"#1a2d4a"}}/>
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}>{fmtDistance(trip.distance_from_home_km, distanceUnit)}</span>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}>{fmtDistance(tripKm, distanceUnit)}</span>
           </>
         )}
         {trip.temperature_c != null && (
