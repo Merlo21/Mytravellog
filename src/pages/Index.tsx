@@ -51,12 +51,11 @@ export function computeHomeStats(trips: Trip[]) {
   // Km "percorsi": stradali reali dove c'è route_geometry (auto/bici/moto),
   // linea d'aria altrimenti — coerente con Statistiche/card/poster (tripTotalKm).
   const km = trips.reduce((s, t) => s + tripTotalKm(t), 0);
-  const days = trips.reduce((s, t) => {
-    if (!t.date_end || t.date_end === t.trip_date) return s + 1;
-    const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
-    return s + Math.max(1, d);
-  }, 0);
-  return { trips: trips.length, countries: countries.size, cities: cities.size, km, days };
+  // NB: nessun conteggio "giorni" qui — la Home non lo mostra. I giorni in
+  // viaggio vivono nella heatmap (TravelHeatmap), con conteggio INCLUSIVO
+  // (Gen 1→Gen 5 = 5 giorni), coerente con TripCardTicket. Il vecchio `days`
+  // di questa funzione era codice morto e per giunta non inclusivo: rimosso.
+  return { trips: trips.length, countries: countries.size, cities: cities.size, km };
 }
 
 /**

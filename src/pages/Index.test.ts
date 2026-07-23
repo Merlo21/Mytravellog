@@ -41,7 +41,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
 
 describe("computeHomeStats", () => {
   it("conta 0 di tutto con nessun viaggio", () => {
-    expect(computeHomeStats([])).toEqual({ trips: 0, countries: 0, cities: 0, km: 0, days: 0 });
+    expect(computeHomeStats([])).toEqual({ trips: 0, countries: 0, cities: 0, km: 0 });
   });
 
   it("conta anche i paesi/città delle tappe intermedie, non solo la destinazione", () => {
@@ -91,14 +91,6 @@ describe("computeHomeStats", () => {
     expect(km).toBeLessThan(345);
   });
 
-  it("conta i giorni: 1 giorno se manca date_end o è uguale a trip_date", () => {
-    const trips = [
-      makeTrip({ trip_date: "2024-01-01", date_end: null }),
-      makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-01" }),
-      makeTrip({ trip_date: "2024-01-01", date_end: "2024-01-05" }),
-    ];
-    expect(computeHomeStats(trips).days).toBe(1 + 1 + 4);
-  });
 });
 
 describe("backfillDistanceFromHome", () => {
