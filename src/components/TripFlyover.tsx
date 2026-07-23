@@ -8,6 +8,49 @@ import { X, Share2, Loader2 } from "lucide-react";
 
 const MAPTILER_KEY = "J3c87wVeji5QqN7DSqJX";
 
+type MapStyleMode = "satellite" | "lines";
+
+/** Stile satellite (attuale): imagery MapTiler su globo inclinato. */
+async function buildSatelliteStyle(): Promise<any> {
+  const style = await fetchMapStyle();
+  style.projection = { type: "globe" };
+  style.glyphs = `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`;
+  return style;
+}
+
+/**
+ * Stile "linee": fondo nero + confini di stato bianchi (vector tiles MapTiler,
+ * stessa chiave del satellite → nessuna nuova categoria di API). Vista piatta
+ * dall'alto, look da stampa d'arte. Il `water` col fill nero e outline bianco
+ * disegna i contorni costieri; il layer `boundary` (admin_level ≤ 2, escluse le
+ * frontiere marittime) i confini nazionali. Sopra ci vanno tracciato e puntine.
+ */
+export function buildLinesStyle(): any {
+  return {
+    version: 8,
+    glyphs: `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`,
+    sources: {
+      omt: { type: "vector", url: `https://api.maptiler.com/tiles/v3/tiles.json?key=${MAPTILER_KEY}` },
+    },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": "#000000" } },
+      {
+        id: "coastline", type: "fill", source: "omt", "source-layer": "water",
+        paint: { "fill-color": "#000000", "fill-outline-color": "rgba(255,255,255,0.4)" },
+      },
+      {
+        id: "country-borders", type: "line", source: "omt", "source-layer": "boundary",
+        filter: ["all", ["<=", ["get", "admin_level"], 2], ["!=", ["get", "maritime"], 1]],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "rgba(255,255,255,0.85)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 1, 0.5, 4, 1.1, 8, 1.8],
+        },
+      },
+    ],
+  };
+}
+
 /** Rettangolo con angoli arrotondati (per comporre il poster su canvas). */
 function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -135,11 +178,15 @@ export function TripFlyover({ trips, onClose }: Props) {
   const finaleUrlsRef = useRef<string[]>([]);
   const totalKmRef = useRef(0);
   const legsRef = useRef<FlightLeg[]>([]);
+  const stopsRef = useRef<{ lat: number; lon: number; label: string }[]>([]);
+  const switchingRef = useRef(false);
 
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [poster, setPoster] = useState(false); // overlay del poster pronti (dopo l'inquadratura)
   const [finalePhotos, setFinalePhotos] = useState<string[]>([]);
   const [savingRelief, setSavingRelief] = useState(false);
+  const [styleMode, setStyleMode] = useState<MapStyleMode>("satellite");
+  const [switching, setSwitching] = useState(false);
 
   const tripsCount = trips.length;
   const legs = legsRef.current;
@@ -175,8 +222,10 @@ export function TripFlyover({ trips, onClose }: Props) {
   }, [onClose]);
 
   /** Inquadra l'intero tracciato con fitBounds: il percorso riempie sempre il
-   *  frame allo stesso modo (margini fissi), qualunque sia la lunghezza. */
-  const flyToOverview = (map: any): Promise<void> => new Promise(resolve => {
+   *  frame allo stesso modo (margini fissi), qualunque sia la lunghezza. Il
+   *  pitch dipende dalla vista: inclinato sul satellite (rilievo), piatto sulle
+   *  linee (senza terreno l'inclinazione darebbe solo prospettiva vuota). */
+  const flyToOverview = (map: any, pitch = 45): Promise<void> => new Promise(resolve => {
     const coords = allCoordsRef.current;
     if (!coords.length) { resolve(); return; }
     let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
@@ -189,11 +238,111 @@ export function TripFlyover({ trips, onClose }: Props) {
     try {
       map.once("moveend", finish);
       map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
-        pitch: 45, bearing: 0, padding: FINALE_PADDING, duration: 1400, maxZoom: 12,
+        pitch, bearing: 0, padding: FINALE_PADDING, duration: 1400, maxZoom: 12,
       });
     } catch { finish(); return; }
     setTimeout(finish, 2200); // salvagente se moveend non scatta
   });
+
+  /**
+   * (Ri)aggiunge tracciato + puntine SOPRA lo stile corrente. Idempotente e
+   * necessaria dopo ogni `setStyle` (che azzera sorgenti/layer/immagini
+   * personalizzati): le guardie `getSource`/`getLayer`/`hasImage` evitano i
+   * doppioni al primo caricamento e ricreano tutto dopo un cambio stile.
+   */
+  const addOverlayLayers = (map: any) => {
+    const stops = stopsRef.current;
+    if (!stops.length) return;
+    if (!map.getSource("flyover-route")) {
+      map.addSource("flyover-route", {
+        type: "geojson",
+        data: { type: "Feature", geometry: { type: "LineString", coordinates: allCoordsRef.current } },
+      });
+    }
+    if (!map.getLayer("flyover-route-casing")) {
+      map.addLayer({
+        id: "flyover-route-casing", type: "line", source: "flyover-route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "rgba(6,14,30,0.65)", "line-width": 8.5 },
+      });
+    }
+    if (!map.getLayer("flyover-route")) {
+      map.addLayer({
+        id: "flyover-route", type: "line", source: "flyover-route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#fbbf24", "line-width": 4.5, "line-opacity": 1 },
+      });
+    }
+    if (!map.getSource("flyover-stops")) {
+      map.addSource("flyover-stops", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: stops.map(s => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: { name: s.label } })) },
+      });
+    }
+    if (!map.hasImage("flyover-pin")) map.addImage("flyover-pin", createPinImageData(), { pixelRatio: 2 });
+    if (!map.getLayer("flyover-stops")) {
+      map.addLayer({
+        id: "flyover-stops", type: "symbol", source: "flyover-stops",
+        layout: {
+          "icon-image": "flyover-pin",
+          "icon-size": 0.9,
+          "icon-anchor": "bottom",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-pitch-alignment": "viewport",
+          "text-field": ["get", "name"],
+          "text-font": ["Open Sans Bold"],
+          "text-size": 13,
+          "text-anchor": "bottom",
+          "text-offset": [0, -2.6],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-optional": true,
+          "text-pitch-alignment": "viewport",
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "rgba(6,14,30,0.9)",
+          "text-halo-width": 1.6,
+          "text-halo-blur": 0.5,
+        },
+      });
+    }
+  };
+
+  /** Passa da satellite a linee (e viceversa): sostituisce lo stile, ri-aggiunge
+   *  gli overlay e rianima l'inquadratura col pitch giusto per la vista. */
+  const applyStyle = async (mode: MapStyleMode) => {
+    const map = mapRef.current;
+    if (!map || switchingRef.current) return;
+    switchingRef.current = true;
+    setSwitching(true);
+    try {
+      const style = mode === "satellite" ? await buildSatelliteStyle() : buildLinesStyle();
+      if (!mapRef.current) return;
+      map.setStyle(style, { diff: false });
+      await new Promise<void>(res => {
+        let done = false;
+        const fin = () => { if (done) return; done = true; res(); };
+        map.once("style.load", fin);
+        setTimeout(fin, 2500); // salvagente se l'evento non scatta
+      });
+      if (!mapRef.current || !mountedRef.current) return;
+      addOverlayLayers(map);
+      await flyToOverview(map, mode === "satellite" ? 45 : 0);
+    } catch { /* se il cambio stile fallisce, resta la vista precedente */ }
+    finally {
+      switchingRef.current = false;
+      if (mountedRef.current) setSwitching(false);
+    }
+  };
+
+  const toggleStyle = () => {
+    if (switchingRef.current) return;
+    const next: MapStyleMode = styleMode === "satellite" ? "lines" : "satellite";
+    setStyleMode(next);
+    applyStyle(next);
+  };
 
   /** Carica fino a FINALE_PHOTO_LIMIT foto (una per tappa) per il ventaglio. */
   const collectFinalePhotos = async (): Promise<void> => {
@@ -435,6 +584,7 @@ export function TripFlyover({ trips, onClose }: Props) {
     const stops = buildFlightPath(trips);
     const legsLocal = buildFlightLegs(stops);
     legsRef.current = legsLocal;
+    stopsRef.current = stops.map(s => ({ lat: s.lat, lon: s.lon, label: s.label }));
     // Km percorsi: stessa fonte UNICA di Home/Statistiche/card (tripTotalKm =
     // stradali reali dove c'è route_geometry, linea d'aria altrimenti).
     totalKmRef.current = trips.reduce((sum, t) => sum + tripTotalKm(t), 0);
@@ -461,10 +611,8 @@ export function TripFlyover({ trips, onClose }: Props) {
           document.head.appendChild(link);
         }
 
-        const style = await fetchMapStyle();
+        const style = await buildSatelliteStyle();
         if (cancelled) return;
-        style.projection = { type: "globe" };
-        style.glyphs = `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${MAPTILER_KEY}`;
 
         if (!containerRef.current || cancelled) return;
         map = new maplibregl.Map({
@@ -483,55 +631,7 @@ export function TripFlyover({ trips, onClose }: Props) {
         map.on("load", async () => {
           if (cancelled || !mountedRef.current) return;
 
-          map.addSource("flyover-route", {
-            type: "geojson",
-            data: { type: "Feature", geometry: { type: "LineString", coordinates: allCoordsRef.current } },
-          });
-          // Contorno scuro (casing) SOTTO la linea: fa staccare il tracciato dal satellite.
-          map.addLayer({
-            id: "flyover-route-casing", type: "line", source: "flyover-route",
-            layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "rgba(6,14,30,0.65)", "line-width": 8.5 },
-          });
-          // Tracciato in risalto: giallo/ambra (come le puntine), spesso e pieno.
-          map.addLayer({
-            id: "flyover-route", type: "line", source: "flyover-route",
-            layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "#fbbf24", "line-width": 4.5, "line-opacity": 1 },
-          });
-
-          map.addSource("flyover-stops", {
-            type: "geojson",
-            data: { type: "FeatureCollection", features: stops.map(s => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] }, properties: { name: s.label } })) },
-          });
-          // Tappe come puntine da mappa (symbol layer) + nome città sopra, con alone.
-          if (!map.hasImage("flyover-pin")) map.addImage("flyover-pin", createPinImageData(), { pixelRatio: 2 });
-          map.addLayer({
-            id: "flyover-stops", type: "symbol", source: "flyover-stops",
-            layout: {
-              "icon-image": "flyover-pin",
-              "icon-size": 0.9,
-              "icon-anchor": "bottom",
-              "icon-allow-overlap": true,
-              "icon-ignore-placement": true,
-              "icon-pitch-alignment": "viewport",
-              "text-field": ["get", "name"],
-              "text-font": ["Open Sans Bold"],
-              "text-size": 13,
-              "text-anchor": "bottom",
-              "text-offset": [0, -2.6],
-              "text-allow-overlap": true,
-              "text-ignore-placement": true,
-              "text-optional": true,
-              "text-pitch-alignment": "viewport",
-            },
-            paint: {
-              "text-color": "#ffffff",
-              "text-halo-color": "rgba(6,14,30,0.9)",
-              "text-halo-width": 1.6,
-              "text-halo-blur": 0.5,
-            },
-          });
+          addOverlayLayers(map);
 
           setPhase("ready");
           setTimeout(() => { map.resize(); }, 100);
@@ -592,6 +692,31 @@ export function TripFlyover({ trips, onClose }: Props) {
           }}>
           <X className="w-4 h-4" />
         </button>
+
+        {/* Toggle vista: satellite inclinato ⇄ linee bianco/nero piatto. */}
+        {phase === "ready" && (
+          <div style={{
+            position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 30,
+            display: "flex", gap: 2, padding: 3, borderRadius: 999,
+            background: "rgba(10,22,40,0.8)", border: "0.5px solid #1a2d4a", backdropFilter: "blur(2px)",
+          }}>
+            {([["satellite", "Satellite"], ["lines", "Linee"]] as const).map(([mode, label]) => {
+              const active = styleMode === mode;
+              return (
+                <button key={mode} onClick={() => { if (!active) toggleStyle(); }} disabled={switching}
+                  aria-pressed={active}
+                  style={{
+                    padding: "5px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600, border: "none",
+                    cursor: switching ? "default" : "pointer",
+                    background: active ? "rgba(96,165,250,0.18)" : "transparent",
+                    color: active ? "#60a5fa" : "rgba(255,255,255,0.6)",
+                  }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {phase === "loading" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", fontSize: 13, gap: 8 }}>
