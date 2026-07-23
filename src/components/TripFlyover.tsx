@@ -567,7 +567,22 @@ export function TripFlyover({ trips, onClose }: Props) {
       const flagW = 22 * u, flagH = 15 * u, flagStep = 16 * u, fgap = 9 * u;
       const flagsW = flags.length > 0 ? (flagW + (flags.length - 1) * flagStep + fgap) : 0;
       const titleCy = pad + 13 * u;
+      const stats = `${formatKm(totalKmRef.current)} km  ·  ${legsRef.current.length} tappe`;
+      // Inclina la didascalia di -3° come a schermo (keyframe flyoverCardIn): a
+      // schermo la card resta ruotata di -3°, e l'utente vuole lo stesso taglio
+      // nel poster salvato. Perno al centro del blocco per non spostarlo dal frame.
+      ctx.font = `600 ${24 * u}px "Cormorant Garamond", serif`;
+      const titleW = ctx.measureText(title).width;
+      ctx.font = `italic ${12 * u}px "Noto Serif", serif`;
+      const datesW = dateRangeLabel ? ctx.measureText(dateRangeLabel).width : 0;
+      ctx.font = `600 ${16 * u}px "Cormorant Garamond", serif`;
+      const statsW = ctx.measureText(stats).width;
+      const blockW = Math.max(titleW + flagsW, datesW, statsW);
+      const pivotX = rightX - blockW / 2, pivotY = pad + 26 * u;
       ctx.save();
+      ctx.translate(pivotX, pivotY);
+      ctx.rotate(-3 * Math.PI / 180);
+      ctx.translate(-pivotX, -pivotY);
       ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 5 * u; ctx.shadowOffsetY = 1 * u;
       // bandiere flat, allineate al bordo destro
       for (let i = 0; i < flags.length; i++) {
@@ -599,7 +614,7 @@ export function TripFlyover({ trips, onClose }: Props) {
       ctx.font = `600 ${16 * u}px "Cormorant Garamond", serif`;
       ctx.fillStyle = "rgba(255,255,255,0.92)";
       ctx.textBaseline = "top";
-      ctx.fillText(`${formatKm(totalKmRef.current)} km  ·  ${legsRef.current.length} tappe`, rightX, y);
+      ctx.fillText(stats, rightX, y);
       ctx.restore();
       ctx.textAlign = "left";
       return c;
