@@ -175,6 +175,12 @@ function formatKm(km: number): string {
   return Math.round(km).toLocaleString("it-IT");
 }
 
+// Il marker del mezzo avanza un po' più veloce della camera (>1): percorre il
+// tracciato leggermente prima, arrivando alla puntina appena prima della fine
+// della tratta. Tocca SOLO il marker — camera e durata della tratta restano
+// invariate (condividevano lo stesso `t`, ora il marker ne usa uno accelerato).
+const MARKER_SPEED = 1.12;
+
 function flyLeg(
   map: any, leg: FlightLeg, marker: any,
   rafIdRef: { current: number | null }, mountedRef: { current: boolean }, playingRef: { current: boolean },
@@ -207,7 +213,7 @@ function flyLeg(
         pitch: fromPitch + (toPitch - fromPitch) * t,
         bearing: lerpBearing(fromBearing, toBearing, t),
       });
-      if (marker) marker.setLngLat(pointAlongPath(leg.pathCoords, t));
+      if (marker) marker.setLngLat(pointAlongPath(leg.pathCoords, easeInOutCubic(Math.min(1, rawT * MARKER_SPEED))));
 
       const traveledKm = distance.traveledBeforeKm + distance.legKm * t;
       distance.traveledKmRef.current = traveledKm;
