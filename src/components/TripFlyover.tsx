@@ -20,11 +20,21 @@ async function buildSatelliteStyle(): Promise<any> {
 
 /**
  * Stile "linee": fondo nero + confini di stato bianchi (vector tiles MapTiler,
- * stessa chiave del satellite → nessuna nuova categoria di API). Vista piatta
- * dall'alto, look da stampa d'arte. Il `water` col fill nero e outline bianco
- * disegna i contorni costieri; il layer `boundary` (admin_level ≤ 2, escluse le
- * frontiere marittime) i confini nazionali. Sopra ci vanno tracciato e puntine.
+ * stessa chiave del satellite → nessuna nuova categoria di API). Vista inclinata
+ * (globo), look da stampa d'arte.
+ *
+ * IMPORTANTE: coste (layer `water`) e confini nazionali (layer `boundary`) sono
+ * disegnati ENTRAMBI come layer di tipo `line` con lo STESSO identico
+ * `line-width`, così hanno tutti lo stesso spessore. In precedenza le coste
+ * erano l'outline di un `fill` (fisso ~1px, non regolabile) mentre i confini
+ * erano già una linea: ingrossando solo i confini, le coste restavano
+ * sottilissime e lo spessore risultava disomogeneo (Austria grassa, coste fini).
+ * Un layer `line` su un source-layer di poligoni ne disegna il bordo come linea
+ * a spessore pieno controllabile — è il modo per uniformarle.
  */
+const LINES_WIDTH = ["interpolate", ["linear"], ["zoom"], 1, 0.6, 4, 1.1, 8, 1.8];
+const LINES_COLOR = "rgba(255,255,255,0.85)";
+
 export function buildLinesStyle(): any {
   return {
     version: 8,
@@ -36,19 +46,17 @@ export function buildLinesStyle(): any {
     layers: [
       { id: "bg", type: "background", paint: { "background-color": "#000000" } },
       {
-        id: "coastline", type: "fill", source: "omt", "source-layer": "water",
-        paint: { "fill-color": "#000000", "fill-outline-color": "rgba(255,255,255,0.45)" },
+        // Contorni costieri e laghi: bordo del poligono `water` come linea.
+        id: "coastline", type: "line", source: "omt", "source-layer": "water",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": LINES_COLOR, "line-width": LINES_WIDTH },
       },
       {
+        // Confini nazionali (admin_level ≤ 2, escluse le frontiere marittime).
         id: "country-borders", type: "line", source: "omt", "source-layer": "boundary",
         filter: ["all", ["<=", ["get", "admin_level"], 2], ["!=", ["get", "maritime"], 1]],
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: {
-          // Bianco quasi pieno e spessore più marcato/uniforme: prima i confini
-          // risultavano a tratti troppo sottili ("non in grassetto").
-          "line-color": "rgba(255,255,255,0.95)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 1, 1, 4, 2, 8, 3.2],
-        },
+        paint: { "line-color": LINES_COLOR, "line-width": LINES_WIDTH },
       },
     ],
   };

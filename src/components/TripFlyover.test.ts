@@ -41,10 +41,17 @@ describe("buildLinesStyle — vista a linee bianco/nero del poster", () => {
     expect(JSON.stringify(borders?.filter)).toContain("maritime");
   });
 
-  it("include i contorni costieri (layer water con outline bianco)", () => {
+  it("include i contorni costieri come layer line (layer water)", () => {
     const coast = style.layers.find((l: any) => l.id === "coastline");
+    expect(coast?.type).toBe("line");
     expect(coast?.["source-layer"]).toBe("water");
-    expect(String(coast?.paint["fill-outline-color"])).toContain("255,255,255");
+    expect(String(coast?.paint["line-color"])).toContain("255,255,255");
+  });
+
+  it("coste e confini hanno lo STESSO spessore (linee uniformi)", () => {
+    const coast = style.layers.find((l: any) => l.id === "coastline");
+    const borders = style.layers.find((l: any) => l.id === "country-borders");
+    expect(coast?.paint["line-width"]).toEqual(borders?.paint["line-width"]);
   });
 
   it("usa una sola sorgente vector (MapTiler), non imagery satellitare", () => {
