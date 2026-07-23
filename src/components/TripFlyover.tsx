@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, pathLengthKm, FlightLeg } from "@/lib/flyover";
@@ -971,6 +971,25 @@ export function TripFlyover({ trips, onClose }: Props) {
       : `${formatTripDate(trips[0].trip_date)} → ${formatTripDate(trips[0].date_end)}`)
     : null;
 
+  // Codici bandiera dei paesi TOCCATI dal viaggio (destinazione + tappe), in
+  // ordine di percorso, deduplicati per nome (così IT/Italia non compare due
+  // volte) tenendo il codice per la bandiera. Mostrati a ventaglio nel finale.
+  const flagCodes = useMemo(() => {
+    const seen = new Set<string>();
+    const codes: string[] = [];
+    const add = (name?: string, code?: string) => {
+      const key = (name || code || "").trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      if (code) codes.push(code.toLowerCase());
+    };
+    for (const t of trips) {
+      for (const w of t.waypoints ?? []) add(w.country, w.country_code);
+      add(t.country, t.country_code);
+    }
+    return codes.slice(0, 5);
+  }, [trips]);
+
   // Portal su document.body: senza, il modale (position:fixed) viene confinato
   // al primo antenato con un `transform` — es. il wrapper .animate-fade-up della
   // card viaggio in MieiViaggi (translateY resta applicato con fill:both) —
@@ -1122,10 +1141,22 @@ export function TripFlyover({ trips, onClose }: Props) {
             animation: "flyoverCardIn 0.35s cubic-bezier(0.22,1,0.36,1) both",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {tripsCount === 1 && trips[0].country_code && (
-                <img src={"https://flagcdn.com/w40/" + trips[0].country_code.toLowerCase() + ".png"} alt="" width="22" height="16"
-                  style={{ borderRadius: 3, objectFit: "cover", flexShrink: 0 }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              {/* Bandiere dei paesi toccati, a ventaglio (una per paese, non solo
+                  quella della destinazione): leggermente sovrapposte e ruotate. */}
+              {flagCodes.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                  {flagCodes.map((c, i) => (
+                    <img key={c + i} src={"https://flagcdn.com/w40/" + c + ".png"} alt="" width="24" height="17"
+                      style={{
+                        borderRadius: 3, objectFit: "cover",
+                        border: "1.5px solid rgba(255,255,255,0.9)", boxShadow: "0 1px 4px rgba(0,0,0,0.45)",
+                        marginLeft: i === 0 ? 0 : -9,
+                        transform: `rotate(${(i - (flagCodes.length - 1) / 2) * 7}deg)`,
+                        transformOrigin: "bottom center", position: "relative", zIndex: i,
+                      }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ))}
+                </div>
               )}
               <div className="font-display" style={{ fontSize: 15, fontWeight: 700, color: "#f0f4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
