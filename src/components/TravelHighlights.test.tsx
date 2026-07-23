@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { TravelHighlights } from "./TravelHighlights";
+import { TravelHighlights, computeKmByTransportMode } from "./TravelHighlights";
+import { tripTotalKm } from "@/lib/flyover";
 import { SettingsProvider } from "@/lib/settings";
 import type { Trip } from "@/lib/storage";
 import React from "react";
@@ -222,5 +223,23 @@ describe("TravelHighlights — byMode breakdown", () => {
     // Milano->Torino (train) ~128km, Torino->Roma (plane) ~525km — NON deve finire tutto su "In aereo"
     expect(screen.getAllByText("128 km").length).toBeGreaterThanOrEqual(1); // In treno
     expect(screen.getAllByText("525 km").length).toBeGreaterThanOrEqual(1); // In aereo
+  });
+
+  it("la somma del breakdown per mezzo coincide col totale (tripTotalKm) anche con route_geometry stradale", () => {
+    // Viaggio in auto con tracciato stradale reale: una deviazione a est più
+    // lunga della retta. Il breakdown "auto" deve usare i km STRADALI (via
+    // pathCoords), così la somma per mezzo = tripTotalKm, non la linea d'aria.
+    const trip = makeTrip({
+      transport_mode: "car",
+      route_geometry: [[9.2, 45.5], [20, 45.5], [12.5, 41.9]],
+    });
+    const byMode = computeKmByTransportMode([trip]);
+    const sum = Object.values(byMode).reduce((a, b) => a + b, 0);
+    const total = tripTotalKm(trip);
+    expect(sum).toBeCloseTo(total, 5);
+    // e tutti i km sono attribuiti all'auto (unico mezzo del viaggio)
+    expect(byMode.car).toBeCloseTo(total, 5);
+    // il totale stradale è nettamente più lungo della retta Milano→Roma (~477)
+    expect(total).toBeGreaterThan(900);
   });
 });

@@ -5,8 +5,7 @@ import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footpr
 import { Motorcycle } from "@/components/icons/Motorcycle";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
-import { distanceKm } from "@/lib/geo";
-import { tripTotalKm } from "@/lib/flyover";
+import { tripTotalKm, buildFlightPath, buildFlightLegs, pathLengthKm } from "@/lib/flyover";
 
 interface Props {
   trips: LocalTrip[];
@@ -29,23 +28,20 @@ function guessMode(km: number): TransportMode {
  * (home -> waypoints -> destination) and attribute each segment's distance
  * to its own arrival mode, instead of dumping the trip's total distance
  * onto a single mode.
+ *
+ * Usa le STESSE tratte di `tripTotalKm` (buildFlightLegs → pathCoords): la
+ * distanza di ogni tratta segue la STRADA reale dove disponibile
+ * (route_geometry per auto/bici/moto), altrimenti la linea d'aria. Così la
+ * somma del breakdown coincide sempre col totale mostrato in alto — prima il
+ * totale era stradale ma il breakdown restava in linea d'aria, e non tornavano.
  */
 export function computeKmByTransportMode(trips: LocalTrip[]): KmByMode {
   const acc: KmByMode = { plane: 0, train: 0, car: 0, ship: 0, walk: 0, bici: 0, moto: 0 };
   for (const t of trips) {
-    const stops: { lat: number; lon: number; mode: TransportMode | null }[] = [];
-    if (t.home_latitude != null && t.home_longitude != null) {
-      stops.push({ lat: t.home_latitude, lon: t.home_longitude, mode: null });
-    }
-    for (const w of t.waypoints ?? []) {
-      if (w.lat == null || w.lon == null) continue;
-      stops.push({ lat: w.lat, lon: w.lon, mode: w.transport_mode });
-    }
-    stops.push({ lat: t.latitude, lon: t.longitude, mode: t.transport_mode });
-
-    for (let i = 1; i < stops.length; i++) {
-      const km = distanceKm(stops[i - 1].lat, stops[i - 1].lon, stops[i].lat, stops[i].lon);
-      const mode = stops[i].mode ?? guessMode(km);
+    const legs = buildFlightLegs(buildFlightPath([t]));
+    for (const leg of legs) {
+      const km = pathLengthKm(leg.pathCoords);
+      const mode = (leg.to.transportMode as TransportMode | null) ?? guessMode(km);
       acc[mode] += km;
     }
   }
