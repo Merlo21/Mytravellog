@@ -370,12 +370,25 @@ export function TripFlyover({ trips, onClose }: Props) {
     }))
   ).then(arr => arr.filter((x): x is HTMLImageElement => !!x));
 
-  /** Cattura il poster come JPEG (con preserveDrawingBuffer il canvas WebGL è leggibile anche a mappa ferma). */
+  /** Cattura il poster come JPEG. Forza un render fresco della mappa appena prima
+   *  di leggerne il canvas: senza il vecchio loop di registrazione che
+   *  ridisegnava di continuo, a mappa ferma il buffer WebGL può essere
+   *  vuoto/nero anche con preserveDrawingBuffer, e drawImage catturerebbe nero. */
   const captureSnapshotBlob = async (): Promise<Blob | null> => {
     try {
+      const map = mapRef.current;
       const mapCanvas = containerRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
       if (!mapCanvas) return null;
       const flagImgs = await loadFlagImages();
+      // Attendi un frame appena renderizzato prima di catturare.
+      await new Promise<void>(res => {
+        if (!map) { res(); return; }
+        let done = false;
+        const fin = () => { if (done) return; done = true; res(); };
+        map.once("render", fin);
+        map.triggerRepaint();
+        setTimeout(fin, 400); // salvagente se "render" non scatta
+      });
       const posterCanvas = composePoster(mapCanvas, flagImgs);
       return await new Promise(res => posterCanvas.toBlob(res, "image/jpeg", 0.9));
     } catch {
