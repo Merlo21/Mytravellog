@@ -1,5 +1,5 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
@@ -101,6 +101,24 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
 
   const displayTitle = trip.title && trip.title !== trip.city ? trip.title : trip.city;
   const hasWaypoints = trip.waypoints && trip.waypoints.length > 0;
+
+  // Bandiere di TUTTI i paesi toccati (tappe + destinazione), dedup per nome
+  // tenendo il codice — stessa logica del poster e dell'elenco Statistiche.
+  // Prima l'header mostrava solo la bandiera della destinazione: incoerente
+  // con un viaggio multi-paese (es. Milano→Austria→Slovenia→Trieste = 3 paesi).
+  const flagCodes = useMemo(() => {
+    const seen = new Set<string>();
+    const codes: string[] = [];
+    const add = (name?: string, code?: string) => {
+      const key = (name || code || "").trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      if (code) codes.push(code.toLowerCase());
+    };
+    for (const w of trip.waypoints ?? []) add(w.country, w.country_code);
+    add(trip.country, trip.country_code);
+    return codes.slice(0, 5);
+  }, [trip]);
   // Km percorsi: stradali reali dove disponibile (coerente con Home/Statistiche/poster).
   const tripKm = tripTotalKm(trip);
 
@@ -132,14 +150,23 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
       <div style={{padding:"16px 20px 12px"}}>
         {/* Header row */}
         <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10}}>
-          <div style={{width:28,height:28,borderRadius:"50%",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",flexShrink:0}}>
-            {trip.country_code
-              ? <img src={"https://flagcdn.com/w80/"+trip.country_code.toLowerCase()+".png"} width="28" height="28" alt="" loading="lazy"
-                  style={{objectFit:"cover"}}
+          {flagCodes.length > 0 ? (
+            <div style={{display:"flex",alignItems:"center",flexShrink:0,alignSelf:"center"}}>
+              {flagCodes.map((c, i) => (
+                <img key={c+i} src={"https://flagcdn.com/w40/"+c+".png"} width="22" height="15" alt="" loading="lazy"
+                  style={{
+                    borderRadius:2, objectFit:"cover",
+                    border:"1.5px solid rgba(255,255,255,0.85)", boxShadow:"0 1px 3px rgba(0,0,0,0.4)",
+                    marginLeft: i===0 ? 0 : -8,
+                    transform:`rotate(${(i-(flagCodes.length-1)/2)*6}deg)`,
+                    transformOrigin:"bottom center", position:"relative", zIndex:i,
+                  }}
                   onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/>
-              : <div style={{width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🌍</div>
-            }
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{width:28,height:28,borderRadius:"50%",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🌍</div>
+          )}
           <div style={{flex:1,minWidth:0}}>
             <div className="font-display" style={{fontSize:14,fontWeight:700,color:"#f0f4ff"}}>{displayTitle}</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>{trip.city}, {trip.country}</div>
