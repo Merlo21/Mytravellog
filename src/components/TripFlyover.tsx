@@ -5,7 +5,8 @@ import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, tripTotalKm, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
-import { X, Share2, Loader2, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
+import { buildPosterSvg, loadCountryRings, routeBounds } from "@/lib/posterSvg";
+import { X, Share2, Loader2, Download, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 
 // Icona + colore del mezzo, IDENTICI alle card (TripCardTicket TRANSPORT_STYLE):
@@ -271,6 +272,7 @@ export function TripFlyover({ trips, onClose }: Props) {
   const [poster, setPoster] = useState(false); // overlay del poster pronti (dopo l'inquadratura)
   const [finalePhotos, setFinalePhotos] = useState<string[]>([]);
   const [savingRelief, setSavingRelief] = useState(false);
+  const [exportingSvg, setExportingSvg] = useState(false);
   const [styleMode, setStyleMode] = useState<MapStyleMode>("satellite");
   const [switching, setSwitching] = useState(false);
 
@@ -758,6 +760,34 @@ export function TripFlyover({ trips, onClose }: Props) {
     }
   };
 
+  // "Esporta SVG" (solo Costellazione): master VETTORIALE a livelli per la stampa
+  // (resina + LED). Confini dal world-atlas ritagliati sul riquadro; tracciato e
+  // stelle da dati nostri (precisi); nodi-stella marcati come punti-LED.
+  const handleExportSvg = async () => {
+    if (exportingSvg) return;
+    setExportingSvg(true);
+    try {
+      const route = allCoordsRef.current;
+      const stops = stopsRef.current;
+      let rings: [number, number][][] = [];
+      try {
+        rings = await loadCountryRings(routeBounds(route.length ? route : stops.map(s => [s.lon, s.lat] as [number, number])));
+      } catch { /* confini non disponibili: esporta comunque rotta+stelle */ }
+      const title = tripsCount > 1 ? `${tripsCount} viaggi` : trips[0].title;
+      const stats = `${formatKm(totalKmRef.current)} km · ${legsRef.current.length} tappe`;
+      const svg = buildPosterSvg({ routeCoords: route, stops, borders: rings, title, dateLabel: dateRangeLabel, stats });
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const base = (tripsCount === 1 ? trips[0].title : "viaggio").replace(/[^\w.-]+/g, "_").slice(0, 40) || "viaggio";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${base}-costellazione.svg`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch { /* export fallito: non bloccare */ }
+    finally {
+      if (mountedRef.current) setExportingSvg(false);
+    }
+  };
+
   useEffect(() => {
     mountedRef.current = true;
     // `cancelled` locale (non un ref condiviso): in StrictMode ogni effetto è
@@ -1056,8 +1086,20 @@ export function TripFlyover({ trips, onClose }: Props) {
               );
             })()}
 
-            {/* Azioni: Salva (solo single-trip, → biglietto) + Condividi (immagine). */}
+            {/* Azioni: Salva (solo single-trip, → biglietto) + Condividi (immagine)
+                + Esporta SVG (solo Costellazione: master vettoriale per stampa). */}
             <div style={{ position: "absolute", right: 16, bottom: 20, zIndex: 26, display: "flex", gap: 10 }}>
+              {styleMode === "constellation" && (
+                <button onClick={handleExportSvg} disabled={exportingSvg}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+                    cursor: exportingSvg ? "default" : "pointer",
+                    padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.08)",
+                    border: "0.5px solid rgba(255,255,255,0.35)", color: "rgba(255,255,255,0.85)",
+                  }}>
+                  <Download className="w-3.5 h-3.5" /> {exportingSvg ? "Esporto…" : "Esporta SVG"}
+                </button>
+              )}
               {tripsCount === 1 && (
                 <button onClick={handleSaveRelief} disabled={savingRelief}
                   style={{
