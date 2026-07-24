@@ -23,6 +23,7 @@ const NuovoViaggio = lazy(() => import("./pages/NuovoViaggio"));
 const ModificaViaggio = lazy(() => import("./pages/ModificaViaggio"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const MieiViaggi = lazy(() => import("./pages/MieiViaggi"));
+const ImportaGpx = lazy(() => import("./pages/ImportaGpx"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteFallback() {
@@ -62,6 +63,7 @@ ReactDOM.createRoot(rootEl).render(
               <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
               <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
               <Route path="/miei-viaggi" element={<MieiViaggi />} />
+              <Route path="/importa-gpx" element={<ImportaGpx />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

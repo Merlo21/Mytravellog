@@ -1,6 +1,6 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { Link } from "react-router-dom";
-import { Plane, PieChart, Settings, Plus, Menu } from "lucide-react";
+import { Plane, PieChart, Settings, Plus, Menu, Upload } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -47,6 +47,9 @@ export function AppHeader({ onTripsClick }: Props) {
           <Link to="/impostazioni" className="btn-ghost p-2" aria-label="Impostazioni">
             <Settings className="w-4 h-4 text-muted-foreground"/>
           </Link>
+          <Link to="/importa-gpx" className="btn-ghost p-2" aria-label="Importa da GPX" title="Importa da GPX">
+            <Upload className="w-4 h-4 text-muted-foreground"/>
+          </Link>
           <Link to="/nuovo-viaggio"
             className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10 whitespace-nowrap"
             style={{ color: "#60a5fa", border: "1.5px solid #60a5fa" }} aria-label="Nuovo viaggio">
@@ -81,6 +84,11 @@ export function AppHeader({ onTripsClick }: Props) {
             <DropdownMenuItem asChild>
               <Link to="/nuovo-viaggio" className="flex items-center gap-2 cursor-pointer font-semibold" style={{ color: "#60a5fa" }}>
                 <Plus className="w-4 h-4"/> Nuovo viaggio
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/importa-gpx" className="flex items-center gap-2 cursor-pointer">
+                <Upload className="w-4 h-4 text-primary"/> Importa da GPX
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
