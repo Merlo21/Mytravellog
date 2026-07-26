@@ -207,13 +207,10 @@ function HomeInner() {
           ];
           return (
             <>
-              {/* Desktop: sempre visibili, struttura invariata */}
-              <div className="hidden sm:grid grid-cols-4 gap-2.5">
-                {statItems.map((item, i) => <StatCard key={item.label} {...item} i={i}/>)}
-              </div>
-
-              {/* Mobile: a comparsa, chiuse di default per non occupare spazio sopra il globo */}
-              <div className="sm:hidden">
+              {/* Statistiche a comparsa ovunque (desktop = mobile): chiuse di
+                  default per non occupare spazio sopra il globo, si aprono 2×2
+                  dalla maniglia. Prima su desktop erano 4 card sempre visibili. */}
+              <div>
                 <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
                   <CollapsibleTrigger asChild>
                     <button type="button" className="flex flex-col items-center w-full py-1.5 gap-0.5"

@@ -101,9 +101,10 @@ describe("Home — mini-card del viaggio selezionato sul globo", () => {
     expect(screen.getByText("Auto")).toBeInTheDocument();
     // I km sono quelli percorsi (tripTotalKm): senza route_geometry è la linea
     // d'aria Milano→Roma ≈ 477 km, NON i 480 memorizzati in distance_from_home_km.
-    // Lo stesso valore compare anche nella stat card "Km totali" della Home: con
-    // la mini-card aperta deve comparire almeno due volte.
-    expect(screen.getAllByText("477 km").length).toBeGreaterThanOrEqual(2);
+    // NB: le stat card della Home ora sono in una tendina CHIUSA di default
+    // (layout uguale a mobile ovunque), quindi il valore compare solo nella
+    // mini-card — non più anche nella stat "Km totali" sempre visibile.
+    expect(screen.getAllByText("477 km").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/01 giu 2024/)).toBeInTheDocument();
   });
 

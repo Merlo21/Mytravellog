@@ -35,32 +35,13 @@ export function AppHeader({ onTripsClick }: Props) {
           </h1>
         </Link>
 
-        {/* Nav — desktop: riga di icone/link, come sempre */}
-        <div className="hidden sm:flex items-center gap-1">
-          <Link to="/miei-viaggi" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3" aria-label="I miei viaggi">
-            <Plane className="w-4 h-4 text-primary"/> <span className="hidden sm:inline">I miei viaggi</span>
-          </Link>
-          <Link to="/statistiche" className="btn-ghost text-sm flex items-center gap-2 py-1.5 px-3" aria-label="Statistiche">
-            <PieChart className="w-4 h-4 text-primary"/> <span className="hidden sm:inline">Statistiche</span>
-          </Link>
-          <div className="w-px h-5 bg-border mx-1"/>
-          <Link to="/impostazioni" className="btn-ghost p-2" aria-label="Impostazioni">
-            <Settings className="w-4 h-4 text-muted-foreground"/>
-          </Link>
-          <Link to="/importa-gpx" className="btn-ghost p-2" aria-label="Importa da GPX" title="Importa da GPX">
-            <Upload className="w-4 h-4 text-muted-foreground"/>
-          </Link>
-          <Link to="/nuovo-viaggio"
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-primary/10 whitespace-nowrap"
-            style={{ color: "#60a5fa", border: "1.5px solid #60a5fa" }} aria-label="Nuovo viaggio">
-            <Plus className="w-4 h-4"/> <span className="hidden sm:inline">Nuovo viaggio</span>
-          </Link>
-        </div>
-
-        {/* Nav — mobile: un solo bottone che apre un menu, per non occupare spazio in header */}
+        {/* Nav unica ovunque (desktop = mobile): un solo bottone hamburger che
+            apre il menu. Prima su desktop c'era una riga di link sempre visibili;
+            ora l'esperienza è identica su ogni schermo (scelta "tutto uguale a
+            mobile"). */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="sm:hidden btn-ghost p-2" aria-label="Menu">
+            <button type="button" className="btn-ghost p-2" aria-label="Menu">
               <Menu className="w-5 h-5"/>
             </button>
           </DropdownMenuTrigger>

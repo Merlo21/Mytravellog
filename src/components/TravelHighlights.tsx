@@ -141,50 +141,10 @@ export function TravelHighlights({ trips }: Props) {
       <div className="mt-6 glass-card p-6">
         <h2 className="text-lg font-bold mb-4">Distanze</h2>
 
-        {/* Hero row — desktop invariato */}
-        <div className="hidden sm:flex items-center justify-between gap-4 pb-5 border-b border-border mb-5 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(55,138,221,0.12)"}}>
-              <Globe2 className="w-5 h-5" style={{color:"#378ADD"}} strokeWidth={1.5}/>
-            </div>
-            <div>
-              <div className="text-2xl font-bold font-mono">{formatDistanceKm(totalKm, distanceUnit)}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">chilometri percorsi in totale</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(99,153,34,0.12)"}}>
-              <svg width="20" height="20" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-                <circle cx="11" cy="11" r="6.5" stroke="#639922" strokeWidth="1.5"/>
-                <ellipse cx="11" cy="11" rx="3.5" ry="6.5" stroke="#639922" strokeWidth="1.2"/>
-                <line x1="4.5" y1="11" x2="17.5" y2="11" stroke="#639922" strokeWidth="1.2"/>
-                <path d="M6.5 7Q11 9 15.5 7" stroke="#639922" strokeWidth="1" fill="none"/>
-                <path d="M6.5 15Q11 13 15.5 15" stroke="#639922" strokeWidth="1" fill="none"/>
-              </svg>
-            </div>
-            <div>
-              <div className="text-2xl font-bold font-mono">{aroundWorld.toFixed(3).replace(".",",")}×</div>
-              <div className="text-xs text-muted-foreground mt-0.5">intorno al mondo</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(127,119,221,0.12)"}}>
-              <Moon className="w-5 h-5" style={{color:"#7F77DD"}} strokeWidth={1.5}/>
-            </div>
-            <div>
-              <div className="text-2xl font-bold font-mono">{toMoon.toFixed(3).replace(".",",")}×</div>
-              <div className="text-xs text-muted-foreground mt-0.5">alla luna</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Hero row — mobile: km totali come "momento hero" con icona grande
-            (spunto preso da un'app concorrente), intorno-al-mondo/alla-luna
-            restano compatte ma affiancate 2x2 sotto, con etichetta sempre
-            visibile visto che ora c'è spazio a sufficienza. */}
-        <div className="sm:hidden pb-5 border-b border-border mb-5">
+        {/* Hero row — layout unico ovunque (desktop = mobile): km totali come
+            "momento hero" con icona grande, intorno-al-mondo/alla-luna compatte
+            affiancate 2x2 sotto. Prima su desktop erano 3 numeri in riga. */}
+        <div className="pb-5 border-b border-border mb-5">
           <div className="flex flex-col items-center text-center gap-1.5 mb-4">
             <div style={{width:76,height:76,borderRadius:"50%",border:"2px dashed #378ADD",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <Globe2 style={{width:32,height:32,color:"#378ADD"}} strokeWidth={1.5}/>
@@ -226,30 +186,10 @@ export function TravelHighlights({ trips }: Props) {
           ] as const);
           return (
             <>
-              {/* Desktop — layout in riga invariato (ora 7 colonne), icona senza
-                  badge come da mobile (pura estetica, richiesta espressamente
-                  da Stefano). */}
-              <div className="hidden sm:grid grid-cols-7 gap-2 mb-4">
-                {transportItems.map(({ icon, color, bg, border, km, val, label }) => {
-                  const used = km > 0;
-                  return (
-                    <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-3 border hover:-translate-y-0.5 transition-transform"
-                      style={used ? {background:bg, borderColor:border} : {background:"rgba(255,255,255,0.02)", borderColor:"rgba(255,255,255,0.06)"}}>
-                      <span style={{color: used ? color : "rgba(255,255,255,0.2)", flexShrink: 0}}>{React.cloneElement(icon, { style: { width: 26, height: 26 } })}</span>
-                      <div>
-                        <div className="text-lg font-extrabold font-mono leading-none" style={{color: used ? color : "rgba(255,255,255,0.25)"}}>{val}</div>
-                        <div className="text-[11px] mt-1" style={{color: used ? undefined : "rgba(255,255,255,0.2)"}}>{label}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Mobile — carosello orizzontale con freccine, icona grande senza
-                  badge (stesso spunto grafico delle highlights card, e delle
-                  freccine visibili ◀▶ prese da un'app concorrente per rendere
-                  lo scroll orizzontale scopribile invece che "alla cieca"). */}
-              <div className="sm:hidden relative mb-4">
+              {/* Mezzi — carosello unico ovunque (desktop = mobile): scroll
+                  orizzontale con freccine ◀▶, icona grande senza badge. Prima su
+                  desktop era una griglia a 7 colonne. */}
+              <div className="relative mb-4">
                 <button type="button" onClick={() => scrollTransportBy(-1)} aria-label="Scorri a sinistra"
                   className="absolute left-0 top-1/2 z-10 flex items-center justify-center"
                   style={{ transform: "translateY(-50%)", width: 26, height: 26, borderRadius: "50%", background: "rgba(10,22,40,0.92)", border: "1px solid #1a2d4a" }}>
