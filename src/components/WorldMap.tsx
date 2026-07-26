@@ -293,7 +293,7 @@ export function WorldMap({
         // Globo più "profondo"/distante all'apertura della Home (prima 1.5, era
         // troppo vicino): lascia più cielo attorno. L'atmosfera (setFog) scala
         // insieme al globo, quindi non serve ritarare nulla.
-        zoom: 1.0,
+        zoom: 0.8,
         attributionControl: false,
       });
       // Se la cleanup è scattata proprio durante l'ultimo await, distruggi
