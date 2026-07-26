@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { YearRecap } from "@/lib/recap";
@@ -110,8 +110,12 @@ export function RecapStories({ recap: r, fmt, flagUrl, onClose }: { recap: YearR
 
   const [i, setI] = useState(0);
   const n = slides.length;
-  const next = () => setI(v => (v >= n - 1 ? (onClose(), v) : v + 1));
-  const prev = () => setI(v => Math.max(0, v - 1));
+  const iRef = useRef(0);
+  useEffect(() => { iRef.current = i; }, [i]);
+  // onClose FUORI dall'updater di setI: chiamarlo dentro l'updater = setState
+  // del padre durante il render → warning "Cannot update while rendering".
+  const next = () => { if (iRef.current >= n - 1) { onClose(); return; } setI(iRef.current + 1); };
+  const prev = () => { if (iRef.current > 0) setI(iRef.current - 1); };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
