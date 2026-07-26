@@ -3,8 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
-import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video, X } from "lucide-react";
+import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video, X, MoreVertical } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { TripFlyover } from "@/components/TripFlyover";
 import { getReliefImage } from "@/lib/photoStorage";
@@ -49,7 +50,6 @@ const NOTES_CLAMP_THRESHOLD = 120;
 
 export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const navigate = useNavigate();
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [showFlyover, setShowFlyover] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
   // Miniatura del "rilievo 3D" salvato a fine flyover (snapshot in IndexedDB):
@@ -126,20 +126,8 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
     ? [trip.home_label?.split(",")[0] ?? "Casa", ...trip.waypoints!.map((w: any) => w.city), trip.city]
     : null;
 
-  // Il primo tap "arma" il cestino (diventa rosso); senza un timeout resta
-  // armato per sempre se l'utente cambia idea senza toccare altro sulla card.
-  const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => () => clearTimeout(confirmTimeoutRef.current), []);
-
-  const handleDelete = () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      confirmTimeoutRef.current = setTimeout(() => setConfirmDelete(false), 3000);
-      return;
-    }
-    clearTimeout(confirmTimeoutRef.current);
-    onDeleteRequested?.(trip);
-  };
+  // Eliminazione: l'apertura del menu ⋮ fa da gesto deliberato, quindi la voce
+  // "Elimina" richiama direttamente onDeleteRequested (niente più arm a due tap).
 
   return (
     <>
@@ -168,8 +156,10 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
             <div style={{width:28,height:28,borderRadius:"50%",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🌍</div>
           )}
           <div style={{flex:1,minWidth:0}}>
-            <div className="font-display" style={{fontSize:14,fontWeight:700,color:"#f0f4ff"}}>{displayTitle}</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>{trip.city}, {trip.country}</div>
+            {/* Titolo: max 2 righe con ellissi (prima un titolo lungo su mobile
+                andava a 3+ righe stringendo tutto). Rimossa la riga "città, paese":
+                ridondante con bandiere e percorso qui sotto. */}
+            <div className="font-display" style={{fontSize:14,fontWeight:700,color:"#f0f4ff",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{displayTitle}</div>
           </div>
           {/* Le 5 stelle si distinguono solo per colore: senza aria-label uno
               screen reader leggerebbe cinque stelle identiche. role=img +
@@ -181,21 +171,28 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
               <span key={i} aria-hidden="true" style={{fontSize:10,color:i <= (trip.rating ?? 0) ? "#fbbf24" : "rgba(255,255,255,0.15)"}}>★</span>
             ))}
           </div>
-          <div style={{display:"flex",gap:4,flexShrink:0}}>
-            <button onClick={() => setShowFlyover(true)} aria-label="Vedi il flyover 3D"
-              style={{width:26,height:26,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <Video style={{width:13,height:13}}/>
-            </button>
-            <button onClick={() => navigate("/modifica-viaggio/"+trip.id)} aria-label="Modifica viaggio"
-              style={{width:26,height:26,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <Pencil style={{width:13,height:13}}/>
-            </button>
-            <button onClick={handleDelete}
-              aria-label={confirmDelete ? "Confermi l'eliminazione del viaggio?" : "Elimina viaggio"}
-              style={{width:26,height:26,background:confirmDelete?"rgba(239,68,68,0.15)":"none",border:"none",cursor:"pointer",color:confirmDelete?"#f87171":"rgba(255,255,255,0.35)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:6}}>
-              <Trash2 style={{width:13,height:13}}/>
-            </button>
-          </div>
+          {/* Azioni raccolte in un menu ⋮ (video/modifica/elimina): su mobile le
+              3 icone affiancate strizzavano il titolo. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button aria-label="Azioni viaggio"
+                style={{width:26,height:26,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <MoreVertical style={{width:16,height:16}}/>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowFlyover(true)} className="flex items-center gap-2 cursor-pointer">
+                <Video className="w-4 h-4"/> Rivivi in 3D
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/modifica-viaggio/"+trip.id)} className="flex items-center gap-2 cursor-pointer">
+                <Pencil className="w-4 h-4"/> Modifica
+              </DropdownMenuItem>
+              <DropdownMenuSeparator/>
+              <DropdownMenuItem onClick={() => onDeleteRequested?.(trip)} className="flex items-center gap-2 cursor-pointer" style={{color:"#f87171"}}>
+                <Trash2 className="w-4 h-4"/> Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Route line */}

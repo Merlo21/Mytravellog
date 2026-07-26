@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { TripCardTicket, seasonColor } from "./TripCardTicket";
 import { SettingsProvider } from "@/lib/settings";
@@ -13,6 +13,22 @@ vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
   return { ...actual, useNavigate: () => mockNavigate };
 });
+
+// Radix DropdownMenu (menu azioni ⋮) in jsdom: servono questi stub per aprirsi
+// (hasPointerCapture/scrollIntoView del trigger, ResizeObserver del Popper).
+beforeAll(() => {
+  const p = window.HTMLElement.prototype as any;
+  if (!p.hasPointerCapture) p.hasPointerCapture = () => false;
+  if (!p.releasePointerCapture) p.releasePointerCapture = () => {};
+  if (!p.scrollIntoView) p.scrollIntoView = () => {};
+  if (!(window as any).ResizeObserver) (window as any).ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+  if (!(window as any).matchMedia) (window as any).matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+});
+
+// Apre il menu azioni ⋮ via tastiera (in jsdom è più affidabile del pointer).
+function openActions() {
+  fireEvent.keyDown(screen.getByRole("button", { name: "Azioni viaggio" }), { key: "Enter" });
+}
 
 function renderCard(trip: Trip, onDeleteRequested?: (trip: Trip) => void) {
   return render(
@@ -78,9 +94,9 @@ describe("TripCardTicket — render base", () => {
     expect(screen.getByText("Vacanza estiva")).toBeInTheDocument();
   });
 
-  it("mostra city e country nel sottotitolo", () => {
+  it("non mostra più il sottotitolo 'città, paese' (ridondante, rimosso dall'header)", () => {
     renderCard(makeTrip({ city: "Roma", country: "Italia" }));
-    expect(screen.getByText("Roma, Italia")).toBeInTheDocument();
+    expect(screen.queryByText("Roma, Italia")).not.toBeInTheDocument();
   });
 
   it("mostra 🌍 come fallback senza country_code", () => {
@@ -212,54 +228,30 @@ describe("TripCardTicket — rotta waypoints", () => {
 describe("TripCardTicket — edit e delete", () => {
   beforeEach(() => { localStorage.clear(); mockNavigate.mockClear(); });
 
-  it("click edit naviga a /modifica-viaggio/:id", () => {
-    const trip = makeTrip({ id: "abc123" });
-    renderCard(trip);
-    const editBtn = screen.getByRole("button", { name: "Modifica viaggio" });
-    fireEvent.click(editBtn);
+  it("il menu azioni (⋮) è presente", () => {
+    renderCard(makeTrip());
+    expect(screen.getByRole("button", { name: "Azioni viaggio" })).toBeInTheDocument();
+  });
+
+  it("dal menu, Modifica naviga a /modifica-viaggio/:id", () => {
+    renderCard(makeTrip({ id: "abc123" }));
+    openActions();
+    fireEvent.click(screen.getByText("Modifica"));
     expect(mockNavigate).toHaveBeenCalledWith("/modifica-viaggio/abc123");
   });
 
-  it("primo click delete imposta confirmDelete=true (nessuna richiesta di eliminazione)", () => {
-    const trip = makeTrip({ id: "abc123" });
-    addTrip({ ...trip });
-    const onDeleteRequested = vi.fn();
-    renderCard(trip, onDeleteRequested);
-    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" }));
-    expect(onDeleteRequested).not.toHaveBeenCalled();
-    // L'aria-label cambia per annunciare lo stato armato a chi usa uno screen reader.
-    expect(screen.getByRole("button", { name: "Confermi l'eliminazione del viaggio?" })).toBeInTheDocument();
-  });
-
-  it("secondo click delete chiama onDeleteRequested col viaggio, senza eliminarlo da storage", () => {
+  it("dal menu, Elimina chiama onDeleteRequested col viaggio senza toccare lo storage", () => {
     const trip = makeTrip({ id: "del-test" });
     localStorage.setItem("atlas.trips.v1", JSON.stringify([trip]));
     const onDeleteRequested = vi.fn();
     renderCard(trip, onDeleteRequested);
-    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" })); // primo click → confirm
-    fireEvent.click(screen.getByRole("button", { name: "Confermi l'eliminazione del viaggio?" })); // secondo click
+    openActions();
+    fireEvent.click(screen.getByText("Elimina"));
     expect(onDeleteRequested).toHaveBeenCalledTimes(1);
     expect(onDeleteRequested).toHaveBeenCalledWith(expect.objectContaining({ id: "del-test" }));
     // La cancellazione vera e propria spetta a chi gestisce onDeleteRequested
-    // (per poter offrire "Annulla") — qui il viaggio deve restare intatto.
+    // (per poter offrire "Annulla"): qui il viaggio deve restare intatto.
     expect(JSON.parse(localStorage.getItem("atlas.trips.v1")!)).toHaveLength(1);
-  });
-
-  it("il cestino armato si disarma da solo dopo qualche secondo se non confermato", () => {
-    vi.useFakeTimers();
-    const trip = makeTrip({ id: "auto-reset" });
-    const onDeleteRequested = vi.fn();
-    renderCard(trip, onDeleteRequested);
-    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" }));
-    expect(screen.getByRole("button", { name: "Confermi l'eliminazione del viaggio?" })).toBeInTheDocument();
-
-    act(() => { vi.advanceTimersByTime(3000); });
-    expect(screen.getByRole("button", { name: "Elimina viaggio" })).toBeInTheDocument();
-
-    // Un click ora deve tornare ad armare (non eliminare): il reset ha funzionato.
-    fireEvent.click(screen.getByRole("button", { name: "Elimina viaggio" }));
-    expect(onDeleteRequested).not.toHaveBeenCalled();
-    vi.useRealTimers();
   });
 });
 
@@ -324,17 +316,19 @@ describe("TripCardTicket — distanza e temperatura", () => {
 });
 
 describe("TripCardTicket — flyover 3D", () => {
-  it("click sul bottone flyover apre la modale", () => {
+  it("dal menu, Rivivi in 3D apre la modale", () => {
     // home_latitude/longitude sono null di default in makeTrip: nessuna
     // tratta disponibile, ma la modale si apre comunque (mostra lo stato "empty").
     renderCard(makeTrip());
-    fireEvent.click(screen.getByRole("button", { name: "Vedi il flyover 3D" }));
+    openActions();
+    fireEvent.click(screen.getByText("Rivivi in 3D"));
     expect(screen.getByRole("button", { name: "Chiudi" })).toBeInTheDocument();
   });
 
   it("il bottone Chiudi chiude la modale", () => {
     renderCard(makeTrip());
-    fireEvent.click(screen.getByRole("button", { name: "Vedi il flyover 3D" }));
+    openActions();
+    fireEvent.click(screen.getByText("Rivivi in 3D"));
     fireEvent.click(screen.getByRole("button", { name: "Chiudi" }));
     expect(screen.queryByRole("button", { name: "Chiudi" })).not.toBeInTheDocument();
   });
