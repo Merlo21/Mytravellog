@@ -1,6 +1,6 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { AppHeader } from "@/components/AppHeader";
-import { useEffect, useMemo, useState, Component, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, Component, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, formatTripDate, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
@@ -144,6 +144,11 @@ function HomeInner() {
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
   const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
   const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
+  // Ultima posizione del dito per il parallax delle stelle su touch: il globo
+  // (MapLibre) ruota col drag anche su mobile, ma onMouseMove non scatta col
+  // dito, quindi lo sfondo stellato restava fermo — a differenza del browser
+  // (mouse). Con questo ref calcoliamo lo spostamento tra due touchmove.
+  const lastTouchRef = useRef<{x:number;y:number}|null>(null);
   // Solo su mobile le 4 card sono a comparsa (chiuse di default, per non
   // occupare spazio sopra il globo) — da desktop restano sempre visibili,
   // vedi il rendering "hidden sm:grid" più sotto.
@@ -235,7 +240,17 @@ function HomeInner() {
               if (e.buttons===1) setStarOffset(p=>({x:p.x+e.movementX*0.5,y:p.y+e.movementY*0.5}));
               setStarMouse({x: e.clientX, y: e.clientY});
             }}
-            onMouseLeave={() => setStarMouse(null)}>
+            onMouseLeave={() => setStarMouse(null)}
+            onTouchStart={(e) => { const t = e.touches[0]; if (t) lastTouchRef.current = { x: t.clientX, y: t.clientY }; }}
+            onTouchMove={(e) => {
+              // Stesso parallax del mouse ma col dito: spostamento tra due
+              // touchmove (il touch non ha movementX/Y), stesso fattore 0.5.
+              const t = e.touches[0]; if (!t) return;
+              const last = lastTouchRef.current;
+              if (last) setStarOffset(p => ({ x: p.x + (t.clientX - last.x) * 0.5, y: p.y + (t.clientY - last.y) * 0.5 }));
+              lastTouchRef.current = { x: t.clientX, y: t.clientY };
+            }}
+            onTouchEnd={() => { lastTouchRef.current = null; }}>
             <StarField offsetX={starOffset.x} offsetY={starOffset.y} mousePos={starMouse} />
             <WorldMap
               trips={trips}
