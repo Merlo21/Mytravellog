@@ -7,7 +7,7 @@ import { TripCardTicket } from "@/components/TripCardTicket";
 import { TripFlyover } from "@/components/TripFlyover";
 import { loadTrips, deleteTrip, Trip } from "@/lib/storage";
 import { deletePhotosForTrip } from "@/lib/photoStorage";
-import { Search, X, Video, Plane, Plus, Sparkles } from "lucide-react";
+import { Search, X, Video, Plane, Plus, Sparkles, Globe2 } from "lucide-react";
 
 const DELETE_ANIM_MS = 200;
 // Finestra di tempo in cui "Annulla" nel toast può ancora recuperare il
@@ -21,6 +21,7 @@ export default function MieiViaggi() {
   const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [flyoverYear, setFlyoverYear] = useState<string | null>(null);
+  const [showLifeMap, setShowLifeMap] = useState(false);
   const pendingDeletesRef = useRef<Map<string, {
     animTimer: ReturnType<typeof setTimeout>;
     commitTimer: ReturnType<typeof setTimeout>;
@@ -125,12 +126,26 @@ export default function MieiViaggi() {
       <AppHeader />
       <div className="container mx-auto px-6 py-8 flex-1">
 
-        {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold">I miei viaggi</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}
-          </p>
+        {/* Header — con l'ingresso icona-sola alla "Mappa della vita" (tutti i
+            viaggi in un'unica costellazione), a destra del titolo. */}
+        <div className="mb-6" style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+          <div>
+            <h2 className="text-2xl font-bold">I miei viaggi</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}
+            </p>
+          </div>
+          {trips.length > 1 && (
+            <button type="button" onClick={() => setShowLifeMap(true)}
+              aria-label="La mappa della mia vita" title="La mappa della mia vita"
+              style={{
+                width:38, height:38, borderRadius:11, flexShrink:0,
+                display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                background:"rgba(168,85,247,0.16)", border:"0.5px solid rgba(168,85,247,0.5)", color:"#c084fc",
+              }}>
+              <Globe2 style={{width:19, height:19}}/>
+            </button>
+          )}
         </div>
 
         {/* Search — sticky sotto l'AppHeader (sticky top:0, alto 65px) mentre si
@@ -258,6 +273,9 @@ export default function MieiViaggi() {
       </div>
       {flyoverYear && (
         <TripFlyover trips={byYear[flyoverYear] ?? []} onClose={() => setFlyoverYear(null)} />
+      )}
+      {showLifeMap && (
+        <TripFlyover trips={trips} lifeMap onClose={() => setShowLifeMap(false)} />
       )}
     </main>
   );

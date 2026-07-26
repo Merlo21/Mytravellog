@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, createElement } from "react";
 import { createPortal } from "react-dom";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Trip, formatTripDate } from "@/lib/storage";
-import { buildFlightPath, buildFlightLegs, tripTotalKm, FlightLeg } from "@/lib/flyover";
+import { buildFlightPath, buildFlightLegs, tripTotalKm, buildPerTripRouteCoords, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
 import { buildPosterSvg, loadCountryRings, routeBounds } from "@/lib/posterSvg";
@@ -242,6 +242,12 @@ export function finaleFanLayout(i: number, n: number) {
 interface Props {
   trips: Trip[];
   onClose: () => void;
+  /**
+   * "Mappa della vita": mostra TUTTI i viaggi come costellazione unica, con una
+   * polilinea SEPARATA per viaggio (nessuna tratta di collegamento tra viaggi) e
+   * titolo/statistiche dedicati (viaggi · paesi · km invece di km · tappe).
+   */
+  lifeMap?: boolean;
 }
 
 /**
@@ -254,11 +260,14 @@ interface Props {
  * Sostituisce il vecchio flyover animato + video .webm (rimosso, ripescabile
  * dal tag git `flyover-animato-v1`): più leggero, robusto e condivisibile ovunque.
  */
-export function TripFlyover({ trips, onClose }: Props) {
+export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const mountedRef = useRef(true);
   const allCoordsRef = useRef<[number, number][]>([]);
+  // Segmenti del tracciato: uno per viaggio in modalità Mappa della vita (linee
+  // separate), un unico segmento concatenato negli altri casi.
+  const routeSegsRef = useRef<[number, number][][]>([]);
   const finalePhotoKeysRef = useRef<string[]>([]);
   const finaleImgsRef = useRef<HTMLImageElement[]>([]);
   const finaleUrlsRef = useRef<string[]>([]);
@@ -302,6 +311,24 @@ export function TripFlyover({ trips, onClose }: Props) {
     return codes.slice(0, 5);
   }, [trips]);
 
+  // Titolo del poster: dedicato per la Mappa della vita, altrimenti nome del
+  // viaggio (singolo) o conteggio (recap multi-viaggio).
+  const posterTitle = lifeMap
+    ? "La mappa della mia vita"
+    : (tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title);
+
+  // Metriche mostrate su card/pillole: gli altri poster km · tappe come prima.
+  // La Mappa della vita NON mostra statistiche (la mappa parla da sé): niente
+  // pillole né riga stats, resta solo titolo + bandiere. Letta al momento della
+  // resa/cattura (i ref sono già popolati quando il poster è visibile).
+  const statMetrics = (): { v: string; l: string }[] => lifeMap
+    ? []
+    : [
+        { v: formatKm(totalKmRef.current), l: "km" },
+        { v: String(legsRef.current.length), l: "tappe" },
+      ];
+  const statLine = (): string => statMetrics().map(m => `${m.v} ${m.l}`).join("  ·  ");
+
   // Esc chiude il poster (oltre a click fuori / X).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -342,9 +369,11 @@ export function TripFlyover({ trips, onClose }: Props) {
     if (!stops.length) return;
     const constellation = mode === "constellation";
     if (!map.getSource("flyover-route")) {
+      // MultiLineString: un segmento per viaggio nella Mappa della vita (linee
+      // separate, senza collegamenti), un solo segmento negli altri poster.
       map.addSource("flyover-route", {
         type: "geojson",
-        data: { type: "Feature", geometry: { type: "LineString", coordinates: allCoordsRef.current } },
+        data: { type: "Feature", geometry: { type: "MultiLineString", coordinates: routeSegsRef.current } },
       });
     }
     if (!map.getLayer("flyover-route-casing")) {
@@ -517,12 +546,12 @@ export function TripFlyover({ trips, onClose }: Props) {
       const u = dpr;
       const pad = 20 * u;
       const rightX = c.width - pad;
-      const title = tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title;
+      const title = posterTitle;
       const flags = flagImgs.filter(im => im.complete && im.naturalWidth > 0);
       const flagW = 22 * u, flagH = 15 * u, flagStep = 16 * u, fgap = 9 * u;
       const flagsW = flags.length > 0 ? (flagW + (flags.length - 1) * flagStep + fgap) : 0;
       const titleCy = pad + 13 * u;
-      const stats = `${formatKm(totalKmRef.current)} km  ·  ${legsRef.current.length} tappe`;
+      const stats = statLine();
       // Inclina la didascalia di -3° come a schermo (keyframe flyoverCardIn): a
       // schermo la card resta ruotata di -3°, e l'utente vuole lo stesso taglio
       // nel poster salvato. Perno al centro del blocco per non spostarlo dal frame.
@@ -588,7 +617,7 @@ export function TripFlyover({ trips, onClose }: Props) {
     const pillNumFont = `700 ${15 * u}px "JetBrains Mono", monospace`;
     const innerPad = 14 * u;
     const flagW = 24 * u, flagH = 17 * u, flagStep = 15 * u; // ~9px di sovrapposizione
-    const title = tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title;
+    const title = posterTitle;
     const flags = flagImgs.filter(im => im.complete && im.naturalWidth > 0);
 
     ctx.font = titleFont;
@@ -599,10 +628,7 @@ export function TripFlyover({ trips, onClose }: Props) {
     ctx.font = dateFont;
     const datesW = dateRangeLabel ? ctx.measureText(dateRangeLabel).width : 0;
 
-    const pills = [
-      { v: formatKm(totalKmRef.current), l: "KM" },
-      { v: String(legsRef.current.length), l: "TAPPE" },
-    ];
+    const pills = statMetrics().map(m => ({ v: m.v, l: m.l.toUpperCase() }));
     const pillWs = pills.map(p => {
       ctx.font = pillNumFont;
       const nw = ctx.measureText(p.v).width;
@@ -610,11 +636,13 @@ export function TripFlyover({ trips, onClose }: Props) {
       const lw = ctx.measureText(p.l).width;
       return Math.max(nw, lw) + 24 * u;
     });
-    const pillsW = pillWs[0] + 8 * u + pillWs[1];
+    const pillsW = pills.length ? pillWs.reduce((a, b) => a + b, 0) + 8 * u * (pills.length - 1) : 0;
 
     const contentW = Math.max(headerW, datesW, pillsW);
     const cardW = contentW + innerPad * 2;
-    const headerH = 22 * u, dateH = dateRangeLabel ? 16 * u : 0, gap = 8 * u, pillH = 42 * u;
+    // Senza pillole (Mappa della vita) la card è solo header (+ eventuali date):
+    // niente spazio/altezza per le pillole.
+    const headerH = 22 * u, dateH = dateRangeLabel ? 16 * u : 0, gap = pills.length ? 8 * u : 0, pillH = pills.length ? 42 * u : 0;
     const cardH = innerPad * 2 + headerH + dateH + gap + pillH;
     const cardX = c.width - cardW - 16 * u;
     const cardY = 16 * u;
@@ -748,10 +776,10 @@ export function TripFlyover({ trips, onClose }: Props) {
   const handleSharePoster = async () => {
     const blob = await captureSnapshotBlob();
     if (!blob) return;
-    const name = (tripsCount === 1 ? trips[0].title : "viaggio").replace(/[^\w.-]+/g, "_").slice(0, 40) || "viaggio";
+    const name = lifeMap ? "mappa-della-vita" : (tripsCount === 1 ? trips[0].title : "viaggio").replace(/[^\w.-]+/g, "_").slice(0, 40) || "viaggio";
     const file = new File([blob], `${name}-3d.jpg`, { type: "image/jpeg" });
     if (canShareFile(file)) {
-      try { await navigator.share({ files: [file], title: tripsCount > 1 ? "Il mio viaggio in 3D" : trips[0].title }); } catch { /* annullato */ }
+      try { await navigator.share({ files: [file], title: lifeMap ? posterTitle : (tripsCount > 1 ? "Il mio viaggio in 3D" : trips[0].title) }); } catch { /* annullato */ }
     } else {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -773,11 +801,11 @@ export function TripFlyover({ trips, onClose }: Props) {
       try {
         rings = await loadCountryRings(routeBounds(route.length ? route : stops.map(s => [s.lon, s.lat] as [number, number])));
       } catch { /* confini non disponibili: esporta comunque rotta+stelle */ }
-      const title = tripsCount > 1 ? `${tripsCount} viaggi` : trips[0].title;
-      const stats = `${formatKm(totalKmRef.current)} km · ${legsRef.current.length} tappe`;
-      const svg = buildPosterSvg({ routeCoords: route, stops, borders: rings, title, dateLabel: dateRangeLabel, stats });
+      const title = lifeMap ? posterTitle : (tripsCount > 1 ? `${tripsCount} viaggi` : trips[0].title);
+      const stats = statLine();
+      const svg = buildPosterSvg({ routeSegments: routeSegsRef.current, stops, borders: rings, title, dateLabel: dateRangeLabel, stats });
       const blob = new Blob([svg], { type: "image/svg+xml" });
-      const base = (tripsCount === 1 ? trips[0].title : "viaggio").replace(/[^\w.-]+/g, "_").slice(0, 40) || "viaggio";
+      const base = lifeMap ? "mappa-della-vita" : (tripsCount === 1 ? trips[0].title : "viaggio").replace(/[^\w.-]+/g, "_").slice(0, 40) || "viaggio";
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url; a.download = `${base}-costellazione.svg`; a.click();
@@ -803,7 +831,12 @@ export function TripFlyover({ trips, onClose }: Props) {
     // Km percorsi: stessa fonte UNICA di Home/Statistiche/card (tripTotalKm =
     // stradali reali dove c'è route_geometry, linea d'aria altrimenti).
     totalKmRef.current = trips.reduce((sum, t) => sum + tripTotalKm(t), 0);
-    allCoordsRef.current = buildFlyoverRouteCoords(stops, legsLocal);
+    // Mappa della vita: un segmento per viaggio (linee separate). Altri poster:
+    // un unico segmento concatenato. allCoordsRef resta l'unione di tutti i punti
+    // (per fitBounds e per il riquadro dell'export SVG).
+    const segs = lifeMap ? buildPerTripRouteCoords(trips) : [buildFlyoverRouteCoords(stops, legsLocal)];
+    routeSegsRef.current = segs;
+    allCoordsRef.current = segs.flat();
     finalePhotoKeysRef.current = Array.from(new Set(stops.map(s => s.photoKey)));
 
     if (legsLocal.length === 0) {
@@ -989,7 +1022,7 @@ export function TripFlyover({ trips, onClose }: Props) {
               }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 9 }}>
                   <div style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: 25, color: "#fff", lineHeight: 1, letterSpacing: 0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
+                    {posterTitle}
                   </div>
                   {flagCodes.length > 0 && (
                     <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
@@ -1004,9 +1037,13 @@ export function TripFlyover({ trips, onClose }: Props) {
                 {dateRangeLabel && (
                   <div style={{ fontFamily: "'Noto Serif', serif", fontStyle: "italic", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 6 }}>{dateRangeLabel}</div>
                 )}
-                <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: "rgba(255,255,255,0.9)", marginTop: 8, letterSpacing: 0.5 }}>
-                  <b style={{ fontWeight: 600 }}>{formatKm(totalKmRef.current)}</b> km &nbsp;·&nbsp; <b style={{ fontWeight: 600 }}>{legs.length}</b> tappe
-                </div>
+                {statMetrics().length > 0 && (
+                  <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: "rgba(255,255,255,0.9)", marginTop: 8, letterSpacing: 0.5 }}>
+                    {statMetrics().map((m, i) => (
+                      <span key={m.l}>{i > 0 && <>&nbsp;·&nbsp;</>}<b style={{ fontWeight: 600 }}>{m.v}</b> {m.l}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
             <div style={{
@@ -1036,14 +1073,15 @@ export function TripFlyover({ trips, onClose }: Props) {
                   fontSize: 15, fontWeight: 700, color: "#f0f4ff",
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}>
-                  {tripsCount > 1 ? `${tripsCount} viaggi rivissuti` : trips[0].title}
+                  {posterTitle}
                 </div>
               </div>
               {dateRangeLabel && (
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>{dateRangeLabel}</div>
               )}
+              {statMetrics().length > 0 && (
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                {[{ v: formatKm(totalKmRef.current), l: "km" }, { v: String(legs.length), l: "tappe" }].map(s => (
+                {statMetrics().map(s => (
                   <div key={s.l} style={{
                     background: "rgba(255,255,255,0.06)",
                     border: "0.5px solid #1a2d4a",
@@ -1056,6 +1094,7 @@ export function TripFlyover({ trips, onClose }: Props) {
                   </div>
                 ))}
               </div>
+              )}
             </div>
             )}
 

@@ -183,6 +183,27 @@ export function tripTotalKm(trip: Trip): number {
   return legs.reduce((sum, leg) => sum + pathLengthKm(leg.pathCoords), 0);
 }
 
+/**
+ * Percorsi SEPARATI per la "Mappa della vita": una polilinea [lon,lat][] per
+ * ciascun viaggio (tracciato stradale reale dove disponibile), SENZA tratte di
+ * collegamento tra un viaggio e l'altro — così la costellazione di tutti i
+ * viaggi resta pulita anche con molte mete (a differenza di buildFlightPath che
+ * concatena tutto in un'unica polilinea, aggiungendo linee di "ritorno a casa").
+ * I viaggi senza punti sufficienti (< 2 tappe) vengono esclusi.
+ */
+export function buildPerTripRouteCoords(trips: Trip[]): [number, number][][] {
+  const out: [number, number][][] = [];
+  for (const t of trips) {
+    const stops = buildFlightPath([t]);
+    const legs = buildFlightLegs(stops);
+    if (legs.length === 0) continue;
+    const coords: [number, number][] = [[stops[0].lon, stops[0].lat]];
+    for (const leg of legs) coords.push(...leg.pathCoords.slice(1));
+    out.push(coords);
+  }
+  return out;
+}
+
 /** Lunghezza approssimata (km) di un percorso [lon,lat][], sommando ogni segmento. */
 export function pathLengthKm(path: [number, number][]): number {
   let total = 0;

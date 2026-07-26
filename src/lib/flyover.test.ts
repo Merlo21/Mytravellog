@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, tripTotalKm, FlightStop } from "./flyover";
+import { buildFlightPath, bearingBetween, computeLegCamera, buildFlightLegs, pointAlongPath, easeInOutCubic, lerpBearing, tripTotalKm, buildPerTripRouteCoords, FlightStop } from "./flyover";
 import { distanceKm } from "./geo";
 import type { Trip } from "./storage";
 
@@ -346,5 +346,35 @@ describe("tripTotalKm", () => {
     const legMi_To = distanceKm(45.5, 9.2, 45.07, 7.68);
     const legTo_Ro = distanceKm(45.07, 7.68, 41.9, 12.5);
     expect(tripTotalKm(trip)).toBeCloseTo(legMi_To + legTo_Ro, 0);
+  });
+});
+
+describe("buildPerTripRouteCoords", () => {
+  it("restituisce una polilinea separata per ogni viaggio (nessun collegamento tra viaggi)", () => {
+    const t1 = makeTrip({ home_latitude: 45.5, home_longitude: 9.2, latitude: 48.86, longitude: 2.35 }); // Milano→Parigi
+    const t2 = makeTrip({ home_latitude: 45.5, home_longitude: 9.2, latitude: 41.39, longitude: 2.17 }); // Milano→Barcellona
+    const segs = buildPerTripRouteCoords([t1, t2]);
+    expect(segs).toHaveLength(2);
+    // ogni segmento va da casa alla destinazione, senza tratta di ritorno
+    expect(segs[0][0]).toEqual([9.2, 45.5]);
+    expect(segs[0][segs[0].length - 1]).toEqual([2.35, 48.86]);
+    expect(segs[1][0]).toEqual([9.2, 45.5]);
+    expect(segs[1][segs[1].length - 1]).toEqual([2.17, 41.39]);
+  });
+
+  it("segue il tracciato stradale reale quando presente", () => {
+    const road = makeTrip({
+      transport_mode: "car",
+      route_geometry: [[9.2, 45.5], [11, 46], [2.35, 48.86]],
+      latitude: 48.86, longitude: 2.35,
+    });
+    const [seg] = buildPerTripRouteCoords([road]);
+    expect(seg).toEqual([[9.2, 45.5], [11, 46], [2.35, 48.86]]);
+  });
+
+  it("esclude i viaggi senza punti sufficienti", () => {
+    const noHome = makeTrip({ home_latitude: null, home_longitude: null });
+    const ok = makeTrip({ home_latitude: 45.5, home_longitude: 9.2, latitude: 48.86, longitude: 2.35 });
+    expect(buildPerTripRouteCoords([noHome, ok])).toHaveLength(1);
   });
 });

@@ -15,7 +15,11 @@ export interface Stop { lon: number; lat: number; label: string }
 
 export interface PosterSvgInput {
   /** Percorso completo [lon,lat] (tracciato stradale reale dove disponibile). */
-  routeCoords: [number, number][];
+  routeCoords?: [number, number][];
+  /** Più percorsi separati (uno per viaggio) per la "Mappa della vita": ognuno
+   *  diventa un `<path>` a sé, senza linee di collegamento tra loro. Se presente
+   *  ha la precedenza su `routeCoords`. */
+  routeSegments?: [number, number][][];
   /** Tappe (nodi-stella) con etichetta. */
   stops: Stop[];
   /** Anelli dei confini [lon,lat][] già selezionati per il riquadro (opzionale). */
@@ -81,7 +85,13 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   const W = input.width ?? 1600;
   const H = input.height ?? 1000;
   const pad = 120;
-  const { routeCoords, stops, borders = [], title, dateLabel, stats } = input;
+  const { routeCoords = [], routeSegments, stops, borders = [], title, dateLabel, stats } = input;
+  // Uno o più tracciati: la Mappa della vita passa un percorso per viaggio; gli
+  // altri poster un singolo percorso. Normalizzati qui in una lista di segmenti.
+  const segments: [number, number][][] = routeSegments && routeSegments.length
+    ? routeSegments
+    : (routeCoords.length ? [routeCoords] : []);
+  const routePts = segments.flat();
 
   // Fascia inferiore RISERVATA alla didascalia (titolo/date/stats): la mappa
   // disegna solo SOPRA, così le scritte non si sovrappongono mai al tracciato
@@ -93,7 +103,7 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   // Riquadro (in mercatore) sul solo percorso+tappe: il tracciato riempie
   // sempre l'area-mappa allo stesso modo; i confini che sforano vengono
   // ritagliati dal viewBox.
-  const framePts: [number, number][] = [...routeCoords, ...stops.map(s => [s.lon, s.lat] as [number, number])];
+  const framePts: [number, number][] = [...routePts, ...stops.map(s => [s.lon, s.lat] as [number, number])];
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const [lon, lat] of framePts) {
     const x = mercX(lon), y = mercY(lat);
@@ -119,9 +129,9 @@ export function buildPosterSvg(input: PosterSvgInput): string {
     .map(r => `<path d="${ringToPath(r)}"/>`)
     .join("");
 
-  const routePath = routeCoords.length > 1
-    ? "M" + routeCoords.map(([lon, lat]) => { const [x, y] = project(lon, lat); return `${n(x)},${n(y)}`; }).join("L")
-    : "";
+  const routePaths = segments
+    .filter(seg => seg.length > 1)
+    .map(seg => "M" + seg.map(([lon, lat]) => { const [x, y] = project(lon, lat); return `${n(x)},${n(y)}`; }).join("L"));
 
   const starEls = stops.map(s => {
     const [x, y] = project(s.lon, s.lat);
@@ -148,7 +158,7 @@ export function buildPosterSvg(input: PosterSvgInput): string {
     `<defs><radialGradient id="starGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="35%" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs>`,
     `<rect x="0" y="0" width="${W}" height="${H}" fill="#000000"/>`,
     `<g id="confini" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="1.1" stroke-linejoin="round">${bordersPaths}</g>`,
-    routePath ? `<g id="tracciato" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="${routePath}"/></g>` : "",
+    routePaths.length ? `<g id="tracciato" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">${routePaths.map(d => `<path d="${d}"/>`).join("")}</g>` : "",
     `<g id="stelle">${starEls}</g>`,
     `<g id="etichette">${labelEls}</g>`,
     dividerEl,

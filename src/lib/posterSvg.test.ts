@@ -64,6 +64,24 @@ describe("buildPosterSvg — master di stampa SVG", () => {
     expect(s).toContain("A &amp; &lt;B&gt;");
     expect(s).not.toContain("<B>");
   });
+
+  it("con routeSegments disegna un path per viaggio (Mappa della vita)", () => {
+    const s = buildPosterSvg({
+      routeSegments: [
+        [[9.19, 45.46], [2.35, 48.86]],
+        [[9.19, 45.46], [2.17, 41.39]],
+      ],
+      stops: [
+        { lon: 9.19, lat: 45.46, label: "Milano" },
+        { lon: 2.35, lat: 48.86, label: "Parigi" },
+        { lon: 2.17, lat: 41.39, label: "Barcellona" },
+      ],
+      title: "La mappa della mia vita",
+    });
+    const g = s.match(/<g id="tracciato"[^>]*>(.*?)<\/g>/)?.[1] ?? "";
+    expect((g.match(/<path /g) ?? []).length).toBe(2);
+    expect(s).toContain("La mappa della mia vita");
+  });
 });
 
 describe("routeBounds", () => {
