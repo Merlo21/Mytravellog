@@ -227,10 +227,12 @@ export default function MieiViaggi() {
                       <Video style={{width:13,height:13}}/>
                     </button>
                   )}
-                  {/* Recap dell'anno (card + stories in Statistiche); deep-link a quell'anno. */}
-                  <Link to={`/recap?anno=${year}`} aria-label={`Recap del ${year}`}
-                    style={{fontSize:11,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(96,165,250,0.85)",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:4}}>
-                    <Sparkles style={{width:12,height:12}}/> Recap
+                  {/* Recap dell'anno (deep-link) — icona sola, stesso ingombro del
+                      bottone 3D: su mobile il testo veniva tagliato/coperto dal
+                      "foglio" del poster che spunta dal primo biglietto. */}
+                  <Link to={`/recap?anno=${year}`} aria-label={`Recap del ${year}`} title={`Recap del ${year}`}
+                    style={{width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(96,165,250,0.85)",textDecoration:"none",flexShrink:0}}>
+                    <Sparkles style={{width:14,height:14}}/>
                   </Link>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
