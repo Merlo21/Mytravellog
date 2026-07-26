@@ -1,0 +1,76 @@
+import { describe, it, expect } from "vitest";
+import { computeYearRecap, availableYears } from "./recap";
+import type { Trip } from "@/lib/storage";
+
+function makeTrip(o: Partial<Trip> = {}): Trip {
+  return {
+    id: Math.random().toString(36).slice(2), created_at: "2026-01-01T00:00:00Z",
+    title: "T", country: "Italia", city: "Roma", country_code: "IT",
+    trip_date: "2026-06-01", date_end: null, rating: null, notes: null,
+    transport_mode: "car", waypoints: [],
+    latitude: 41.9, longitude: 12.5, home_latitude: 45.5, home_longitude: 9.2, home_label: "Milano",
+    route_geometry: null, temperature_c: null, altitude_m: null, max_altitude_m: null, max_altitude_city: null,
+    distance_from_home_km: null, max_distance_from_home_km: null, max_distance_city: null,
+    hottest_temp_c: null, hottest_city: null, coldest_temp_c: null, coldest_city: null,
+    region: null, region_details: null, ...o,
+  };
+}
+
+describe("availableYears", () => {
+  it("ritorna gli anni con viaggi, decrescenti e unici", () => {
+    const trips = [makeTrip({ trip_date: "2026-01-01" }), makeTrip({ trip_date: "2024-07-01" }), makeTrip({ trip_date: "2026-09-01" })];
+    expect(availableYears(trips)).toEqual([2026, 2024]);
+  });
+});
+
+describe("computeYearRecap", () => {
+  it("filtra per anno e conta viaggi/paesi/città/mesi", () => {
+    const trips = [
+      makeTrip({ trip_date: "2026-06-01", country: "Italia", country_code: "IT", city: "Roma",
+        waypoints: [{ city: "Innsbruck", country: "Austria", country_code: "AT", transport_mode: "car", lat: 47.27, lon: 11.39 }] }),
+      makeTrip({ trip_date: "2026-08-10", country: "Italia", country_code: "IT", city: "Napoli" }),
+      makeTrip({ trip_date: "2025-05-01", country: "Francia", country_code: "FR", city: "Parigi" }),
+    ];
+    const r = computeYearRecap(trips, 2026);
+    expect(r.trips).toBe(2);
+    expect(r.countries).toBe(2); // Italia + Austria (la Francia è 2025)
+    expect(r.cities).toBe(3);    // Roma, Innsbruck, Napoli
+    expect(r.monthsActive).toBe(2); // giugno + agosto
+  });
+
+  it("somma i km percorsi e i giorni (inclusivi)", () => {
+    const trips = [
+      makeTrip({ trip_date: "2026-06-01", date_end: "2026-06-05", home_latitude: 45, home_longitude: 9, latitude: 46, longitude: 9 }), // 5 giorni, ~111 km
+      makeTrip({ trip_date: "2026-07-01", date_end: null, home_latitude: 45, home_longitude: 9, latitude: 47, longitude: 9 }),          // 1 giorno, ~222 km
+    ];
+    const r = computeYearRecap(trips, 2026);
+    expect(r.days).toBe(6);
+    expect(r.km).toBeGreaterThan(320);
+    expect(r.km).toBeLessThan(345);
+  });
+
+  it("individua i record (più lontano/alto/caldo/freddo) e il paese top", () => {
+    const trips = [
+      makeTrip({ trip_date: "2026-01-01", country: "Italia", country_code: "IT",
+        max_distance_from_home_km: 600, max_distance_city: "Vienna", max_altitude_m: 1500, max_altitude_city: "Passo",
+        hottest_temp_c: 30, hottest_city: "Roma", coldest_temp_c: -5, coldest_city: "Cortina" }),
+      makeTrip({ trip_date: "2026-02-01", country: "Italia", country_code: "IT",
+        max_distance_from_home_km: 200, max_altitude_m: 300, hottest_temp_c: 35, hottest_city: "Palermo", coldest_temp_c: 2 }),
+      makeTrip({ trip_date: "2026-03-01", country: "Spagna", country_code: "ES" }),
+    ];
+    const r = computeYearRecap(trips, 2026);
+    expect(r.farthest).toEqual({ value: 600, city: "Vienna" });
+    expect(r.highest).toEqual({ value: 1500, city: "Passo" });
+    expect(r.hottest).toEqual({ value: 35, city: "Palermo" });
+    expect(r.coldest).toEqual({ value: -5, city: "Cortina" });
+    expect(r.topCountry?.name).toBe("Italia"); // 2 viaggi vs 1 Spagna
+  });
+
+  it("anno senza viaggi → tutto a zero, record null", () => {
+    const r = computeYearRecap([makeTrip({ trip_date: "2020-01-01" })], 2026);
+    expect(r.trips).toBe(0);
+    expect(r.km).toBe(0);
+    expect(r.farthest).toBeNull();
+    expect(r.topCountry).toBeNull();
+  });
+});

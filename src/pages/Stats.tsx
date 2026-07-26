@@ -1,7 +1,7 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { PieChart } from "lucide-react";
+import { PieChart, Sparkles } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { Trip, loadTrips } from "@/lib/storage";
 import { StatsSection } from "@/components/StatsSection";
@@ -46,6 +46,23 @@ const Stats = () => {
         </div>
       ) : (
         <div className="container mx-auto px-6 py-8 space-y-8 stats-stagger">
+          {/* Ingresso al Recap annuale "Il tuo anno di viaggi" (card condivisibile). */}
+          <Link to="/recap"
+            style={{
+              display: "flex", alignItems: "center", gap: 12, textDecoration: "none",
+              background: "linear-gradient(135deg, rgba(96,165,250,0.16), rgba(251,191,36,0.10))",
+              border: "0.5px solid #1a2d4a", borderRadius: 14, padding: "14px 16px",
+            }}>
+            <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(96,165,250,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Sparkles style={{ width: 20, height: 20, color: "#60a5fa" }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="font-display" style={{ fontSize: 15, fontWeight: 700, color: "#f0f4ff" }}>Il tuo anno di viaggi</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>Apri il recap annuale, bello e condivisibile</div>
+            </div>
+            <span style={{ color: "#60a5fa", fontSize: 20 }}>→</span>
+          </Link>
+
           <StatsSection trips={trips} />
 
           <ContinentsMap trips={trips} />
