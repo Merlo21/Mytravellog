@@ -7,7 +7,7 @@ import { TripCardTicket } from "@/components/TripCardTicket";
 import { TripFlyover } from "@/components/TripFlyover";
 import { loadTrips, deleteTrip, Trip } from "@/lib/storage";
 import { deletePhotosForTrip } from "@/lib/photoStorage";
-import { Search, X, Video, Plane, Plus } from "lucide-react";
+import { Search, X, Video, Plane, Plus, Sparkles } from "lucide-react";
 
 const DELETE_ANIM_MS = 200;
 // Finestra di tempo in cui "Annulla" nel toast può ancora recuperare il
@@ -227,6 +227,11 @@ export default function MieiViaggi() {
                       <Video style={{width:13,height:13}}/>
                     </button>
                   )}
+                  {/* Recap dell'anno (card + stories in Statistiche); deep-link a quell'anno. */}
+                  <Link to={`/recap?anno=${year}`} aria-label={`Recap del ${year}`}
+                    style={{fontSize:11,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",color:"rgba(96,165,250,0.85)",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:4}}>
+                    <Sparkles style={{width:12,height:12}}/> Recap
+                  </Link>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {byYear[year].map((t, i) => (
