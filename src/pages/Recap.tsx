@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Share2, Download } from "lucide-react";
+import { ArrowLeft, Share2, Download, Play } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { loadTrips } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { computeYearRecap, availableYears, YearRecap } from "@/lib/recap";
+import { RecapStories } from "@/components/RecapStories";
 
 const W = 1080, H = 1350;
 const MODE_COLOR: Record<string, string> = {
@@ -158,6 +159,7 @@ const Recap = () => {
   const { distanceUnit, temperatureUnit } = useSettings();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [flag, setFlag] = useState<HTMLImageElement | null>(null);
+  const [playing, setPlaying] = useState(false);
 
   const trips = useMemo(() => loadTrips(), []);
   const years = useMemo(() => availableYears(trips), [trips]);
@@ -247,9 +249,27 @@ const Recap = () => {
               {canShareFile(new File([], "x.png", { type: "image/png" })) ? <Share2 className="w-4 h-4" /> : <Download className="w-4 h-4" />}
               Condividi il recap
             </button>
+
+            <button onClick={() => setPlaying(true)}
+              style={{
+                marginTop: 10, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "12px", borderRadius: 999, background: "transparent", color: "rgba(255,255,255,0.8)",
+                border: "0.5px solid #1a2d4a", fontSize: 14, fontWeight: 600, cursor: "pointer",
+              }}>
+              <Play className="w-4 h-4" /> Riproduci come stories
+            </button>
           </>
         )}
       </div>
+
+      {playing && (
+        <RecapStories
+          recap={recap}
+          fmt={fmt}
+          flagUrl={recap.topCountry?.code ? `https://flagcdn.com/w320/${recap.topCountry.code.toLowerCase()}.png` : null}
+          onClose={() => setPlaying(false)}
+        />
+      )}
     </main>
   );
 };
