@@ -65,6 +65,14 @@ describe("buildPosterSvg — master di stampa SVG", () => {
     expect(s).not.toContain("<B>");
   });
 
+  it("con hideLabels non disegna i nomi delle tappe (Mappa della vita)", () => {
+    const s = buildPosterSvg({ ...INPUT, hideLabels: true });
+    expect(s).not.toContain("Milano");
+    expect(s).not.toContain("Trieste");
+    // le stelle-LED restano (una per tappa)
+    expect((s.match(/data-led="1"/g) ?? []).length).toBe(INPUT.stops.length);
+  });
+
   it("con routeSegments disegna un path per viaggio (Mappa della vita)", () => {
     const s = buildPosterSvg({
       routeSegments: [

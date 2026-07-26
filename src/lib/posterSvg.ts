@@ -28,6 +28,8 @@ export interface PosterSvgInput {
   dateLabel?: string | null;
   /** Es. "1315 km · 6 tappe". */
   stats?: string | null;
+  /** Nasconde i nomi delle tappe (Mappa della vita: costellazione pulita). */
+  hideLabels?: boolean;
   width?: number;
   height?: number;
 }
@@ -85,7 +87,7 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   const W = input.width ?? 1600;
   const H = input.height ?? 1000;
   const pad = 120;
-  const { routeCoords = [], routeSegments, stops, borders = [], title, dateLabel, stats } = input;
+  const { routeCoords = [], routeSegments, stops, borders = [], title, dateLabel, stats, hideLabels = false } = input;
   // Uno o più tracciati: la Mappa della vita passa un percorso per viaggio; gli
   // altri poster un singolo percorso. Normalizzati qui in una lista di segmenti.
   const segments: [number, number][][] = routeSegments && routeSegments.length
@@ -138,7 +140,7 @@ export function buildPosterSvg(input: PosterSvgInput): string {
     return `<circle cx="${n(x)}" cy="${n(y)}" r="16" fill="url(#starGlow)"/><circle data-led="1" cx="${n(x)}" cy="${n(y)}" r="5" fill="#ffffff"/>`;
   }).join("");
 
-  const labelEls = stops.map(s => {
+  const labelEls = hideLabels ? "" : stops.map(s => {
     const [x, y] = project(s.lon, s.lat);
     return `<text x="${n(x)}" y="${n(y - 14)}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#ffffff">${escapeXml(s.label)}</text>`;
   }).join("");

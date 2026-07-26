@@ -421,7 +421,9 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-pitch-alignment": "viewport",
-          "text-field": ["get", "name"],
+          // Mappa della vita: nessun nome città sulle stelle (scelta utente:
+          // con molte mete i nomi si accavallano → costellazione "pulita").
+          "text-field": lifeMap ? "" : ["get", "name"],
           // Costellazione: serif corsivo elegante (fallback a un sans se MapTiler
           // non serve Noto Serif Italic). Altre viste: bold sans come prima.
           "text-font": constellation ? ["Noto Serif Italic", "Open Sans Regular"] : ["Open Sans Bold"],
@@ -538,6 +540,10 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
         ctx.restore();
       }
     }
+
+    // Mappa della vita: nessuna caption nemmeno nell'immagine salvata/condivisa
+    // (coerente con la vista a schermo, mappa "nuda").
+    if (lifeMap) return c;
 
     // Costellazione: DIDASCALIA senza riquadro (serif elegante, monocromatica),
     // allineata a destra, come la caption di una stampa celeste. Disegnata qui
@@ -801,9 +807,10 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
       try {
         rings = await loadCountryRings(routeBounds(route.length ? route : stops.map(s => [s.lon, s.lat] as [number, number])));
       } catch { /* confini non disponibili: esporta comunque rotta+stelle */ }
-      const title = lifeMap ? posterTitle : (tripsCount > 1 ? `${tripsCount} viaggi` : trips[0].title);
+      // Mappa della vita: SVG "nudo" (nessuna caption) → niente titolo/date/stat.
+      const title = lifeMap ? "" : (tripsCount > 1 ? `${tripsCount} viaggi` : trips[0].title);
       const stats = statLine();
-      const svg = buildPosterSvg({ routeSegments: routeSegsRef.current, stops, borders: rings, title, dateLabel: dateRangeLabel, stats });
+      const svg = buildPosterSvg({ routeSegments: routeSegsRef.current, stops, borders: rings, title, dateLabel: lifeMap ? null : dateRangeLabel, stats, hideLabels: lifeMap });
       const blob = new Blob([svg], { type: "image/svg+xml" });
       const base = lifeMap ? "mappa-della-vita" : (tripsCount === 1 ? trips[0].title : "viaggio").replace(/[^\w.-]+/g, "_").slice(0, 40) || "viaggio";
       const url = URL.createObjectURL(blob);
@@ -1013,8 +1020,10 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
             {/* Dati viaggio, in alto a destra. Due stili di card:
                 - satellite: vetro navy (font di marca + numeri mono),
                 - costellazione: DIDASCALIA senza riquadro, serif elegante
-                  (Cormorant) monocromatica, come la caption di una stampa celeste. */}
-            {styleMode === "constellation" ? (
+                  (Cormorant) monocromatica, come la caption di una stampa celeste.
+                Sulla "Mappa della vita" NON si mostra alcuna caption (mappa nuda,
+                scelta utente): titolo/bandiere/date/stat tutti omessi. */}
+            {!lifeMap && (styleMode === "constellation" ? (
               <div style={{
                 position: "absolute", top: 20, right: 20, zIndex: 25, maxWidth: "72%",
                 textAlign: "right", textShadow: "0 1px 5px rgba(0,0,0,0.9)",
@@ -1096,7 +1105,7 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
               </div>
               )}
             </div>
-            )}
+            ))}
 
             {/* Ventaglio foto in basso a sinistra. */}
             {finalePhotos.length > 0 && (() => {
@@ -1139,7 +1148,7 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
                   <Download className="w-3.5 h-3.5" /> {exportingSvg ? "Esporto…" : "Esporta SVG"}
                 </button>
               )}
-              {tripsCount === 1 && (
+              {tripsCount === 1 && !lifeMap && (
                 <button onClick={handleSaveRelief} disabled={savingRelief}
                   style={{
                     padding: "8px 16px", borderRadius: 999, background: "rgba(96,165,250,0.15)",
@@ -1153,9 +1162,9 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
                 style={{
                   display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
                   padding: "8px 16px", borderRadius: 999,
-                  background: tripsCount === 1 ? "rgba(10,22,40,0.85)" : "rgba(96,165,250,0.15)",
-                  border: tripsCount === 1 ? "0.5px solid #1a2d4a" : "1px solid #60a5fa",
-                  color: tripsCount === 1 ? "rgba(255,255,255,0.8)" : "#60a5fa",
+                  background: (tripsCount === 1 && !lifeMap) ? "rgba(10,22,40,0.85)" : "rgba(96,165,250,0.15)",
+                  border: (tripsCount === 1 && !lifeMap) ? "0.5px solid #1a2d4a" : "1px solid #60a5fa",
+                  color: (tripsCount === 1 && !lifeMap) ? "rgba(255,255,255,0.8)" : "#60a5fa",
                 }}>
                 <Share2 className="w-3.5 h-3.5" /> Condividi
               </button>

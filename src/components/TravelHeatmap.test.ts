@@ -19,9 +19,16 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
 }
 
 function daysAgoISO(n: number): string {
+  // Data LOCALE (non toISOString/UTC): daysSinceLastTrip usa parseLocalDate +
+  // new Date() locale, quindi nelle prime ore del mattino toISOString darebbe il
+  // giorno UTC = ieri, sfasando i test di 1. Formattiamo in locale per coerenza.
   const d = new Date();
+  d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 describe("computeMonthlyTravelDays", () => {
