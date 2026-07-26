@@ -241,7 +241,7 @@ function HomeInner() {
               setStarMouse({x: e.clientX, y: e.clientY});
             }}
             onMouseLeave={() => setStarMouse(null)}
-            onTouchStart={(e) => { const t = e.touches[0]; if (t) lastTouchRef.current = { x: t.clientX, y: t.clientY }; }}
+            onTouchStart={(e) => { const t = e.touches[0]; if (t) { lastTouchRef.current = { x: t.clientX, y: t.clientY }; setStarMouse({ x: t.clientX, y: t.clientY }); } }}
             onTouchMove={(e) => {
               // Stesso parallax del mouse ma col dito: spostamento tra due
               // touchmove (il touch non ha movementX/Y), stesso fattore 0.5.
@@ -249,8 +249,11 @@ function HomeInner() {
               const last = lastTouchRef.current;
               if (last) setStarOffset(p => ({ x: p.x + (t.clientX - last.x) * 0.5, y: p.y + (t.clientY - last.y) * 0.5 }));
               lastTouchRef.current = { x: t.clientX, y: t.clientY };
+              // Come onMouseMove: aggiorna starMouse così compare il NOME della
+              // costellazione più vicina (prima su touch restava fermo → niente nomi).
+              setStarMouse({ x: t.clientX, y: t.clientY });
             }}
-            onTouchEnd={() => { lastTouchRef.current = null; }}>
+            onTouchEnd={() => { lastTouchRef.current = null; setStarMouse(null); }}>
             <StarField offsetX={starOffset.x} offsetY={starOffset.y} mousePos={starMouse} />
             <WorldMap
               trips={trips}
