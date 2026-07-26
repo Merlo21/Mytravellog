@@ -135,7 +135,7 @@ export default function MieiViaggi() {
               {trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}
             </p>
           </div>
-          {trips.length > 1 && (
+          {trips.length > 0 && (
             <button type="button" onClick={() => setShowLifeMap(true)}
               aria-label="La mappa della mia vita" title="La mappa della mia vita"
               style={{
