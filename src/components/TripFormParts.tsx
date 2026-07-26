@@ -57,12 +57,12 @@ const TRANSPORT_SVG: Record<string, (color: string, size?: number) => React.Reac
   moto:  (c, s=24) => <Motorcycle width={s} height={s} stroke={c} strokeWidth={1.5}/>,
 };
 
-function ContinuousFlyer({ stops, cx, cy, W }: {
-  stops: { label: string; isHome: boolean; transport: string | null }[];
-  cx: (i: number) => number;
-  cy: number;
-  W: number;
-}) {
+type Pt = { x: number; y: number };
+type ArcSeg = { p0: Pt; p1: Pt; p2: Pt; transport: string | null };
+
+/** Mezzo che scorre di continuo lungo l'intera catena di archi (serpentina
+ *  verticale). Legge gli stessi archi bézier 2D disegnati dai nodi. */
+function ContinuousFlyer({ arcs, vbw }: { arcs: ArcSeg[]; vbw: number }) {
   const [progress, setProgress] = React.useState(0);
   const animRef = React.useRef<number>();
   const startRef = React.useRef<number>();
@@ -79,57 +79,36 @@ function ContinuousFlyer({ stops, cx, cy, W }: {
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, []);
 
-  const arcs = stops.map((stop, i) => {
-    if (i === 0) return null;
-    const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
-    const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
-    return { x1, x2, mx, arcH, transport: stop.transport };
-  }).filter(Boolean) as { x1:number; x2:number; mx:number; arcH:number; transport:string|null }[];
-
   if (arcs.length === 0) return null;
 
-  // Total arcs, distribute progress evenly
   const n = arcs.length;
   const arcIdx = Math.min(Math.floor(progress * n), n - 1);
-  const arcProgress = (progress * n) - arcIdx;
-  const arc = arcs[arcIdx];
-  const t = arc.transport ?? "plane";
+  const bt = (progress * n) - arcIdx;
+  const a = arcs[arcIdx];
+  const t = a.transport ?? "plane";
 
-  // Bezier point: B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-  const bt = arcProgress;
-  const x = Math.pow(1-bt,2)*arc.x1 + 2*(1-bt)*bt*arc.mx + Math.pow(bt,2)*arc.x2;
-  const y = Math.pow(1-bt,2)*cy     + 2*(1-bt)*bt*(cy-arc.arcH) + Math.pow(bt,2)*cy;
-
-  // Tangent angle for rotation
-  const dx = 2*(1-bt)*(arc.mx-arc.x1) + 2*bt*(arc.x2-arc.mx);
-  const dy = 2*(1-bt)*((cy-arc.arcH)-cy) + 2*bt*(cy-(cy-arc.arcH));
+  // Punto e tangente della bézier quadratica (in 2D).
+  const x = Math.pow(1-bt,2)*a.p0.x + 2*(1-bt)*bt*a.p1.x + Math.pow(bt,2)*a.p2.x;
+  const y = Math.pow(1-bt,2)*a.p0.y + 2*(1-bt)*bt*a.p1.y + Math.pow(bt,2)*a.p2.y;
+  const dx = 2*(1-bt)*(a.p1.x-a.p0.x) + 2*bt*(a.p2.x-a.p1.x);
+  const dy = 2*(1-bt)*(a.p1.y-a.p0.y) + 2*bt*(a.p2.y-a.p1.y);
   const angle = Math.atan2(dy, dx) * (180/Math.PI);
 
   const color = TRANSPORT.find(x => x.value === t)?.color ?? "#378ADD";
-
-  const pct = ((x / (W + 40)) * 100);
+  const pct = (x / vbw) * 100;
 
   return (
-    <div style={{
-      position: "absolute",
-      top: 0, left: 0,
-      width: "100%",
-      height: "100%",
-      pointerEvents: "none",
-    }}>
+    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
       <div style={{
         position: "absolute",
         left: `${pct}%`,
         top: y,
         transform: `translate(-50%, -50%) rotate(${angle}deg)`,
         filter: `drop-shadow(0 0 5px ${color}) drop-shadow(0 0 12px ${color}) drop-shadow(0 0 24px ${color}80)`,
-        lineHeight: 1,
-        transition: "none",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        lineHeight: 1, transition: "none",
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        {(TRANSPORT_SVG[t] ?? TRANSPORT_SVG.plane)(color, 28)}
+        {(TRANSPORT_SVG[t] ?? TRANSPORT_SVG.plane)(color, 24)}
       </div>
     </div>
   );
@@ -180,21 +159,33 @@ function RouteHero({
   ];
 
   const n = stops.length;
-  const W = containerW - 40;
-  const H = 160;
-  const nodeR = Math.min(34, Math.max(22, W / (n * 3.5)));
-  const pad = nodeR + 24;
-  const step = n > 1 ? (W - pad * 2) / (n - 1) : 0;
-  const cx = (i: number) => pad + 20 + i * step;
-  const cy = 95;
+  const VBW = Math.max(300, containerW);
+  const nodeR = 22;
+  const xL = 68, xR = VBW - 68;
+  const padTop = 40, vStep = 84;
+  const nodeX = (i: number) => (i % 2 === 0 ? xL : xR);
+  const nodeY = (i: number) => padTop + i * vStep;
+  const H = padTop + (n - 1) * vStep + nodeR + 34;
   const showArcs = waypoints.length > 0;
+
+  // Archi bézier tra tappe consecutive: colonne alternate (sx/dx) → serpentina
+  // verticale, ciascun arco bomba verso l'esterno della colonna di arrivo.
+  const arcSegs: ArcSeg[] = [];
+  for (let i = 1; i < n; i++) {
+    const p0 = { x: nodeX(i - 1), y: nodeY(i - 1) };
+    const p2 = { x: nodeX(i), y: nodeY(i) };
+    const bowRight = i % 2 === 1;
+    const bow = 46;
+    const p1 = { x: bowRight ? Math.max(p0.x, p2.x) + bow : Math.min(p0.x, p2.x) - bow, y: (p0.y + p2.y) / 2 };
+    arcSegs.push({ p0, p1, p2, transport: stops[i].transport });
+  }
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
-      <div ref={containerRef} style={{ flex:1, padding:"20px 0 0", position:"relative" }}>
+      <div ref={containerRef} style={{ flex:1, padding:"12px 0 0", position:"relative" }}>
         {showArcs ? (
           <div style={{ position:"relative", width:"100%" }}>
-            <svg width="100%" height={H} viewBox={`0 0 ${W + 40} ${H}`}
+            <svg width="100%" height={H} viewBox={`0 0 ${VBW} ${H}`}
               style={{ display:"block", overflow:"visible" }}>
               <defs>
                 {TRANSPORT.map(t => (
@@ -204,125 +195,114 @@ function RouteHero({
                 ))}
               </defs>
 
-              {/* Arcs */}
-              {stops.map((stop, i) => {
-                if (i === 0) return null;
-                const t = TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0];
-                const x1 = cx(i-1), x2 = cx(i), mx = (x1+x2)/2;
-                const arcH = Math.min(65, Math.max(25, (x2-x1)*0.38));
+              {/* Archi (serpentina verticale) */}
+              {arcSegs.map((a, k) => {
+                const t = TRANSPORT.find(t => t.value === a.transport) ?? TRANSPORT[0];
+                const d = `M ${a.p0.x} ${a.p0.y} Q ${a.p1.x} ${a.p1.y} ${a.p2.x} ${a.p2.y}`;
                 return (
-                  <g key={i}>
-                    {/* Glow */}
-                    <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
-                      stroke={t.color} strokeWidth="8" fill="none" opacity="0.06"/>
-                    {/* Arc */}
-                    <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
-                      stroke={t.color} strokeWidth="2" strokeDasharray="5 3"
+                  <g key={k}>
+                    <path d={d} stroke={t.color} strokeWidth="8" fill="none" opacity="0.06"/>
+                    <path d={d} stroke={t.color} strokeWidth="2" strokeDasharray="5 3"
                       fill="none" opacity="0.6" markerEnd={`url(#tf-arr-${t.value})`}/>
-                    {/* Clickable arc for transport change */}
-                    <path d={`M ${x1} ${cy} Q ${mx} ${cy-arcH} ${x2} ${cy}`}
-                      stroke="transparent" strokeWidth="20" fill="none"
-                      style={{cursor:"pointer"}}
-                      onClick={() => setActiveArc(activeArc === i ? null : i)}/>
-                    {/* Transport picker popup */}
-                    {activeArc === i && (
-                      <g onClick={e => e.stopPropagation()}>
-                        <rect x={mx-119} y={cy-arcH-84} width="238" height="60" rx="10"
-                          fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
-                        <text x={mx} y={cy-arcH-64} fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">Cambia mezzo</text>
-                        {TRANSPORT.map((opt, j) => {
-                          const bx = mx - 96 + j * 32;
-                          const by = cy - arcH - 44;
-                          return (
-                            <g key={opt.value} style={{cursor:"pointer"}}
-                              onClick={() => { waypoints[i-1].transport_mode = opt.value; onRemoveWaypoint(-99); setActiveArc(null); }}>
-                              {/* Area di tap invisibile: affiancate a passo 32 (il
-                                  passo stesso tra le icone), senza sovrapporsi alle vicine. */}
-                              <rect x={bx-16} y={by-18} width="32" height="36" fill="transparent"/>
-                              <rect x={bx-14} y={by-14} width="28" height="28" rx="8"
-                                fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.05)"}
-                                stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"} strokeWidth="1"/>
-                              <foreignObject x={bx-11} y={by-11} width="22" height="22">
-                                <div style={{display:"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
-                                  {TRANSPORT_SVG[opt.value]?.(opt.color, 19)}
-                                </div>
-                              </foreignObject>
-                            </g>
-                          );
-                        })}
-                      </g>
-                    )}
+                    <path d={d} stroke="transparent" strokeWidth="22" fill="none" style={{cursor:"pointer"}}
+                      onClick={() => setActiveArc(activeArc === k + 1 ? null : k + 1)}/>
                   </g>
                 );
               })}
 
-              {/* Nodes */}
+              {/* Nodi */}
               {stops.map((stop, i) => {
-                const x = cx(i);
-                const isLast = i === stops.length-1 && stops.length > 1;
+                const x = nodeX(i), y = nodeY(i);
+                const isLast = i === n - 1 && n > 1;
                 const lastT = isLast ? TRANSPORT.find(t => t.value === stop.transport) ?? TRANSPORT[0] : null;
                 const borderColor = stop.isHome ? "#fbbf24" : lastT ? lastT.color : "#60a5fa";
                 const bgFill = stop.isHome ? "rgba(251,191,36,0.1)" : lastT ? lastT.bg : "rgba(96,165,250,0.08)";
                 const r = isLast ? nodeR + 5 : nodeR;
+                const leftCol = i % 2 === 0;
+                const labelX = leftCol ? x + r + 9 : x - r - 9;
                 return (
                   <g key={i}>
-                    <circle cx={x} cy={cy} r={r} fill={bgFill} stroke={borderColor}
+                    <circle cx={x} cy={y} r={r} fill={bgFill} stroke={borderColor}
                       strokeWidth={isLast ? 2.5 : 1.5} strokeDasharray={stop.isHome ? "3 2" : "none"}/>
-                    {stop.isHome && (
+                    {stop.isHome ? (
                       <g style={{cursor:"pointer"}} onClick={onEditHome}>
-                        {/* Area di tap invisibile, più ampia del pallino visibile
-                            (che resta a r=10 ≈ 20px): un target reale da ~40px
-                            senza appesantire il disegno. */}
-                        <circle cx={x+r-4} cy={cy-r+4} r="20" fill="transparent"/>
-                        <circle cx={x+r-4} cy={cy-r+4} r="10" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1.5"/>
-                        <text x={x+r-4} y={cy-r+8} fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
+                        <circle cx={x+r-4} cy={y-r+4} r="20" fill="transparent"/>
+                        <circle cx={x+r-4} cy={y-r+4} r="10" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1.5"/>
+                        <text x={x+r-4} y={y-r+8} fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
                       </g>
-                    )}
-                    {!stop.isHome && (
+                    ) : (
                       <g style={{cursor:"pointer"}} onClick={() => onRemoveWaypoint(i-1)}>
-                        <circle cx={x+r-3} cy={cy-r+3} r="20" fill="transparent"/>
-                        <circle cx={x+r-3} cy={cy-r+3} r="9" fill="#060e1e"
+                        <circle cx={x+r-3} cy={y-r+3} r="20" fill="transparent"/>
+                        <circle cx={x+r-3} cy={y-r+3} r="9" fill="#060e1e"
                           stroke={isLast ? borderColor : "#1a2d4a"} strokeWidth="1.5"/>
-                        <text x={x+r-3} y={cy-r+7} fontSize="10" textAnchor="middle"
+                        <text x={x+r-3} y={y-r+7} fontSize="10" textAnchor="middle"
                           fill={isLast ? borderColor : "rgba(255,255,255,0.4)"}>×</text>
                       </g>
                     )}
-                    <text x={x} y={cy+r+14} fontSize="9.5" textAnchor="middle"
-                      fill={isLast ? borderColor : "rgba(255,255,255,0.4)"}
-                      fontWeight={isLast ? "600" : "normal"}>
-                      {stop.label.length > 9 ? stop.label.slice(0,8)+"…" : stop.label}
+                    <text x={labelX} y={y+4} fontSize="12" textAnchor={leftCol ? "start" : "end"}
+                      fill={isLast ? borderColor : stop.isHome ? "#fbbf24" : "rgba(255,255,255,0.7)"}
+                      fontWeight={isLast || stop.isHome ? "700" : "500"}>
+                      {stop.label.length > 16 ? stop.label.slice(0,15)+"…" : stop.label}
                     </text>
                   </g>
                 );
               })}
+
+              {/* Selettore mezzo (sopra tutto): centrato, sull'altezza dell'arco attivo */}
+              {activeArc != null && activeArc >= 1 && activeArc < n && (() => {
+                const a = arcSegs[activeArc - 1];
+                const stop = stops[activeArc];
+                const midX = VBW / 2;
+                const py = Math.max(6, (a.p0.y + a.p2.y) / 2 - 30);
+                return (
+                  <g onClick={e => e.stopPropagation()}>
+                    <rect x={midX-119} y={py} width="238" height="60" rx="10" fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
+                    <text x={midX} y={py+18} fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">Cambia mezzo</text>
+                    {TRANSPORT.map((opt, j) => {
+                      const bx = midX - 96 + j * 32, by = py + 40;
+                      return (
+                        <g key={opt.value} style={{cursor:"pointer"}}
+                          onClick={() => { waypoints[activeArc-1].transport_mode = opt.value; onRemoveWaypoint(-99); setActiveArc(null); }}>
+                          <rect x={bx-16} y={by-18} width="32" height="36" fill="transparent"/>
+                          <rect x={bx-14} y={by-14} width="28" height="28" rx="8"
+                            fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.05)"}
+                            stroke={stop.transport === opt.value ? opt.color : "#1a2d4a"} strokeWidth="1"/>
+                          <foreignObject x={bx-11} y={by-11} width="22" height="22">
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"center",width:"100%",height:"100%"}}>
+                              {TRANSPORT_SVG[opt.value]?.(opt.color, 19)}
+                            </div>
+                          </foreignObject>
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })()}
             </svg>
 
-            {/* HTML overlays: home emoji + flag CDN images */}
-            <div style={{ position:"absolute", top:0, left:0, width:"100%", pointerEvents:"none" }}>
+            {/* Overlay HTML: emoji casa + bandiere */}
+            <div style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", pointerEvents:"none" }}>
               {stops.map((stop, i) => {
-                const x = cx(i);
-                const isLast = i === stops.length-1 && stops.length > 1;
+                const x = nodeX(i), y = nodeY(i);
+                const isLast = i === n - 1 && n > 1;
                 const r = isLast ? nodeR + 5 : nodeR;
                 const size = r * 1.3;
                 return (
                   <div key={i} style={{
                     position:"absolute",
-                    left: (x / (W+40)) * 100 + "%",
-                    top: cy - r * 0.6,
+                    left: (x / VBW) * 100 + "%",
+                    top: y - r * 0.65,
                     transform: "translateX(-50%)",
                     width: size, height: size,
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    overflow: "hidden",
-                    borderRadius: "50%",
+                    overflow: "hidden", borderRadius: "50%",
                   }}>
                     {stop.isHome
                       ? <span style={{ fontSize: r * 0.75, lineHeight:1 }}>🏠</span>
                       : stop.countryCode
-                        ? <img
-                            src={`https://flagcdn.com/w80/${stop.countryCode.toLowerCase()}.png`}
+                        ? <img src={`https://flagcdn.com/w80/${stop.countryCode.toLowerCase()}.png`}
                             style={{ width:"100%", height:"100%", objectFit:"cover" }}
-                            onError={e => { (e.target as HTMLImageElement).style.display="none"; }}
-                          />
+                            onError={e => { (e.target as HTMLImageElement).style.display="none"; }}/>
                         : <span style={{ fontSize: r * 0.65, lineHeight:1 }}>🌍</span>
                     }
                   </div>
@@ -330,31 +310,34 @@ function RouteHero({
               })}
             </div>
 
-            {/* Single continuous animation across all arcs */}
-            <ContinuousFlyer stops={stops} cx={cx} cy={cy} W={W}/>
+            {/* Mezzo animato lungo l'intera serpentina */}
+            <ContinuousFlyer arcs={arcSegs} vbw={VBW}/>
           </div>
         ) : (
-          /* Empty state */
-          <div style={{ position:"relative", width:"100%", height:H }}>
-            <svg width="100%" height={H} viewBox={`0 0 ${W+40} ${H}`}
-              style={{ display:"block", overflow:"visible" }}>
-              <path d={`M 60 80 Q ${(W+40)*0.35} 20 ${(W+40)*0.5} 80`}
-                stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
-              <path d={`M ${(W+40)*0.5} 80 Q ${(W+40)*0.72} 20 ${W-20} 80`}
-                stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
-              <circle cx="60" cy="80" r="26" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <circle cx="74" cy="60" r="9" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1"/>
-              <text x="74" y="64" fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
-              <text x="60" y="113" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">{homeLabel.slice(0,9)}</text>
-              <circle cx={(W+40)*0.5} cy="80" r="24" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x={(W+40)*0.5} y="85" fontSize="20" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.1)">+</text>
-              <text x={(W+40)*0.5} y="112" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.12)">tappa</text>
-              <circle cx={W-20} cy="80" r="28" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <text x={W-20} y="85" fontSize="22" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.1)">+</text>
-              <text x={W-20} y="116" fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.12)">destinazione</text>
-            </svg>
-            <div style={{ position:"absolute", top:54, left:36, width:48, height:48,
-              display:"flex", alignItems:"center", justifyContent:"center",
+          /* Stato vuoto (solo casa): casa in alto, arco tratteggiato verso "+ destinazione" */
+          <div style={{ position:"relative", width:"100%" }}>
+            {(() => {
+              const eh = padTop + vStep + 60;
+              const hx = xL, hy = padTop, dx = xR, dy = padTop + vStep;
+              return (
+                <svg width="100%" height={eh} viewBox={`0 0 ${VBW} ${eh}`} style={{ display:"block", overflow:"visible" }}>
+                  <path d={`M ${hx} ${hy} Q ${xR+46} ${(hy+dy)/2} ${dx} ${dy}`}
+                    stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
+                  <circle cx={hx} cy={hy} r="26" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2"/>
+                  <g style={{cursor:"pointer"}} onClick={onEditHome}>
+                    <circle cx={hx+22} cy={hy-22} r="20" fill="transparent"/>
+                    <circle cx={hx+22} cy={hy-22} r="10" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1.5"/>
+                    <text x={hx+22} y={hy-18} fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
+                  </g>
+                  <text x={hx+38} y={hy+4} fontSize="12" textAnchor="start" fill="#fbbf24" fontWeight="700">{homeLabel}</text>
+                  <circle cx={dx} cy={dy} r="26" fill="rgba(255,255,255,0.02)" stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="3 2"/>
+                  <text x={dx} y={dy+6} fontSize="22" textAnchor="middle" dominantBaseline="middle" fill="rgba(255,255,255,0.15)">+</text>
+                  <text x={dx-38} y={dy+4} fontSize="12" textAnchor="end" fill="rgba(255,255,255,0.3)">destinazione</text>
+                </svg>
+              );
+            })()}
+            <div style={{ position:"absolute", left:(xL/VBW)*100+"%", top:padTop-14, transform:"translateX(-50%)",
+              width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center",
               fontSize:22, cursor:"pointer" }} onClick={onEditHome}>🏠</div>
           </div>
         )}
