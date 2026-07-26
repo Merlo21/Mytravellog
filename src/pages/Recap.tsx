@@ -26,119 +26,123 @@ interface Fmt { dist: (km: number) => string; alt: (m: number) => string; temp: 
 
 function drawRecap(ctx: CanvasRenderingContext2D, r: YearRecap, fmt: Fmt, flag: HTMLImageElement | null) {
   const P = 70;
-  ctx.fillStyle = "#060e1e"; ctx.fillRect(0, 0, W, H);
-  ctx.textBaseline = "alphabetic";
+  const ls = (v: string) => { try { (ctx as any).letterSpacing = v; } catch { /* browser vecchio */ } };
 
-  // Header
-  ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(255,255,255,0.45)";
-  ctx.font = '700 26px "Space Grotesk", sans-serif';
-  ctx.fillText("IL TUO ANNO DI VIAGGI", P, 110);
-  ctx.fillStyle = "#60a5fa";
-  ctx.font = '800 150px "Space Grotesk", sans-serif';
-  ctx.fillText(String(r.year), P, 250);
-
-  // Hero km
-  ctx.fillStyle = "#f0f4ff";
-  ctx.font = '800 96px "JetBrains Mono", monospace';
-  const kmStr = fmt.dist(r.km);
-  ctx.fillText(kmStr, P, 370);
-  ctx.fillStyle = "rgba(255,255,255,0.5)";
-  ctx.font = '400 30px "Space Grotesk", sans-serif';
-  ctx.fillText("percorsi in totale", P, 412);
-
-  // Stat tiles (4)
-  const tiles: [string, string][] = [
-    [String(r.trips), "viaggi"], [String(r.countries), "paesi"], [String(r.cities), "città"], [String(r.days), "giorni"],
+  // Sfondo notturno (gradiente) + micro-stelle decorative.
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0c1f3d"); bg.addColorStop(1, "#060b16");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const stars: [number, number, number, number][] = [
+    [880, 92, 3, 0.5], [980, 150, 2, 0.4], [820, 210, 2, 0.32], [1012, 258, 2.5, 0.3],
+    [758, 128, 2, 0.3], [930, 322, 2, 0.24], [700, 250, 2, 0.2], [1000, 70, 2, 0.4],
   ];
-  const tW = (W - 2 * P - 3 * 20) / 4, tY = 460, tH = 150;
-  tiles.forEach(([v, l], i) => {
-    const x = P + i * (tW + 20);
-    ctx.fillStyle = "#0a1628"; roundRect(ctx, x, tY, tW, tH, 18); ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = "#1a2d4a"; ctx.stroke();
+  for (const [x, y, rad, a] of stars) { ctx.beginPath(); ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill(); }
+  ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+
+  // Kicker
+  ls("4px");
+  ctx.fillStyle = "#fbbf24"; ctx.font = '700 26px "Space Grotesk", sans-serif';
+  ctx.fillText("IL TUO ANNO DI VIAGGI", P, 118);
+  ls("0px");
+
+  // Anno (gradiente blu → verde)
+  const yg = ctx.createLinearGradient(P, 150, P + 460, 270);
+  yg.addColorStop(0, "#60a5fa"); yg.addColorStop(1, "#34d399");
+  ctx.fillStyle = yg; ctx.font = '800 150px "Space Grotesk", sans-serif';
+  ctx.fillText(String(r.year), P, 262);
+
+  // Hero km — numero grande + unità in ambra
+  const distStr = fmt.dist(r.km);
+  const sp = distStr.lastIndexOf(" ");
+  const kmNum = sp > 0 ? distStr.slice(0, sp) : distStr;
+  const kmUnit = sp > 0 ? distStr.slice(sp + 1) : "";
+  ctx.fillStyle = "#f0f4ff"; ctx.font = '800 96px "JetBrains Mono", monospace';
+  ctx.fillText(kmNum, P, 372);
+  const kmW = ctx.measureText(kmNum).width;
+  ctx.fillStyle = "#fbbf24"; ctx.font = '700 44px "Space Grotesk", sans-serif';
+  ctx.fillText(kmUnit, P + kmW + 18, 372);
+  ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = '400 28px "Space Grotesk", sans-serif';
+  ctx.fillText("percorsi in totale", P, 414);
+
+  // Statistiche su filetti (niente scatolette)
+  const stats: [string, string][] = [[String(r.trips), "viaggi"], [String(r.countries), "paesi"], [String(r.cities), "città"], [String(r.days), "giorni"]];
+  const sTop = 462, sBot = 600, colW = (W - 2 * P) / 4;
+  ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(P, sTop); ctx.lineTo(W - P, sTop); ctx.moveTo(P, sBot); ctx.lineTo(W - P, sBot); ctx.stroke();
+  stats.forEach(([v, l], i) => {
+    const cx = P + i * colW + colW / 2;
+    if (i > 0) { ctx.beginPath(); ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.moveTo(P + i * colW, sTop + 24); ctx.lineTo(P + i * colW, sBot - 24); ctx.stroke(); }
     ctx.textAlign = "center";
-    ctx.fillStyle = "#f0f4ff"; ctx.font = '800 58px "JetBrains Mono", monospace';
-    ctx.fillText(v, x + tW / 2, tY + 88);
-    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = '600 24px "Space Grotesk", sans-serif';
-    ctx.fillText(l, x + tW / 2, tY + 122);
+    ctx.fillStyle = "#f0f4ff"; ctx.font = '800 56px "JetBrains Mono", monospace';
+    ctx.fillText(v, cx, sTop + 84);
+    ls("1px"); ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.font = '600 22px "Space Grotesk", sans-serif';
+    ctx.fillText(l.toUpperCase(), cx, sTop + 120); ls("0px");
   });
 
-  // Transport bar
-  const barY = tY + tH + 60, barX = P, barW = W - 2 * P, barH = 26;
-  const total = Object.values(r.byMode).reduce((a, b) => a + b, 0);
+  // Come ti sei mosso — barra + legenda
   ctx.textAlign = "left";
-  ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = '700 22px "Space Grotesk", sans-serif';
-  ctx.fillText("COME TI SEI MOSSO", P, barY - 18);
-  roundRect(ctx, barX, barY, barW, barH, 13); ctx.fillStyle = "#0a1628"; ctx.fill();
+  const barY = 690, barX = P, barW = W - 2 * P, barH = 24;
+  ls("1px"); ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.font = '700 22px "Space Grotesk", sans-serif';
+  ctx.fillText("COME TI SEI MOSSO", P, barY - 20); ls("0px");
+  roundRect(ctx, barX, barY, barW, barH, 12); ctx.fillStyle = "rgba(255,255,255,0.06)"; ctx.fill();
+  const total = Object.values(r.byMode).reduce((a, b) => a + b, 0);
   if (total > 0) {
-    let cx = barX;
-    ctx.save(); roundRect(ctx, barX, barY, barW, barH, 13); ctx.clip();
-    for (const [mode, km] of Object.entries(r.byMode)) {
-      if (km <= 0) continue;
-      const w = (km / total) * barW;
-      ctx.fillStyle = MODE_COLOR[mode] ?? "#888"; ctx.fillRect(cx, barY, w, barH); cx += w;
-    }
+    let cx = barX; ctx.save(); roundRect(ctx, barX, barY, barW, barH, 12); ctx.clip();
+    for (const [mode, km] of Object.entries(r.byMode)) { if (km <= 0) continue; const w = (km / total) * barW; ctx.fillStyle = MODE_COLOR[mode] ?? "#888"; ctx.fillRect(cx, barY, w, barH); cx += w; }
     ctx.restore();
   }
-  // legend (mezzi usati)
-  let lx = barX, ly = barY + barH + 40;
+  let lx = barX; const ly = barY + barH + 42;
   ctx.font = '600 24px "Space Grotesk", sans-serif';
   for (const [mode, km] of Object.entries(r.byMode)) {
     if (km <= 0) continue;
     const label = MODE_LABEL[mode] ?? mode;
-    ctx.fillStyle = MODE_COLOR[mode] ?? "#888";
-    ctx.beginPath(); ctx.arc(lx + 8, ly - 8, 8, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.fillText(label, lx + 24, ly);
-    lx += 30 + ctx.measureText(label).width + 28;
+    ctx.fillStyle = MODE_COLOR[mode] ?? "#888"; ctx.beginPath(); ctx.arc(lx + 8, ly - 8, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.fillText(label, lx + 24, ly);
+    lx += 32 + ctx.measureText(label).width + 26;
   }
 
-  // Records 2x2
+  // Record 2x2 (minimali, valore in ambra)
   const recs: [string, string, string][] = [
     ["Più lontano", r.farthest ? fmt.dist(r.farthest.value) : "—", r.farthest?.city ?? ""],
     ["Più in alto", r.highest ? fmt.alt(r.highest.value) : "—", r.highest?.city ?? ""],
     ["Più caldo", r.hottest ? fmt.temp(r.hottest.value) : "—", r.hottest?.city ?? ""],
     ["Più freddo", r.coldest ? fmt.temp(r.coldest.value) : "—", r.coldest?.city ?? ""],
   ];
-  const rY = ly + 40, rW = (W - 2 * P - 20) / 2, rH = 150;
+  const rTop = ly + 44, colRW = (W - 2 * P) / 2, rowH = 150;
+  ctx.textAlign = "left";
   recs.forEach(([lab, val, sub], i) => {
-    const x = P + (i % 2) * (rW + 20), y = rY + Math.floor(i / 2) * (rH + 20);
-    ctx.fillStyle = "#0a1628"; roundRect(ctx, x, y, rW, rH, 18); ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = "#1a2d4a"; ctx.stroke();
-    ctx.textAlign = "left";
-    ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = '700 22px "Space Grotesk", sans-serif';
-    ctx.fillText(lab.toUpperCase(), x + 26, y + 46);
-    ctx.fillStyle = "#fbbf24"; ctx.font = '800 46px "JetBrains Mono", monospace';
-    ctx.fillText(val, x + 26, y + 100);
-    ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.font = '400 24px "Space Grotesk", sans-serif';
-    if (sub) ctx.fillText(sub, x + 26, y + 134);
+    const x = P + (i % 2) * colRW, y = rTop + Math.floor(i / 2) * rowH;
+    ls("1px"); ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.font = '700 21px "Space Grotesk", sans-serif';
+    ctx.fillText(lab.toUpperCase(), x, y + 30); ls("0px");
+    ctx.fillStyle = "#fbbf24"; ctx.font = '800 44px "JetBrains Mono", monospace';
+    ctx.fillText(val, x, y + 86);
+    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = '400 24px "Space Grotesk", sans-serif';
+    if (sub) ctx.fillText(sub, x, y + 122);
   });
 
-  // Top country
-  const cY = rY + 2 * rH + 20 + 40;
+  // Paese dell'anno
+  const cTop = rTop + 2 * rowH + 30;
   if (r.topCountry) {
-    ctx.textAlign = "left";
-    let tx = P;
+    let tx = P; const fw = 70, fh = 48;
     if (flag && flag.complete && flag.naturalWidth > 0) {
-      const fw = 66, fh = 46;
-      ctx.save(); ctx.fillStyle = "#fff"; roundRect(ctx, tx - 2, cY - fh + 2, fw + 4, fh + 4, 6); ctx.fill();
-      roundRect(ctx, tx, cY - fh + 4, fw, fh, 5); ctx.clip();
-      ctx.drawImage(flag, tx, cY - fh + 4, fw, fh); ctx.restore();
+      ctx.save(); ctx.fillStyle = "#fff"; roundRect(ctx, tx - 2, cTop - 2, fw + 4, fh + 4, 7); ctx.fill();
+      roundRect(ctx, tx, cTop, fw, fh, 6); ctx.clip(); ctx.drawImage(flag, tx, cTop, fw, fh); ctx.restore();
       tx += fw + 22;
     }
+    ctx.textAlign = "left";
     ctx.fillStyle = "#f0f4ff"; ctx.font = '700 40px "Space Grotesk", sans-serif';
-    ctx.fillText(r.topCountry.name, tx, cY);
-    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = '400 26px "Space Grotesk", sans-serif';
-    ctx.fillText(`paese dell'anno · ${r.topCountry.visits} ${r.topCountry.visits === 1 ? "viaggio" : "viaggi"}`, tx, cY + 36);
+    ctx.fillText(r.topCountry.name, tx, cTop + 30);
+    ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = '400 24px "Space Grotesk", sans-serif';
+    ctx.fillText("paese dell'anno", tx, cTop + 64);
   }
 
   // Footer
   ctx.textAlign = "left";
   ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = '700 28px "Space Grotesk", sans-serif';
-  ctx.fillText("NAV·TA", P, H - 60);
+  ctx.fillText("NAV·TA", P, H - 58);
   ctx.textAlign = "right";
   ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.font = '400 26px "Space Grotesk", sans-serif';
-  ctx.fillText(`${r.monthsActive} mesi in viaggio`, W - P, H - 60);
+  ctx.fillText(`${r.monthsActive} ${r.monthsActive === 1 ? "mese" : "mesi"} in viaggio`, W - P, H - 58);
   ctx.textAlign = "left";
 }
 
