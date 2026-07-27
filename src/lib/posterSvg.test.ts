@@ -113,6 +113,12 @@ describe("buildEditorQuadroSvg — quadro dall'editor (pannelli a mano)", () => 
     expect(svg).not.toContain('fill="#000000"');
   });
 
+  it('resa "corpo + gerarchia": terre riempite (evenodd) sotto confini al 50%', () => {
+    expect((svg.match(/fill-opacity="0\.055"/g) ?? []).length).toBe(panels.length);
+    expect(svg).toContain('fill-rule="evenodd"');
+    expect(svg).toContain('stroke-opacity="0.5"');
+  });
+
   it("linee dei viaggi sopra + una stella-LED per città (anche fuori pannello: fallback)", () => {
     expect(svg).toContain('id="tratte"');
     expect((svg.match(/data-led="1"/g) ?? []).length).toBe(3);

@@ -294,8 +294,13 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
   const shadows = panels.map(p => `<rect x="${nn(p.x + 6)}" y="${nn(p.y + 12)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="rgba(0,0,0,0.55)"/>`).join("");
   const tiles = panels.map(p => `<rect x="${nn(p.x)}" y="${nn(p.y)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="#050505" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1"/>`).join("");
   const clips = panels.map((p, i) => `<clipPath id="ep${i}"><rect x="${nn(p.x)}" y="${nn(p.y)}" width="${nn(p.w)}" height="${nn(p.h)}"/></clipPath>`).join("");
+  // Resa "D — corpo + gerarchia" (scelta utente 2026-07-27): le terre hanno un
+  // riempimento grigio tenue (evenodd per i buchi: laghi/enclave) così i
+  // continenti hanno massa e l'oceano resta nero; i confini sono appena più
+  // presenti del vecchio wireframe. Un SOLO path con fill+stroke insieme:
+  // nessun raddoppio di peso dell'SVG.
   const maps = panels.map((p, i) =>
-    `<g clip-path="url(#ep${i})" fill="none" stroke="#ffffff" stroke-opacity="0.38" stroke-width="0.6" stroke-linejoin="round"><path d="${panelBorderPath(p, borders)}"/></g>`
+    `<g clip-path="url(#ep${i})"><path d="${panelBorderPath(p, borders)}" fill="#ffffff" fill-opacity="0.055" fill-rule="evenodd" stroke="#ffffff" stroke-opacity="0.5" stroke-width="0.75" stroke-linejoin="round"/></g>`
   ).join("");
 
   const screen = (lon: number, lat: number): [number, number] | null => {

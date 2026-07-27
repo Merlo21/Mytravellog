@@ -94,8 +94,11 @@ const PanelTile = memo(function PanelTile({ p, borders }: { p: EditorPanel; bord
       <rect x={6} y={12} width={p.w} height={p.h} rx={6} fill="rgba(0,0,0,0.55)" />
       <clipPath id={`clip-${p.id}`}><rect x={0} y={0} width={p.w} height={p.h} rx={6} /></clipPath>
       <rect x={0} y={0} width={p.w} height={p.h} rx={6} fill="#050505" stroke="#ffffff" strokeOpacity={0.12} strokeWidth={1} />
-      <g clipPath={`url(#clip-${p.id})`} fill="none" stroke="#ffffff" strokeOpacity={0.38} strokeWidth={0.6} strokeLinejoin="round">
-        <path d={d} />
+      {/* Resa "D — corpo + gerarchia": terre riempite (evenodd) + confini al 50%,
+          identica all'export (buildEditorQuadroSvg). Un solo path fill+stroke. */}
+      <g clipPath={`url(#clip-${p.id})`}>
+        <path d={d} fill="#ffffff" fillOpacity={0.055} fillRule="evenodd"
+          stroke="#ffffff" strokeOpacity={0.5} strokeWidth={0.75} strokeLinejoin="round" />
       </g>
     </g>
   );
