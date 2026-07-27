@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, memo } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, ZoomIn, ZoomOut, Download, Hand, Move, RotateCcw, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ZoomIn, ZoomOut, Download, Hand, Move, RotateCcw, Undo2, Redo2, Loader2 } from "lucide-react";
 import { loadTrips } from "@/lib/storage";
 import { buildFlightPath } from "@/lib/flyover";
 import {
@@ -33,7 +33,6 @@ import {
 const VBW = 1600;
 const VBH = 980;
 const MIN_SIZE = 120;      // lato minimo di una tela (px canvas)
-const HANDLE = 26;         // lato delle maniglie d'angolo (px canvas)
 const SCALE_MIN = 0.25;
 const SCALE_MAX = 600;
 const STORAGE_KEY = "atlas.quadro.layout.v1";
@@ -132,6 +131,94 @@ export default function QuadroEditor() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("arrange");
 
+  // Riferimento sempre aggiornato ai pannelli correnti: lo leggono undo/redo e
+  // gli snapshot di cronologia senza dipendere dalle closure (stale nel
+  // listener da tastiera, registrato una volta sola).
+  const panelsRef = useRef(panels);
+  panelsRef.current = panels;
+
+  // ---- CRONOLOGIA (annulla/ripeti). Stack in ref + un contatore di stato solo
+  // per riabilitare i bottoni. Un'azione = una voce: le azioni discrete
+  // spingono subito lo stato pre-azione; i gesti (drag/pinch/rotellina)
+  // spingono lo stato PRE-gesto UNA volta a fine gesto (gestureBaseRef / wheel).
+  const HISTORY_CAP = 60;
+  const pastRef = useRef<EditorPanel[][]>([]);
+  const futureRef = useRef<EditorPanel[][]>([]);
+  const [, bumpHist] = useReducer((x: number) => x + 1, 0);
+
+  const pushHistory = () => {
+    pastRef.current = [...pastRef.current, panelsRef.current].slice(-HISTORY_CAP);
+    futureRef.current = [];
+    bumpHist();
+  };
+  const commitFromBase = (base: EditorPanel[]) => {
+    if (JSON.stringify(base) === JSON.stringify(panelsRef.current)) return; // gesto nullo
+    pastRef.current = [...pastRef.current, base].slice(-HISTORY_CAP);
+    futureRef.current = [];
+    bumpHist();
+  };
+  const undo = useCallback(() => {
+    if (!pastRef.current.length) return;
+    const prev = pastRef.current[pastRef.current.length - 1];
+    pastRef.current = pastRef.current.slice(0, -1);
+    futureRef.current = [panelsRef.current, ...futureRef.current].slice(0, HISTORY_CAP);
+    setPanels(prev);
+    bumpHist();
+  }, []);
+  const redo = useCallback(() => {
+    if (!futureRef.current.length) return;
+    const next = futureRef.current[0];
+    futureRef.current = futureRef.current.slice(1);
+    pastRef.current = [...pastRef.current, panelsRef.current].slice(-HISTORY_CAP);
+    setPanels(next);
+    bumpHist();
+  }, []);
+  const canUndo = pastRef.current.length > 0;
+  const canRedo = futureRef.current.length > 0;
+
+  // Scorciatoie: Ctrl/⌘+Z annulla, Ctrl/⌘+Shift+Z (o Ctrl/⌘+Y) ripete.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.ctrlKey || e.metaKey;
+      if (meta && (e.key === "z" || e.key === "Z")) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+      else if (meta && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
+
+  // Base pre-gesto (drag/pinch) e pre-raffica (rotellina): a fine gesto si
+  // registra UNA voce solo se il gesto ha DAVVERO modificato la geometria.
+  // Un flag "dirty" invece del confronto con lo stato: a fine gesto lo stato
+  // React può non essere ancora aggiornato (gesti rapidi nello stesso tick), il
+  // confronto darebbe un falso "nessuna modifica".
+  const gestureBaseRef = useRef<EditorPanel[] | null>(null);
+  const gestureDirtyRef = useRef(false);
+  const wheelBaseRef = useRef<EditorPanel[] | null>(null);
+  const wheelTimerRef = useRef<number | null>(null);
+  useEffect(() => () => { if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current); }, []);
+
+  // Maniglie più generose al TOCCO (puntatore "grosso"): sia visivamente sia
+  // come area di presa invisibile; col mouse restano compatte ed eleganti.
+  const coarse = useMemo(
+    () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches,
+    [],
+  );
+  const HANDLE_SIZE = coarse ? 36 : 22; // lato visivo della maniglia (px canvas)
+  const HIT_PAD = coarse ? 34 : 18;     // mezza-estensione dell'area di presa
+
+  // Porta una tela in cima alla pila (disegnata per ultima = sopra), come in un
+  // editor vettoriale: selezioni una tela coperta e la vedi tutta.
+  const bringToFront = (id: string) =>
+    setPanels(ps => {
+      const i = ps.findIndex(p => p.id === id);
+      if (i < 0 || i === ps.length - 1) return ps;
+      const c = ps.slice();
+      const [x] = c.splice(i, 1);
+      c.push(x);
+      return c;
+    });
+
   // Confini del mondo intero (50m): servono ben dettagliati perché ogni tela
   // inquadra la sua porzione a sé.
   useEffect(() => {
@@ -207,7 +294,7 @@ export default function QuadroEditor() {
   const inRect = (p: EditorPanel, x: number, y: number) => x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h;
 
   const hitHandle = (p: EditorPanel, x: number, y: number): Corner | null => {
-    const near = (cx: number, cy: number) => Math.abs(x - cx) <= HANDLE && Math.abs(y - cy) <= HANDLE;
+    const near = (cx: number, cy: number) => Math.abs(x - cx) <= HIT_PAD && Math.abs(y - cy) <= HIT_PAD;
     if (near(p.x, p.y)) return "nw";
     if (near(p.x + p.w, p.y)) return "ne";
     if (near(p.x, p.y + p.h)) return "sw";
@@ -269,7 +356,9 @@ export default function QuadroEditor() {
         : [...panels].reverse().find(p => inRect(p, mid.x, mid.y)) ?? null;
       dragRef.current = null;
       if (target) {
+        if (!gestureBaseRef.current) { gestureBaseRef.current = panelsRef.current; gestureDirtyRef.current = false; }
         setSelectedId(target.id);
+        bringToFront(target.id);
         pinchRef.current = {
           id: target.id, p0: target, dist0: pinchDist(),
           anchorLon: target.refLon + (mid.x - target.x) / target.scale,
@@ -284,6 +373,8 @@ export default function QuadroEditor() {
     if (selected) {
       const corner = hitHandle(selected, c.x, c.y);
       if (corner) {
+        if (!gestureBaseRef.current) { gestureBaseRef.current = panelsRef.current; gestureDirtyRef.current = false; }
+        bringToFront(selected.id);
         dragRef.current = { kind: "resize", id: selected.id, corner, p0: selected };
         return;
       }
@@ -292,7 +383,9 @@ export default function QuadroEditor() {
     for (let i = panels.length - 1; i >= 0; i--) {
       const p = panels[i];
       if (inRect(p, c.x, c.y)) {
+        if (!gestureBaseRef.current) { gestureBaseRef.current = panelsRef.current; gestureDirtyRef.current = false; }
         setSelectedId(p.id);
+        bringToFront(p.id);
         dragRef.current = { kind: mode === "frame" ? "pan" : "move", id: p.id, start: c, p0: p };
         return;
       }
@@ -309,6 +402,7 @@ export default function QuadroEditor() {
     const pinch = pinchRef.current;
     if (pinch) {
       if (pointersRef.current.size < 2) return;
+      gestureDirtyRef.current = true;
       const mid = pinchMid();
       const { p0 } = pinch;
       const newScale = Math.max(SCALE_MIN, Math.min(SCALE_MAX, p0.scale * (pinchDist() / pinch.dist0)));
@@ -320,6 +414,7 @@ export default function QuadroEditor() {
 
     const drag = dragRef.current;
     if (!drag) return;
+    gestureDirtyRef.current = true;
     const { p0 } = drag;
 
     if (drag.kind === "move") {
@@ -369,6 +464,18 @@ export default function QuadroEditor() {
     if (pinchRef.current && pointersRef.current.size < 2) pinchRef.current = null;
     dragRef.current = null;
     try { svgRef.current?.releasePointerCapture(e.pointerId); } catch { /* già rilasciato */ }
+    // Tutte le dita sollevate → il gesto è finito: UNA voce di cronologia solo
+    // se il gesto ha modificato qualcosa (il tap che porta solo in primo piano
+    // non è annullabile: è z-order, non una modifica del quadro).
+    if (pointersRef.current.size === 0 && gestureBaseRef.current) {
+      if (gestureDirtyRef.current) {
+        pastRef.current = [...pastRef.current, gestureBaseRef.current].slice(-HISTORY_CAP);
+        futureRef.current = [];
+        bumpHist();
+      }
+      gestureBaseRef.current = null;
+      gestureDirtyRef.current = false;
+    }
   };
 
   const onWheel = (e: React.WheelEvent) => {
@@ -377,7 +484,16 @@ export default function QuadroEditor() {
     for (let i = panels.length - 1; i >= 0; i--) {
       const p = panels[i];
       if (inRect(p, c.x, c.y)) {
+        // Cronologia: una sola voce per RAFFICA di rotellina (l'ultima ruota
+        // entro 500ms chiude la raffica e registra lo stato pre-raffica).
+        if (wheelBaseRef.current === null) wheelBaseRef.current = panelsRef.current;
         zoomPanelAt(p, c.x, c.y, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+        if (wheelTimerRef.current) clearTimeout(wheelTimerRef.current);
+        wheelTimerRef.current = window.setTimeout(() => {
+          if (wheelBaseRef.current) commitFromBase(wheelBaseRef.current);
+          wheelBaseRef.current = null;
+          wheelTimerRef.current = null;
+        }, 500);
         return;
       }
     }
@@ -387,11 +503,13 @@ export default function QuadroEditor() {
   const zoomSelected = (factor: number) => {
     const p = selected ?? panels[panels.length - 1];
     if (!p) return;
+    pushHistory();
     if (!selected) setSelectedId(p.id);
     zoomPanelAt(p, p.x + p.w / 2, p.y + p.h / 2, factor);
   };
 
   const addPanel = () => {
+    pushHistory();
     const geo = selected ? panelGeoBounds(selected) : tripsGeoBounds(stops);
     const id = nextId();
     // nuova tela media, un po' sfalsata così non copre esattamente le altre
@@ -402,11 +520,13 @@ export default function QuadroEditor() {
 
   const deleteSelected = () => {
     if (!selectedId) return;
+    pushHistory();
     setPanels(ps => ps.filter(p => p.id !== selectedId));
     setSelectedId(null);
   };
 
   const resetLayout = () => {
+    pushHistory();
     const id = nextId();
     setPanels([fitPanel(id, 70, 70, VBW - 140, VBH - 140, tripsGeoBounds(stops))]);
     setSelectedId(id);
@@ -459,6 +579,14 @@ export default function QuadroEditor() {
         <button type="button" onClick={deleteSelected} disabled={!selectedId}
           style={btn(!selectedId ? { opacity: 0.4, cursor: "default" } : undefined)} title="Elimina la tela selezionata">
           <Trash2 style={{ width: 15, height: 15 }} />
+        </button>
+        <button type="button" onClick={undo} disabled={!canUndo}
+          style={btn(!canUndo ? { opacity: 0.4, cursor: "default" } : undefined)} title="Annulla (Ctrl/⌘+Z)">
+          <Undo2 style={{ width: 15, height: 15 }} />
+        </button>
+        <button type="button" onClick={redo} disabled={!canRedo}
+          style={btn(!canRedo ? { opacity: 0.4, cursor: "default" } : undefined)} title="Ripeti (Ctrl/⌘+Shift+Z)">
+          <Redo2 style={{ width: 15, height: 15 }} />
         </button>
         <button type="button" onClick={() => zoomSelected(1 / 1.2)} style={btn()} title="Zoom indietro"><ZoomOut style={{ width: 15, height: 15 }} /></button>
         <button type="button" onClick={() => zoomSelected(1.2)} style={btn()} title="Zoom avanti"><ZoomIn style={{ width: 15, height: 15 }} /></button>
@@ -546,8 +674,11 @@ export default function QuadroEditor() {
                 {([["nw", selected.x, selected.y], ["ne", selected.x + selected.w, selected.y],
                    ["sw", selected.x, selected.y + selected.h], ["se", selected.x + selected.w, selected.y + selected.h]] as [Corner, number, number][])
                   .map(([c, hx, hy]) => (
-                    <rect key={c} x={hx - HANDLE / 2} y={hy - HANDLE / 2} width={HANDLE} height={HANDLE} rx={4}
-                      fill="#60a5fa" stroke="#0b1220" strokeWidth={1.5} />
+                    <g key={c}>
+                      {coarse && <circle cx={hx} cy={hy} r={HIT_PAD} fill="#60a5fa" fillOpacity={0.16} />}
+                      <rect x={hx - HANDLE_SIZE / 2} y={hy - HANDLE_SIZE / 2} width={HANDLE_SIZE} height={HANDLE_SIZE} rx={5}
+                        fill="#60a5fa" stroke="#0b1220" strokeWidth={2} />
+                    </g>
                   ))}
               </g>
             )}
