@@ -5,7 +5,7 @@ import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, tripTotalKm, buildPerTripRouteCoords, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
-import { buildPosterSvg, loadCountryRings, routeBounds } from "@/lib/posterSvg";
+import { buildPosterSvg, loadCountryRings, routeBounds, PanelSpec } from "@/lib/posterSvg";
 import { X, Share2, Loader2, Download, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 
@@ -239,6 +239,27 @@ export function finaleFanLayout(i: number, n: number) {
   };
 }
 
+/**
+ * Layout "quadro componibile" (scomposizione B, ~12 pannelli): griglia 4×3 di
+ * tessere quadrate/rettangolari con piccoli sfasamenti verticali, in FRAZIONI
+ * del poster. Insieme ricompongono il planisfero (per l'export da stampa).
+ */
+function buildQuadroPanels(): PanelSpec[] {
+  const colW = [0.20, 0.27, 0.24, 0.25], rowH = [0.30, 0.40, 0.24], gx = 0.012, gy = 0.02;
+  const dyPat = [
+    [-0.02, 0.015, -0.01, 0.02],
+    [0.02, -0.015, 0.02, -0.012],
+    [-0.012, 0.025, -0.02, 0.012],
+  ];
+  const xs = [0]; for (let i = 0; i < colW.length; i++) xs.push(xs[i] + colW[i] + gx);
+  const ys = [0]; for (let j = 0; j < rowH.length; j++) ys.push(ys[j] + rowH[j] + gy);
+  const out: PanelSpec[] = [];
+  for (let r = 0; r < rowH.length; r++) for (let c = 0; c < colW.length; c++) {
+    out.push({ x: xs[c], y: ys[r], w: colW[c], h: rowH[r], dy: dyPat[r][c] });
+  }
+  return out;
+}
+
 interface Props {
   trips: Trip[];
   onClose: () => void;
@@ -282,7 +303,9 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
   const [finalePhotos, setFinalePhotos] = useState<string[]>([]);
   const [savingRelief, setSavingRelief] = useState(false);
   const [exportingSvg, setExportingSvg] = useState(false);
-  const [styleMode, setStyleMode] = useState<MapStyleMode>("satellite");
+  // La Mappa della vita parte (e resta) in Costellazione: niente Satellite,
+  // che lì è quasi identico al globo della Home.
+  const [styleMode, setStyleMode] = useState<MapStyleMode>(lifeMap ? "constellation" : "satellite");
   const [switching, setSwitching] = useState(false);
 
   const tripsCount = trips.length;
@@ -823,6 +846,34 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     }
   };
 
+  // "Esporta quadro" (solo Mappa della vita): master a PANNELLI componibili —
+  // la mappa spezzata in ~12 tessere sfalsate (scomposizione B), da stampare e
+  // assemblare come quadro a più tele. Mappa "nuda" (niente nomi/caption).
+  const handleExportQuadro = async () => {
+    if (exportingSvg) return;
+    setExportingSvg(true);
+    try {
+      const route = allCoordsRef.current;
+      const stops = stopsRef.current;
+      let rings: [number, number][][] = [];
+      try {
+        rings = await loadCountryRings(routeBounds(route.length ? route : stops.map(s => [s.lon, s.lat] as [number, number])));
+      } catch { /* confini non disponibili: esporta comunque rotta+stelle */ }
+      const svg = buildPosterSvg({
+        routeSegments: routeSegsRef.current, stops, borders: rings,
+        title: "", hideLabels: true, panels: buildQuadroPanels(),
+      });
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "mappa-della-vita-quadro.svg"; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch { /* export fallito: non bloccare */ }
+    finally {
+      if (mountedRef.current) setExportingSvg(false);
+    }
+  };
+
   useEffect(() => {
     mountedRef.current = true;
     // `cancelled` locale (non un ref condiviso): in StrictMode ogni effetto è
@@ -889,7 +940,8 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
           document.head.appendChild(f);
         }
 
-        const style = await buildSatelliteStyle();
+        // Mappa della vita: parte direttamente in Costellazione (nessun Satellite).
+        const style = lifeMap ? buildConstellationStyle() : await buildSatelliteStyle();
         if (cancelled) return;
 
         if (!containerRef.current || cancelled) return;
@@ -909,16 +961,17 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
         map.on("load", async () => {
           if (cancelled || !mountedRef.current) return;
 
-          addOverlayLayers(map, "satellite");
+          addOverlayLayers(map, lifeMap ? "constellation" : "satellite");
 
           setPhase("ready");
           setTimeout(() => { map.resize(); }, 100);
 
           // Nessuna animazione di volo: carica le foto e inquadra subito il
-          // poster sull'intero percorso, poi mostra gli overlay.
+          // poster sull'intero percorso, poi mostra gli overlay. Costellazione
+          // (Mappa della vita) piatta dall'alto (pitch 0), come il master di stampa.
           await collectFinalePhotos();
           if (cancelled || !mountedRef.current) return;
-          await flyToOverview(map);
+          await flyToOverview(map, lifeMap ? 0 : 45);
           if (cancelled || !mountedRef.current) return;
           setPoster(true);
         });
@@ -971,8 +1024,9 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
           <X className="w-4 h-4" />
         </button>
 
-        {/* Toggle vista: satellite inclinato · costellazione (master di stampa). */}
-        {phase === "ready" && (
+        {/* Toggle vista: satellite inclinato · costellazione (master di stampa).
+            Nascosto sulla Mappa della vita: lì c'è solo la Costellazione. */}
+        {phase === "ready" && !lifeMap && (
           <div style={{
             position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 30,
             display: "flex", gap: 2, padding: 3, borderRadius: 999,
@@ -1146,6 +1200,17 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
                     border: "0.5px solid rgba(255,255,255,0.35)", color: "rgba(255,255,255,0.85)",
                   }}>
                   <Download className="w-3.5 h-3.5" /> {exportingSvg ? "Esporto…" : "Esporta SVG"}
+                </button>
+              )}
+              {lifeMap && (
+                <button onClick={handleExportQuadro} disabled={exportingSvg}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+                    cursor: exportingSvg ? "default" : "pointer",
+                    padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.08)",
+                    border: "0.5px solid rgba(255,255,255,0.35)", color: "rgba(255,255,255,0.85)",
+                  }}>
+                  <Download className="w-3.5 h-3.5" /> {exportingSvg ? "Esporto…" : "Esporta quadro"}
                 </button>
               )}
               {tripsCount === 1 && !lifeMap && (

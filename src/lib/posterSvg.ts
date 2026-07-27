@@ -13,6 +13,11 @@ import { feature } from "topojson-client";
 
 export interface Stop { lon: number; lat: number; label: string }
 
+/** Un pannello del "quadro componibile": posizione/dimensione in FRAZIONI
+ *  (0..1) del poster, più uno sfasamento verticale `dy` (frazione dell'altezza)
+ *  che stacca il pezzo dagli altri (effetto quadro a più tele). */
+export interface PanelSpec { x: number; y: number; w: number; h: number; dy: number }
+
 export interface PosterSvgInput {
   /** Percorso completo [lon,lat] (tracciato stradale reale dove disponibile). */
   routeCoords?: [number, number][];
@@ -30,6 +35,10 @@ export interface PosterSvgInput {
   stats?: string | null;
   /** Nasconde i nomi delle tappe (Mappa della vita: costellazione pulita). */
   hideLabels?: boolean;
+  /** "Quadro componibile": spezza la mappa in pannelli sfalsati (con ombra) che
+   *  insieme ricompongono il planisfero. Se presente, il poster è reso a
+   *  pannelli (fondo trasparente, nessuna didascalia). */
+  panels?: PanelSpec[];
   width?: number;
   height?: number;
 }
@@ -87,7 +96,7 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   const W = input.width ?? 1600;
   const H = input.height ?? 1000;
   const pad = 120;
-  const { routeCoords = [], routeSegments, stops, borders = [], title, dateLabel, stats, hideLabels = false } = input;
+  const { routeCoords = [], routeSegments, stops, borders = [], title, dateLabel, stats, hideLabels = false, panels } = input;
   // Uno o più tracciati: la Mappa della vita passa un percorso per viaggio; gli
   // altri poster un singolo percorso. Normalizzati qui in una lista di segmenti.
   const segments: [number, number][][] = routeSegments && routeSegments.length
@@ -155,14 +164,50 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   // Sottile linea divisoria mappa / didascalia.
   const dividerEl = hasCaption ? `<line x1="${pad}" y1="${n(mapH)}" x2="${W - pad}" y2="${n(mapH)}" stroke="#ffffff" stroke-opacity="0.2" stroke-width="1"/>` : "";
 
+  const starGlowDef = `<radialGradient id="starGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="35%" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>`;
+  const confiniG = `<g id="confini" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="1.1" stroke-linejoin="round">${bordersPaths}</g>`;
+  const tracciatoG = routePaths.length ? `<g id="tracciato" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">${routePaths.map(d => `<path d="${d}"/>`).join("")}</g>` : "";
+  const stelleG = `<g id="stelle">${starEls}</g>`;
+  const etichetteG = `<g id="etichette">${labelEls}</g>`;
+  const mapGroup = confiniG + tracciatoG + stelleG + etichetteG;
+
+  // "Quadro componibile": la mappa (proiettata su tutto W×H) viene spezzata in
+  // pannelli sfalsati che insieme la ricompongono. Ogni pannello: ombra + tela
+  // nera + ritaglio della mappa traslato di `dy` (così i pezzi si "staccano").
+  if (panels && panels.length) {
+    const shadows = panels.map(p => {
+      const x = p.x * W, y = p.y * H + p.dy * H, w = p.w * W, h = p.h * H;
+      return `<rect x="${n(x + 6)}" y="${n(y + 14)}" width="${n(w)}" height="${n(h)}" rx="4" fill="rgba(0,0,0,0.55)"/>`;
+    }).join("");
+    const tiles = panels.map(p => {
+      const x = p.x * W, y = p.y * H + p.dy * H, w = p.w * W, h = p.h * H;
+      return `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="4" fill="#050505" stroke="#ffffff" stroke-opacity="0.10" stroke-width="1"/>`;
+    }).join("");
+    const clips = panels.map((p, i) => {
+      const x = p.x * W, y = p.y * H + p.dy * H, w = p.w * W, h = p.h * H;
+      return `<clipPath id="qp${i}"><rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}"/></clipPath>`;
+    }).join("");
+    // La mappa è definita UNA volta (#qmap) e riusata via <use> in ogni
+    // pannello (traslata di dy e ritagliata) → SVG leggero, niente duplicati.
+    const maps = panels.map((p, i) => `<g clip-path="url(#qp${i})"><use href="#qmap" transform="translate(0,${n(p.dy * H)})"/></g>`).join("");
+    return [
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
+      `<defs>${starGlowDef}<g id="qmap">${mapGroup}</g>${clips}</defs>`,
+      shadows,
+      tiles,
+      maps,
+      `</svg>`,
+    ].join("");
+  }
+
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
-    `<defs><radialGradient id="starGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="35%" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs>`,
+    `<defs>${starGlowDef}</defs>`,
     `<rect x="0" y="0" width="${W}" height="${H}" fill="#000000"/>`,
-    `<g id="confini" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="1.1" stroke-linejoin="round">${bordersPaths}</g>`,
-    routePaths.length ? `<g id="tracciato" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">${routePaths.map(d => `<path d="${d}"/>`).join("")}</g>` : "",
-    `<g id="stelle">${starEls}</g>`,
-    `<g id="etichette">${labelEls}</g>`,
+    confiniG,
+    tracciatoG,
+    stelleG,
+    etichetteG,
     dividerEl,
     `<g id="titolo">${titleEls.join("")}</g>`,
     `</svg>`,

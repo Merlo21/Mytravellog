@@ -73,6 +73,19 @@ describe("buildPosterSvg — master di stampa SVG", () => {
     expect((s.match(/data-led="1"/g) ?? []).length).toBe(INPUT.stops.length);
   });
 
+  it("con panels rende il quadro componibile (una tessera + clip per pannello)", () => {
+    const panels = [
+      { x: 0, y: 0, w: 0.5, h: 0.5, dy: 0 },
+      { x: 0.5, y: 0, w: 0.5, h: 0.5, dy: 0.02 },
+      { x: 0, y: 0.5, w: 1, h: 0.5, dy: -0.02 },
+    ];
+    const s = buildPosterSvg({ ...INPUT, title: "", dateLabel: null, stats: null, hideLabels: true, panels });
+    expect((s.match(/<clipPath/g) ?? []).length).toBe(panels.length);
+    expect((s.match(/fill="#050505"/g) ?? []).length).toBe(panels.length); // tele nere
+    expect((s.match(/href="#qmap"/g) ?? []).length).toBe(panels.length);
+    expect(s).not.toContain('fill="#000000"'); // niente fondo pieno: pannelli su trasparente
+  });
+
   it("con routeSegments disegna un path per viaggio (Mappa della vita)", () => {
     const s = buildPosterSvg({
       routeSegments: [
