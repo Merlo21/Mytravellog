@@ -36,7 +36,9 @@ export interface PosterSvgInput {
 
 const RAD = Math.PI / 180;
 const mercX = (lon: number) => lon;
-const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
+export const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
+/** Inverso di mercY: latitudine (gradi) da una coordinata mercatore Y. */
+export const latFromMercY = (y: number) => (2 * Math.atan(Math.exp(y * RAD)) - Math.PI / 2) / RAD;
 
 /** Riquadro geografico (lon/lat) del percorso, con un margine in gradi. */
 export function routeBounds(pts: [number, number][], marginDeg = 1.5) {
@@ -57,6 +59,12 @@ function bboxIntersects(ring: [number, number][], b: { lonMin: number; lonMax: n
   return !(lonMax < b.lonMin || lonMin > b.lonMax || latMax < b.latMin || latMin > b.latMax);
 }
 
+// Cache in memoria (per sessione) del topojson per risoluzione: il file 50m
+// pesa ~1,4 MB e l'editor del quadro lo richiederebbe a ogni ingresso. Si
+// cache la PROMISE così anche richieste concorrenti condividono un solo fetch;
+// in caso di errore la voce viene rimossa (nessuna cache avvelenata).
+const topoCache = new Map<string, Promise<any>>();
+
 /**
  * Scarica i confini dei paesi (world-atlas) e ne estrae gli anelli [lon,lat][]
  * che intersecano il riquadro. `res` sceglie la risoluzione: 110m (leggero,
@@ -67,8 +75,13 @@ export async function loadCountryRings(
   bounds: { lonMin: number; lonMax: number; latMin: number; latMax: number },
   resolution: "110m" | "50m" = "110m",
 ): Promise<[number, number][][]> {
-  const res = await fetch(`https://cdn.jsdelivr.net/npm/world-atlas@2/countries-${resolution}.json`);
-  const topo: any = await res.json();
+  let topoP = topoCache.get(resolution);
+  if (!topoP) {
+    topoP = fetch(`https://cdn.jsdelivr.net/npm/world-atlas@2/countries-${resolution}.json`).then(r => r.json());
+    topoCache.set(resolution, topoP);
+    topoP.catch(() => { topoCache.delete(resolution); });
+  }
+  const topo: any = await topoP;
   const geo: any = feature(topo, topo.objects.countries);
   const rings: [number, number][][] = [];
   for (const f of geo.features) {
@@ -178,91 +191,121 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   ].join("");
 }
 
-/** Una regione del "quadro collage": riquadro-tela (px) + riquadro geografico
- *  (lon/lat) che quella tela inquadra, con sfasamento verticale `dy`. */
-export interface CollageRegion {
-  name: string;
+/**
+ * Un PANNELLO editabile del "quadro" (editor interattivo tipo Illustrator):
+ * un riquadro-tela sul canvas (x,y,w,h in px) che inquadra una porzione di
+ * mondo con zoom indipendente. La proiezione è ancorata al punto geografico
+ * `(refLon, refLat)` che cade nell'ANGOLO IN ALTO A SINISTRA del riquadro, più
+ * la `scale` (px per unità mercatore). Questo modello rende semplici e senza
+ * scatti tutte le operazioni dell'editor:
+ *  - spostare il pannello  → cambia solo x,y (la mappa segue la tela);
+ *  - ritagliare (resize)    → cambia il riquadro tenendo la mappa ferma;
+ *  - inquadrare (pan)       → sposta ref, riquadro fermo;
+ *  - zoom attorno al cursore → cambia scale + ref per tenere fermo il punto.
+ */
+export interface EditorPanel {
+  id: string;
   x: number; y: number; w: number; h: number;
-  lonMin: number; latMin: number; lonMax: number; latMax: number;
-  dy: number;
+  refLon: number; refLat: number;
+  scale: number;
 }
 
-export interface CollageInput {
-  /** Anelli confini del mondo intero [lon,lat][] (idealmente 50m). */
-  borders: [number, number][][];
-  /** Una polilinea per viaggio: coordinate ordinate delle sole TAPPE (non il
-   *  tracciato stradale). Le linee sono disegnate SOPRA, collegando le tessere. */
-  links: [number, number][][];
-  /** Città visitate (nodi-stella). */
-  stops: { lon: number; lat: number }[];
-  regions: CollageRegion[];
-  width?: number;
-  height?: number;
+/** Proietta [lon,lat] nelle coordinate-canvas del pannello. */
+export function projectInPanel(p: EditorPanel, lon: number, lat: number): [number, number] {
+  return [
+    p.x + (mercX(lon) - mercX(p.refLon)) * p.scale,
+    p.y + (mercY(p.refLat) - mercY(lat)) * p.scale,
+  ];
+}
+
+/** Riquadro geografico (lon/lat) inquadrato dal pannello. */
+export function panelGeoBounds(p: EditorPanel): { lonMin: number; lonMax: number; latMin: number; latMax: number } {
+  return {
+    lonMin: p.refLon,
+    lonMax: p.refLon + p.w / p.scale,
+    latMax: p.refLat,
+    latMin: latFromMercY(mercY(p.refLat) - p.h / p.scale),
+  };
 }
 
 /**
- * Master SVG del "quadro componibile" a REGIONI: ogni regione è una tela nera
- * sfalsata che inquadra (zoom indipendente) la sua porzione di mondo, così
- * anche l'Europa — piccola ma piena di stati — diventa grande e leggibile
- * (proporzioni "d'autore", NON in scala reale). Le linee dei viaggi sono
- * disegnate sopra, collegando le città da una tessera all'altra: la
- * costellazione non si perde. Fondo trasparente, bianco su nero.
+ * A quale pannello "appartiene" una città (per disegnarci sopra il nodo e le
+ * linee): fra i pannelli che la contengono si sceglie quello più ZOOMATO (area
+ * geografica minore = inquadratura più specifica); se nessuno la contiene, il
+ * più vicino per centro — così nessuna città/linea di viaggio sparisce mai.
  */
-export function buildCollagePosterSvg(input: CollageInput): string {
-  const W = input.width ?? 1600;
-  const H = input.height ?? 980;
-  const { borders, links, stops, regions } = input;
-  const pad = 10;
-  const nn = (v: number) => (Math.round(v * 10) / 10).toString();
-
-  type Proj = (lon: number, lat: number) => [number, number];
-  const built = regions.map(r => {
-    const px = r.x, py = r.y + r.dy, pw = r.w, ph = r.h;
-    const x0 = mercX(r.lonMin), x1 = mercX(r.lonMax);
-    const y0 = mercY(r.latMin), y1 = mercY(r.latMax);
-    const spanX = Math.max(1e-6, x1 - x0), spanY = Math.max(1e-6, y1 - y0);
-    // scala uniforme (come fitExtent): la regione riempie la tela mantenendo le
-    // proporzioni geografiche interne, centrata.
-    const s = Math.min((pw - 2 * pad) / spanX, (ph - 2 * pad) / spanY);
-    const offX = px + (pw - spanX * s) / 2;
-    const offY = py + (ph - spanY * s) / 2;
-    const proj: Proj = (lon, lat) => [offX + (mercX(lon) - x0) * s, offY + (y1 - mercY(lat)) * s];
-    return { r, px, py, pw, ph, proj };
+export function pickPanelIndex(panels: EditorPanel[], lon: number, lat: number): number {
+  let best = -1, bestArea = Infinity;
+  panels.forEach((p, i) => {
+    const b = panelGeoBounds(p);
+    if (lon >= b.lonMin && lon <= b.lonMax && lat >= b.latMin && lat <= b.latMax) {
+      const area = (b.lonMax - b.lonMin) * (mercY(b.latMax) - mercY(b.latMin));
+      if (area < bestArea) { bestArea = area; best = i; }
+    }
   });
+  if (best >= 0) return best;
+  let nb = -1, nd = Infinity;
+  panels.forEach((p, i) => {
+    const b = panelGeoBounds(p);
+    const cLon = (b.lonMin + b.lonMax) / 2, cMercY = (mercY(b.latMin) + mercY(b.latMax)) / 2;
+    const dx = mercX(lon) - cLon, dy = mercY(lat) - cMercY;
+    const d = dx * dx + dy * dy;
+    if (d < nd) { nd = d; nb = i; }
+  });
+  return nb;
+}
 
-  const shadows = built.map(b => `<rect x="${nn(b.px + 6)}" y="${nn(b.py + 12)}" width="${nn(b.pw)}" height="${nn(b.ph)}" rx="6" fill="rgba(0,0,0,0.55)"/>`).join("");
-  const tiles = built.map(b => `<rect x="${nn(b.px)}" y="${nn(b.py)}" width="${nn(b.pw)}" height="${nn(b.ph)}" rx="6" fill="#050505" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1"/>`).join("");
-  const clips = built.map((b, i) => `<clipPath id="rc${i}"><rect x="${nn(b.px)}" y="${nn(b.py)}" width="${nn(b.pw)}" height="${nn(b.ph)}"/></clipPath>`).join("");
-  const maps = built.map((b, i) => {
-    const bnd = { lonMin: b.r.lonMin, lonMax: b.r.lonMax, latMin: b.r.latMin, latMax: b.r.latMax };
-    const d = borders.filter(ring => bboxIntersects(ring, bnd))
-      .map(ring => "M" + ring.map(([lon, lat]) => { const [X, Y] = b.proj(lon, lat); return `${nn(X)},${nn(Y)}`; }).join("L"))
-      .join("");
-    // Gerarchia: confini nazioni sottili e grigio chiaro (fanno da sfondo).
-    return `<g clip-path="url(#rc${i})" fill="none" stroke="#ffffff" stroke-opacity="0.38" stroke-width="0.6" stroke-linejoin="round"><path d="${d}"/></g>`;
-  }).join("");
+const round1 = (v: number) => (Math.round(v * 10) / 10).toString();
 
-  // Posizione a schermo di una città = proiezione della regione che la contiene
-  // (ordine dei regions = priorità). Se cade in un "buco" tra i riquadri, si usa
-  // la regione PIÙ VICINA: così nessuna città/linea di viaggio sparisce mai
-  // (le linee dei viaggi restano sempre complete e continue).
+/** Path SVG (attributo d) dei confini che cadono nel pannello, già proiettati.
+ *  Riusato sia dal render interattivo (React) sia dall'export, così sono identici. */
+export function panelBorderPath(p: EditorPanel, borders: [number, number][][]): string {
+  const b = panelGeoBounds(p);
+  return borders
+    .filter(ring => bboxIntersects(ring, b))
+    .map(ring => "M" + ring.map(([lon, lat]) => { const [X, Y] = projectInPanel(p, lon, lat); return `${round1(X)},${round1(Y)}`; }).join("L"))
+    .join("");
+}
+
+export interface EditorQuadroInput {
+  panels: EditorPanel[];
+  /** Anelli confini del mondo intero [lon,lat][] (idealmente 50m). */
+  borders: [number, number][][];
+  /** Una polilinea per viaggio (coordinate delle sole TAPPE), disegnate sopra. */
+  links: [number, number][][];
+  /** Città visitate (nodi-stella). */
+  stops: { lon: number; lat: number }[];
+  width: number;
+  height: number;
+}
+
+/**
+ * Master SVG del "quadro componibile" costruito dall'EDITOR: i pannelli sono
+ * scelti/inquadrati a mano dall'utente. Ogni pannello è una tela nera che
+ * ritaglia la sua porzione di mondo (confini sottili grigi, sfondo); le linee
+ * dei viaggi sono disegnate SOPRA collegando le città da una tela all'altra
+ * (bagliore + linea nitida) — sempre continue, indipendenti dalle scale. Fondo
+ * trasparente. Stessa gerarchia visiva del vecchio collage.
+ */
+export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
+  const { panels, borders, links, stops, width: W, height: H } = input;
+  const nn = round1;
+
+  const shadows = panels.map(p => `<rect x="${nn(p.x + 6)}" y="${nn(p.y + 12)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="rgba(0,0,0,0.55)"/>`).join("");
+  const tiles = panels.map(p => `<rect x="${nn(p.x)}" y="${nn(p.y)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="#050505" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1"/>`).join("");
+  const clips = panels.map((p, i) => `<clipPath id="ep${i}"><rect x="${nn(p.x)}" y="${nn(p.y)}" width="${nn(p.w)}" height="${nn(p.h)}"/></clipPath>`).join("");
+  const maps = panels.map((p, i) =>
+    `<g clip-path="url(#ep${i})" fill="none" stroke="#ffffff" stroke-opacity="0.38" stroke-width="0.6" stroke-linejoin="round"><path d="${panelBorderPath(p, borders)}"/></g>`
+  ).join("");
+
   const screen = (lon: number, lat: number): [number, number] | null => {
-    if (!built.length) return null;
-    for (const b of built) {
-      if (lon >= b.r.lonMin && lon <= b.r.lonMax && lat >= b.r.latMin && lat <= b.r.latMax) return b.proj(lon, lat);
-    }
-    let best = built[0], bestD = Infinity;
-    for (const b of built) {
-      const dx = lon < b.r.lonMin ? b.r.lonMin - lon : lon > b.r.lonMax ? lon - b.r.lonMax : 0;
-      const dy = lat < b.r.latMin ? b.r.latMin - lat : lat > b.r.latMax ? lat - b.r.latMax : 0;
-      const d = dx * dx + dy * dy;
-      if (d < bestD) { bestD = d; best = b; }
-    }
-    return best.proj(lon, lat);
+    if (!panels.length) return null;
+    const i = pickPanelIndex(panels, lon, lat);
+    return i >= 0 ? projectInPanel(panels[i], lon, lat) : null;
   };
   const lineEls = links.map(seg => {
-    const pts = seg.map(([lon, lat]) => screen(lon, lat)).filter((p): p is [number, number] => !!p);
-    return pts.length >= 2 ? `<path d="M${pts.map(p => `${nn(p[0])},${nn(p[1])}`).join("L")}"/>` : "";
+    const pts = seg.map(([lon, lat]) => screen(lon, lat)).filter((pt): pt is [number, number] => !!pt);
+    return pts.length >= 2 ? `<path d="M${pts.map(pt => `${nn(pt[0])},${nn(pt[1])}`).join("L")}"/>` : "";
   }).join("");
   const starEls = stops.map(s => {
     const sc = screen(s.lon, s.lat);
@@ -277,7 +320,6 @@ export function buildCollagePosterSvg(input: CollageInput): string {
     `<g id="ombre">${shadows}</g>`,
     `<g id="tele">${tiles}</g>`,
     `<g id="regioni">${maps}</g>`,
-    // Percorsi attivi: bagliore (linea larga sfocata) + linea bianca nitida sopra.
     `<g id="tratte-glow" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)">${lineEls}</g>`,
     `<g id="tratte" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
     `<g id="stelle">${starEls}</g>`,

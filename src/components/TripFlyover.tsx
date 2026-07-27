@@ -5,8 +5,9 @@ import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, tripTotalKm, buildPerTripRouteCoords, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
-import { buildPosterSvg, buildCollagePosterSvg, loadCountryRings, routeBounds, CollageRegion } from "@/lib/posterSvg";
-import { X, Share2, Loader2, Download, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
+import { buildPosterSvg, loadCountryRings, routeBounds } from "@/lib/posterSvg";
+import { X, Share2, Loader2, Download, Frame, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 
 // Icona + colore del mezzo, IDENTICI alle card (TripCardTicket TRANSPORT_STYLE):
@@ -239,25 +240,6 @@ export function finaleFanLayout(i: number, n: number) {
   };
 }
 
-/**
- * Layout del "quadro collage" a REGIONI (canvas 1600×980): ogni regione è una
- * tela che inquadra la sua porzione di mondo con zoom indipendente, così anche
- * l'Europa (piccola ma piena di stati) diventa grande e leggibile — proporzioni
- * d'autore, non in scala. Le tele si accostano a comporre un planisfero
- * stilizzato; le linee dei viaggi verranno disegnate sopra (vedi
- * buildCollagePosterSvg). L'ORDINE conta: è la priorità di assegnazione città→regione.
- */
-const COLLAGE_REGIONS: CollageRegion[] = [
-  { name: "Nord America",   x: 43,   y: 60,  w: 444, h: 380, lonMin: -128, latMin: 15,  lonMax: -60, latMax: 62, dy: -11 },
-  { name: "America Latina", x: 43,   y: 466, w: 373, h: 452, lonMin: -82,  latMin: -54, lonMax: -34, latMax: 13, dy: 11 },
-  { name: "Europa",         x: 516,  y: 60,  w: 533, h: 533, lonMin: -25,  latMin: 35,  lonMax: 35,  latMax: 67, dy: 0 },
-  { name: "Africa",         x: 441,  y: 622, w: 498, h: 295, lonMin: -18,  latMin: -35, lonMax: 52,  latMax: 37, dy: 12 },
-  { name: "Russia",         x: 1077, y: 60,  w: 480, h: 267, lonMin: 28,   latMin: 46,  lonMax: 178, latMax: 76, dy: -11 },
-  { name: "Asia",           x: 1077, y: 352, w: 480, h: 267, lonMin: 62,   latMin: 6,   lonMax: 145, latMax: 54, dy: 9 },
-  { name: "Medio Oriente",  x: 967,  y: 622, w: 267, h: 295, lonMin: 34,   latMin: 12,  lonMax: 60,  latMax: 40, dy: -9 },
-  { name: "Oceania",        x: 1259, y: 644, w: 299, h: 274, lonMin: 112,  latMin: -46, lonMax: 179, latMax: -10, dy: 14 },
-];
-
 interface Props {
   trips: Trip[];
   onClose: () => void;
@@ -280,6 +262,7 @@ interface Props {
  * dal tag git `flyover-animato-v1`): più leggero, robusto e condivisibile ovunque.
  */
 export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const mountedRef = useRef(true);
@@ -844,37 +827,6 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     }
   };
 
-  // "Esporta quadro" (solo Mappa della vita): master a PANNELLI componibili —
-  // la mappa spezzata in ~12 tessere sfalsate (scomposizione B), da stampare e
-  // assemblare come quadro a più tele. Mappa "nuda" (niente nomi/caption).
-  const handleExportQuadro = async () => {
-    if (exportingSvg) return;
-    setExportingSvg(true);
-    try {
-      // Confini del MONDO intero ad alta risoluzione (50m): il collage inquadra
-      // ogni regione a sé, quindi servono tutti i paesi ben dettagliati.
-      let rings: [number, number][][] = [];
-      try {
-        rings = await loadCountryRings({ lonMin: -180, lonMax: 180, latMin: -60, latMax: 85 }, "50m");
-      } catch { /* confini non disponibili: esporta comunque tratte+stelle */ }
-      // Linee dei viaggi = una polilinea per viaggio con le sole TAPPE (casa →
-      // waypoint → destinazione), disegnate sopra collegando le tessere.
-      const links: [number, number][][] = trips
-        .map(t => buildFlightPath([t]).map(s => [s.lon, s.lat] as [number, number]))
-        .filter(seg => seg.length > 0);
-      const stops = stopsRef.current.map(s => ({ lon: s.lon, lat: s.lat }));
-      const svg = buildCollagePosterSvg({ borders: rings, links, stops, regions: COLLAGE_REGIONS });
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "mappa-della-vita-quadro.svg"; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch { /* export fallito: non bloccare */ }
-    finally {
-      if (mountedRef.current) setExportingSvg(false);
-    }
-  };
-
   useEffect(() => {
     mountedRef.current = true;
     // `cancelled` locale (non un ref condiviso): in StrictMode ogni effetto è
@@ -1204,14 +1156,16 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
                 </button>
               )}
               {lifeMap && (
-                <button onClick={handleExportQuadro} disabled={exportingSvg}
+                // Aggancio all'editor del quadro: guardi la costellazione, poi
+                // la ritagli. La navigazione smonta MieiViaggi e quindi anche
+                // questo portale (cleanup WebGL compreso).
+                <button onClick={() => navigate("/editor-quadro")}
                   style={{
-                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
-                    cursor: exportingSvg ? "default" : "pointer",
+                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
                     padding: "8px 16px", borderRadius: 999, background: "rgba(255,255,255,0.08)",
                     border: "0.5px solid rgba(255,255,255,0.35)", color: "rgba(255,255,255,0.85)",
                   }}>
-                  <Download className="w-3.5 h-3.5" /> {exportingSvg ? "Esporto…" : "Esporta quadro"}
+                  <Frame className="w-3.5 h-3.5" /> Ritaglia quadro
                 </button>
               )}
               {tripsCount === 1 && !lifeMap && (

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPosterSvg, buildCollagePosterSvg, routeBounds } from "./posterSvg";
+import { buildPosterSvg, buildEditorQuadroSvg, panelGeoBounds, pickPanelIndex, routeBounds, type EditorPanel } from "./posterSvg";
 
 const INPUT = {
   routeCoords: [[9.19, 45.46], [11.39, 47.27], [13.78, 45.65]] as [number, number][],
@@ -92,29 +92,48 @@ describe("buildPosterSvg — master di stampa SVG", () => {
   });
 });
 
-describe("buildCollagePosterSvg — quadro a regioni", () => {
-  const regions = [
-    { name: "A", x: 0, y: 0, w: 800, h: 500, lonMin: -10, latMin: 35, lonMax: 30, latMax: 60, dy: 0 },
-    { name: "B", x: 800, y: 0, w: 800, h: 500, lonMin: 60, latMin: 0, lonMax: 140, latMax: 50, dy: 10 },
+describe("buildEditorQuadroSvg — quadro dall'editor (pannelli a mano)", () => {
+  const panels: EditorPanel[] = [
+    { id: "a", x: 0, y: 0, w: 800, h: 500, refLon: -10, refLat: 60, scale: 8 },
+    { id: "b", x: 800, y: 0, w: 800, h: 500, refLon: 50, refLat: 60, scale: 8 },
   ];
-  const svg = buildCollagePosterSvg({
+  const svg = buildEditorQuadroSvg({
+    panels,
     borders: [[[0, 40], [20, 40], [20, 55], [0, 55], [0, 40]]],
-    // 3ª città (200,80) è FUORI da ogni regione: col fallback "regione più
-    // vicina" deve comunque comparire (nessuna città/linea sparisce).
     links: [[[9, 45], [70, 35]]],
+    // 3ª città (200,80) è FUORI da ogni pannello: col fallback "pannello più
+    // vicino" deve comparire lo stesso (nessuna città/linea sparisce).
     stops: [{ lon: 9, lat: 45 }, { lon: 70, lat: 35 }, { lon: 200, lat: 80 }],
-    regions,
+    width: 1600, height: 500,
   });
 
-  it("una tela + clip per regione", () => {
-    expect((svg.match(/<clipPath/g) ?? []).length).toBe(regions.length);
-    expect((svg.match(/fill="#050505"/g) ?? []).length).toBe(regions.length);
-  });
-
-  it("linee dei viaggi sopra + stelle-LED (anche città fuori regione), fondo trasparente", () => {
-    expect(svg).toContain('id="tratte"');
-    expect((svg.match(/data-led="1"/g) ?? []).length).toBe(3); // incl. la città fuori regione (fallback)
+  it("una tela + clip per pannello, fondo trasparente", () => {
+    expect((svg.match(/<clipPath/g) ?? []).length).toBe(panels.length);
+    expect((svg.match(/fill="#050505"/g) ?? []).length).toBe(panels.length);
     expect(svg).not.toContain('fill="#000000"');
+  });
+
+  it("linee dei viaggi sopra + una stella-LED per città (anche fuori pannello: fallback)", () => {
+    expect(svg).toContain('id="tratte"');
+    expect((svg.match(/data-led="1"/g) ?? []).length).toBe(3);
+  });
+});
+
+describe("panelGeoBounds / pickPanelIndex", () => {
+  it("bounds coerenti col riquadro (ref = angolo alto-sinistra)", () => {
+    const p: EditorPanel = { id: "x", x: 0, y: 0, w: 400, h: 300, refLon: 0, refLat: 50, scale: 10 };
+    const b = panelGeoBounds(p);
+    expect(b.lonMin).toBeCloseTo(0);
+    expect(b.lonMax).toBeCloseTo(40); // 0 + 400/10
+    expect(b.latMax).toBeCloseTo(50);
+    expect(b.latMin).toBeLessThan(50);
+  });
+
+  it("assegna la città alla tela più zoomata quando più tele la contengono", () => {
+    const wide: EditorPanel = { id: "w", x: 0, y: 0, w: 400, h: 300, refLon: -50, refLat: 60, scale: 2 };
+    const tight: EditorPanel = { id: "t", x: 0, y: 0, w: 400, h: 300, refLon: 5, refLat: 47, scale: 40 };
+    // (9,45) è dentro entrambe → vince la più zoomata (area minore) = tight (indice 1)
+    expect(pickPanelIndex([wide, tight], 9, 45)).toBe(1);
   });
 });
 
