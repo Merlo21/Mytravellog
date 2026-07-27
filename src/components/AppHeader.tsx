@@ -1,6 +1,6 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { Link } from "react-router-dom";
-import { Plane, PieChart, Settings, Plus, Menu, Upload, Frame } from "lucide-react";
+import { Plane, PieChart, Settings, Plus, Menu, Upload } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -54,11 +54,6 @@ export function AppHeader({ onTripsClick }: Props) {
             <DropdownMenuItem asChild>
               <Link to="/statistiche" className="flex items-center gap-2 cursor-pointer">
                 <PieChart className="w-4 h-4 text-primary"/> Statistiche
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/editor-quadro" className="flex items-center gap-2 cursor-pointer">
-                <Frame className="w-4 h-4 text-primary"/> Editor quadro
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
