@@ -238,7 +238,8 @@ export function buildCollagePosterSvg(input: CollageInput): string {
     const d = borders.filter(ring => bboxIntersects(ring, bnd))
       .map(ring => "M" + ring.map(([lon, lat]) => { const [X, Y] = b.proj(lon, lat); return `${nn(X)},${nn(Y)}`; }).join("L"))
       .join("");
-    return `<g clip-path="url(#rc${i})" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="0.9" stroke-linejoin="round"><path d="${d}"/></g>`;
+    // Gerarchia: confini nazioni sottili e grigio chiaro (fanno da sfondo).
+    return `<g clip-path="url(#rc${i})" fill="none" stroke="#ffffff" stroke-opacity="0.38" stroke-width="0.6" stroke-linejoin="round"><path d="${d}"/></g>`;
   }).join("");
 
   // Posizione a schermo di una città = proiezione della PRIMA regione che la
@@ -255,16 +256,20 @@ export function buildCollagePosterSvg(input: CollageInput): string {
   }).join("");
   const starEls = stops.map(s => {
     const sc = screen(s.lon, s.lat);
-    return sc ? `<circle cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="14" fill="url(#cGlow)"/><circle data-led="1" cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="5" fill="#ffffff"/>` : "";
+    return sc ? `<circle cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="20" fill="url(#cGlow)"/><circle data-led="1" cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="5.5" fill="#ffffff"/>` : "";
   }).join("");
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
-    `<defs><radialGradient id="cGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="40%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>${clips}</defs>`,
+    `<defs><radialGradient id="cGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="40%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>`,
+    `<filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>`,
+    `${clips}</defs>`,
     `<g id="ombre">${shadows}</g>`,
     `<g id="tele">${tiles}</g>`,
     `<g id="regioni">${maps}</g>`,
-    `<g id="tratte" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-opacity="0.9" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
+    // Percorsi attivi: bagliore (linea larga sfocata) + linea bianca nitida sopra.
+    `<g id="tratte-glow" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)">${lineEls}</g>`,
+    `<g id="tratte" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
     `<g id="stelle">${starEls}</g>`,
     `</svg>`,
   ].join("");
