@@ -5,7 +5,7 @@ import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, tripTotalKm, buildPerTripRouteCoords, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
-import { buildPosterSvg, loadCountryRings, routeBounds, PanelSpec } from "@/lib/posterSvg";
+import { buildPosterSvg, buildCollagePosterSvg, loadCountryRings, routeBounds, CollageRegion } from "@/lib/posterSvg";
 import { X, Share2, Loader2, Download, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 
@@ -240,25 +240,23 @@ export function finaleFanLayout(i: number, n: number) {
 }
 
 /**
- * Layout "quadro componibile" (scomposizione B, ~12 pannelli): griglia 4×3 di
- * tessere quadrate/rettangolari con piccoli sfasamenti verticali, in FRAZIONI
- * del poster. Insieme ricompongono il planisfero (per l'export da stampa).
+ * Layout del "quadro collage" a REGIONI (canvas 1600×980): ogni regione è una
+ * tela che inquadra la sua porzione di mondo con zoom indipendente, così anche
+ * l'Europa (piccola ma piena di stati) diventa grande e leggibile — proporzioni
+ * d'autore, non in scala. Le tele si accostano a comporre un planisfero
+ * stilizzato; le linee dei viaggi verranno disegnate sopra (vedi
+ * buildCollagePosterSvg). L'ORDINE conta: è la priorità di assegnazione città→regione.
  */
-function buildQuadroPanels(): PanelSpec[] {
-  const colW = [0.20, 0.27, 0.24, 0.25], rowH = [0.30, 0.40, 0.24], gx = 0.012, gy = 0.02;
-  const dyPat = [
-    [-0.02, 0.015, -0.01, 0.02],
-    [0.02, -0.015, 0.02, -0.012],
-    [-0.012, 0.025, -0.02, 0.012],
-  ];
-  const xs = [0]; for (let i = 0; i < colW.length; i++) xs.push(xs[i] + colW[i] + gx);
-  const ys = [0]; for (let j = 0; j < rowH.length; j++) ys.push(ys[j] + rowH[j] + gy);
-  const out: PanelSpec[] = [];
-  for (let r = 0; r < rowH.length; r++) for (let c = 0; c < colW.length; c++) {
-    out.push({ x: xs[c], y: ys[r], w: colW[c], h: rowH[r], dy: dyPat[r][c] });
-  }
-  return out;
-}
+const COLLAGE_REGIONS: CollageRegion[] = [
+  { name: "Nord America",   x: 43,   y: 60,  w: 444, h: 380, lonMin: -128, latMin: 15,  lonMax: -60, latMax: 62, dy: -11 },
+  { name: "America Latina", x: 43,   y: 466, w: 373, h: 452, lonMin: -82,  latMin: -54, lonMax: -34, latMax: 13, dy: 11 },
+  { name: "Europa",         x: 516,  y: 60,  w: 533, h: 533, lonMin: -25,  latMin: 35,  lonMax: 35,  latMax: 67, dy: 0 },
+  { name: "Africa",         x: 441,  y: 622, w: 498, h: 295, lonMin: -18,  latMin: -35, lonMax: 52,  latMax: 37, dy: 12 },
+  { name: "Russia",         x: 1077, y: 60,  w: 480, h: 267, lonMin: 28,   latMin: 46,  lonMax: 178, latMax: 76, dy: -11 },
+  { name: "Asia",           x: 1077, y: 352, w: 480, h: 267, lonMin: 62,   latMin: 6,   lonMax: 145, latMax: 54, dy: 9 },
+  { name: "Medio Oriente",  x: 967,  y: 622, w: 267, h: 295, lonMin: 34,   latMin: 12,  lonMax: 60,  latMax: 40, dy: -9 },
+  { name: "Oceania",        x: 1259, y: 644, w: 299, h: 274, lonMin: 112,  latMin: -46, lonMax: 179, latMax: -10, dy: 14 },
+];
 
 interface Props {
   trips: Trip[];
@@ -853,16 +851,19 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     if (exportingSvg) return;
     setExportingSvg(true);
     try {
-      const route = allCoordsRef.current;
-      const stops = stopsRef.current;
+      // Confini del MONDO intero ad alta risoluzione (50m): il collage inquadra
+      // ogni regione a sé, quindi servono tutti i paesi ben dettagliati.
       let rings: [number, number][][] = [];
       try {
-        rings = await loadCountryRings(routeBounds(route.length ? route : stops.map(s => [s.lon, s.lat] as [number, number])));
-      } catch { /* confini non disponibili: esporta comunque rotta+stelle */ }
-      const svg = buildPosterSvg({
-        routeSegments: routeSegsRef.current, stops, borders: rings,
-        title: "", hideLabels: true, panels: buildQuadroPanels(),
-      });
+        rings = await loadCountryRings({ lonMin: -180, lonMax: 180, latMin: -60, latMax: 85 }, "50m");
+      } catch { /* confini non disponibili: esporta comunque tratte+stelle */ }
+      // Linee dei viaggi = una polilinea per viaggio con le sole TAPPE (casa →
+      // waypoint → destinazione), disegnate sopra collegando le tessere.
+      const links: [number, number][][] = trips
+        .map(t => buildFlightPath([t]).map(s => [s.lon, s.lat] as [number, number]))
+        .filter(seg => seg.length > 0);
+      const stops = stopsRef.current.map(s => ({ lon: s.lon, lat: s.lat }));
+      const svg = buildCollagePosterSvg({ borders: rings, links, stops, regions: COLLAGE_REGIONS });
       const blob = new Blob([svg], { type: "image/svg+xml" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPosterSvg, routeBounds } from "./posterSvg";
+import { buildPosterSvg, buildCollagePosterSvg, routeBounds } from "./posterSvg";
 
 const INPUT = {
   routeCoords: [[9.19, 45.46], [11.39, 47.27], [13.78, 45.65]] as [number, number][],
@@ -73,19 +73,6 @@ describe("buildPosterSvg — master di stampa SVG", () => {
     expect((s.match(/data-led="1"/g) ?? []).length).toBe(INPUT.stops.length);
   });
 
-  it("con panels rende il quadro componibile (una tessera + clip per pannello)", () => {
-    const panels = [
-      { x: 0, y: 0, w: 0.5, h: 0.5, dy: 0 },
-      { x: 0.5, y: 0, w: 0.5, h: 0.5, dy: 0.02 },
-      { x: 0, y: 0.5, w: 1, h: 0.5, dy: -0.02 },
-    ];
-    const s = buildPosterSvg({ ...INPUT, title: "", dateLabel: null, stats: null, hideLabels: true, panels });
-    expect((s.match(/<clipPath/g) ?? []).length).toBe(panels.length);
-    expect((s.match(/fill="#050505"/g) ?? []).length).toBe(panels.length); // tele nere
-    expect((s.match(/href="#qmap"/g) ?? []).length).toBe(panels.length);
-    expect(s).not.toContain('fill="#000000"'); // niente fondo pieno: pannelli su trasparente
-  });
-
   it("con routeSegments disegna un path per viaggio (Mappa della vita)", () => {
     const s = buildPosterSvg({
       routeSegments: [
@@ -102,6 +89,30 @@ describe("buildPosterSvg — master di stampa SVG", () => {
     const g = s.match(/<g id="tracciato"[^>]*>(.*?)<\/g>/)?.[1] ?? "";
     expect((g.match(/<path /g) ?? []).length).toBe(2);
     expect(s).toContain("La mappa della mia vita");
+  });
+});
+
+describe("buildCollagePosterSvg — quadro a regioni", () => {
+  const regions = [
+    { name: "A", x: 0, y: 0, w: 800, h: 500, lonMin: -10, latMin: 35, lonMax: 30, latMax: 60, dy: 0 },
+    { name: "B", x: 800, y: 0, w: 800, h: 500, lonMin: 60, latMin: 0, lonMax: 140, latMax: 50, dy: 10 },
+  ];
+  const svg = buildCollagePosterSvg({
+    borders: [[[0, 40], [20, 40], [20, 55], [0, 55], [0, 40]]],
+    links: [[[9, 45], [70, 35]]],
+    stops: [{ lon: 9, lat: 45 }, { lon: 70, lat: 35 }],
+    regions,
+  });
+
+  it("una tela + clip per regione", () => {
+    expect((svg.match(/<clipPath/g) ?? []).length).toBe(regions.length);
+    expect((svg.match(/fill="#050505"/g) ?? []).length).toBe(regions.length);
+  });
+
+  it("linee dei viaggi sopra + stelle-LED, fondo trasparente", () => {
+    expect(svg).toContain('id="tratte"');
+    expect((svg.match(/data-led="1"/g) ?? []).length).toBe(2);
+    expect(svg).not.toContain('fill="#000000"');
   });
 });
 
