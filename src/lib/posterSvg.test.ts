@@ -99,8 +99,10 @@ describe("buildCollagePosterSvg — quadro a regioni", () => {
   ];
   const svg = buildCollagePosterSvg({
     borders: [[[0, 40], [20, 40], [20, 55], [0, 55], [0, 40]]],
+    // 3ª città (200,80) è FUORI da ogni regione: col fallback "regione più
+    // vicina" deve comunque comparire (nessuna città/linea sparisce).
     links: [[[9, 45], [70, 35]]],
-    stops: [{ lon: 9, lat: 45 }, { lon: 70, lat: 35 }],
+    stops: [{ lon: 9, lat: 45 }, { lon: 70, lat: 35 }, { lon: 200, lat: 80 }],
     regions,
   });
 
@@ -109,9 +111,9 @@ describe("buildCollagePosterSvg — quadro a regioni", () => {
     expect((svg.match(/fill="#050505"/g) ?? []).length).toBe(regions.length);
   });
 
-  it("linee dei viaggi sopra + stelle-LED, fondo trasparente", () => {
+  it("linee dei viaggi sopra + stelle-LED (anche città fuori regione), fondo trasparente", () => {
     expect(svg).toContain('id="tratte"');
-    expect((svg.match(/data-led="1"/g) ?? []).length).toBe(2);
+    expect((svg.match(/data-led="1"/g) ?? []).length).toBe(3); // incl. la città fuori regione (fallback)
     expect(svg).not.toContain('fill="#000000"');
   });
 });

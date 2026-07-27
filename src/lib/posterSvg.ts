@@ -242,13 +242,23 @@ export function buildCollagePosterSvg(input: CollageInput): string {
     return `<g clip-path="url(#rc${i})" fill="none" stroke="#ffffff" stroke-opacity="0.38" stroke-width="0.6" stroke-linejoin="round"><path d="${d}"/></g>`;
   }).join("");
 
-  // Posizione a schermo di una città = proiezione della PRIMA regione che la
-  // contiene (ordine dei regions = priorità). Usata per linee e stelle sopra.
+  // Posizione a schermo di una città = proiezione della regione che la contiene
+  // (ordine dei regions = priorità). Se cade in un "buco" tra i riquadri, si usa
+  // la regione PIÙ VICINA: così nessuna città/linea di viaggio sparisce mai
+  // (le linee dei viaggi restano sempre complete e continue).
   const screen = (lon: number, lat: number): [number, number] | null => {
+    if (!built.length) return null;
     for (const b of built) {
       if (lon >= b.r.lonMin && lon <= b.r.lonMax && lat >= b.r.latMin && lat <= b.r.latMax) return b.proj(lon, lat);
     }
-    return null;
+    let best = built[0], bestD = Infinity;
+    for (const b of built) {
+      const dx = lon < b.r.lonMin ? b.r.lonMin - lon : lon > b.r.lonMax ? lon - b.r.lonMax : 0;
+      const dy = lat < b.r.latMin ? b.r.latMin - lat : lat > b.r.latMax ? lat - b.r.latMax : 0;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = b; }
+    }
+    return best.proj(lon, lat);
   };
   const lineEls = links.map(seg => {
     const pts = seg.map(([lon, lat]) => screen(lon, lat)).filter((p): p is [number, number] => !!p);
