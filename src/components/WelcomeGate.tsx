@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { loadTrips } from "@/lib/storage";
 import { useGoogleDrive } from "@/lib/googleDriveContext";
+import { GoogleG } from "@/components/GoogleG";
 import { Loader2, AlertTriangle } from "lucide-react";
 
 const DISMISS_KEY = "navta.welcome.dismissed";
@@ -46,14 +47,6 @@ function AppLogo() {
         <span style={{ color: "#f0f4ff" }}>TA</span>
       </h1>
     </div>
-  );
-}
-
-function GoogleG() {
-  return (
-    <svg viewBox="0 0 24 24" style={{ width: 16, height: 16 }} aria-hidden="true">
-      <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.1 14.6 2 12 2 6.9 2 2.8 6.1 2.8 12S6.9 22 12 22c6.1 0 9.2-4.3 9.2-9.3 0-.6-.1-1-.2-1.5H12z" />
-    </svg>
   );
 }
 
@@ -106,7 +99,7 @@ export function WelcomeGate() {
               padding: "13px 16px", borderRadius: 14, border: "none", cursor: busy ? "default" : "pointer",
               background: "#ffffff", color: "#1f1f1f", fontSize: 14, fontWeight: 700, opacity: busy ? 0.7 : 1,
             }}>
-            {busy ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <GoogleG />}
+            {busy ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <GoogleG size={16} />}
             Accedi con Google
           </button>
           <button type="button" onClick={dismiss} disabled={busy}
@@ -126,8 +119,10 @@ export function WelcomeGate() {
           </p>
         )}
 
-        <p style={{ marginTop: 18, fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.4)" }}>
-          Con Google i viaggi si salvano nel tuo Drive, in automatico.<br />
+        <p style={{ marginTop: 18, fontSize: 11.5, lineHeight: 1.6, color: "rgba(255,255,255,0.5)" }}>
+          🔒 I dati restano nel tuo account Google. Nessun altro può vederli.
+        </p>
+        <p style={{ marginTop: 6, fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.35)" }}>
           Da ospite puoi collegarti quando vuoi dalle Impostazioni.
         </p>
       </div>
