@@ -1,25 +1,23 @@
 /**
- * Firma "By 🐻" fissa in basso a destra, su OGNI pagina dell'app.
+ * Firma "By 🐻" a FINE PAGINA (non fissa): scorre col contenuto e compare in
+ * fondo, come la firma sul retro di una stampa — non copre mai le card.
  *
- * - `pointer-events: none` → non intercetta mai i click, non dà mai fastidio;
- * - z-index moderato → sta SOTTO ai modali a schermo intero (poster/flyover):
- *   su quelli la firma arriva dall'export SVG, non da qui;
- * - il logo è servito da `public/logo-orsi.png` (orsi bianchi, sfondo
- *   trasparente) via BASE_URL, così funziona anche sotto /Mytravellog/ su Pages.
+ * Montata globale in main.tsx DOPO <Routes>, quindi in flusso normale finisce
+ * in coda al documento su ogni pagina scrollabile. Sulle viste a schermo intero
+ * (editor quadro, poster/flyover) resta sotto e non si vede: lì la firma arriva
+ * comunque dall'export. Il logo è servito da public/ via BASE_URL (funziona
+ * anche sotto /Mytravellog/ su Pages).
  */
 export function BrandBadge() {
   return (
     <div
       aria-hidden
       style={{
-        position: "fixed", right: 10, bottom: 10, zIndex: 40, pointerEvents: "none",
-        display: "flex", alignItems: "center", gap: 6, opacity: 0.55,
-        padding: "4px 9px", borderRadius: 999,
-        background: "rgba(6,14,30,0.55)", border: "0.5px solid rgba(255,255,255,0.12)",
-        backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        padding: "18px 0 24px", opacity: 0.5,
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", letterSpacing: "0.02em" }}>By</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)", letterSpacing: "0.03em" }}>By</span>
       <img
         src={`${import.meta.env.BASE_URL}logo-orsi.png`}
         alt=""
