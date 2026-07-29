@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
 import { SettingsProvider } from "./lib/settings";
 import { AuthProvider } from "./lib/auth";
+import { BrandBadge } from "./components/BrandBadge";
 // Self-hosted (Fontsource), non da un CDN esterno: erano già dichiarati in
 // tailwind.config.ts (font-display/font-mono) ma senza i file veri restavano
 // solo un'intenzione, con fallback silenzioso al font di sistema — self-
@@ -72,6 +73,7 @@ ReactDOM.createRoot(rootEl).render(
             </Routes>
           </Suspense>
           <Toaster richColors position="top-right" />
+          <BrandBadge />
         </HashRouter>
       </AuthProvider>
     </SettingsProvider>

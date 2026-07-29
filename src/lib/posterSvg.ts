@@ -1,4 +1,5 @@
 import { feature } from "topojson-client";
+import { LOGO_DATA_URI } from "./brandLogo";
 
 /**
  * Generatore del MASTER DI STAMPA in SVG per la vista "Costellazione":
@@ -99,6 +100,22 @@ export async function loadCountryRings(
 
 const escapeXml = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c] as string));
 
+/** Firma "By 🐻" in basso a destra, condivisa da TUTTI gli export SVG (poster
+ *  del viaggio, mappa della vita, quadro). Il logo è incorporato come data-URI
+ *  con `xlink:href` (compatibile con browser, Illustrator e stampanti); i root
+ *  SVG che la usano dichiarano perciò anche xmlns:xlink. `bottomY` = Y del
+ *  bordo inferiore della firma (per stare sopra la didascalia dove c'è). */
+function brandSignatureSvg(W: number, bottomY: number): string {
+  const size = 42, pad = 26, gap = 10;
+  const top = bottomY - size;
+  const logoX = W - pad - size;
+  const r = (v: number) => (Math.round(v * 10) / 10).toString();
+  return `<g id="firma" opacity="0.72">`
+    + `<text x="${r(logoX - gap)}" y="${r(top + size * 0.7)}" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="24" fill="#ffffff">By</text>`
+    + `<image x="${r(logoX)}" y="${r(top)}" width="${size}" height="${size}" xlink:href="${LOGO_DATA_URI}"/>`
+    + `</g>`;
+}
+
 /** Costruisce la stringa SVG completa del poster (puro). */
 export function buildPosterSvg(input: PosterSvgInput): string {
   const W = input.width ?? 1600;
@@ -178,7 +195,7 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   const stelleG = `<g id="stelle">${starEls}</g>`;
   const etichetteG = `<g id="etichette">${labelEls}</g>`;
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
     `<defs>${starGlowDef}</defs>`,
     `<rect x="0" y="0" width="${W}" height="${H}" fill="#000000"/>`,
     confiniG,
@@ -187,6 +204,8 @@ export function buildPosterSvg(input: PosterSvgInput): string {
     etichetteG,
     dividerEl,
     `<g id="titolo">${titleEls.join("")}</g>`,
+    // Firma nell'angolo in basso a destra dell'AREA MAPPA (sopra la didascalia).
+    brandSignatureSvg(W, mapH - 10),
     `</svg>`,
   ].join("");
 }
@@ -318,7 +337,7 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
   }).join("");
 
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
     `<defs><radialGradient id="cGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="40%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>`,
     `<filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>`,
     `${clips}</defs>`,
@@ -328,6 +347,7 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
     `<g id="tratte-glow" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)">${lineEls}</g>`,
     `<g id="tratte" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
     `<g id="stelle">${starEls}</g>`,
+    brandSignatureSvg(W, H - 10),
     `</svg>`,
   ].join("");
 }

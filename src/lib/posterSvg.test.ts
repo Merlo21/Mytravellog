@@ -28,6 +28,13 @@ describe("buildPosterSvg — master di stampa SVG", () => {
     }
   });
 
+  it("porta la firma 'By' col logo incorporato (xlink) in basso a destra", () => {
+    expect(svg).toContain('id="firma"');
+    expect(svg).toContain(">By<");
+    expect(svg).toContain('xlink:href="data:image/png;base64,');
+    expect(svg).toContain('xmlns:xlink=');
+  });
+
   it("marca i nodi-stella come punti-LED (data-led) — uno per tappa", () => {
     const matches = svg.match(/data-led="1"/g) ?? [];
     expect(matches.length).toBe(INPUT.stops.length);
@@ -122,6 +129,11 @@ describe("buildEditorQuadroSvg — quadro dall'editor (pannelli a mano)", () => 
   it("linee dei viaggi sopra + una stella-LED per città (anche fuori pannello: fallback)", () => {
     expect(svg).toContain('id="tratte"');
     expect((svg.match(/data-led="1"/g) ?? []).length).toBe(3);
+  });
+
+  it("porta la firma 'By' col logo anche sul quadro", () => {
+    expect(svg).toContain('id="firma"');
+    expect(svg).toContain('xlink:href="data:image/png;base64,');
   });
 });
 
