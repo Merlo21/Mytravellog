@@ -194,7 +194,11 @@ function HomeInner() {
   const [flyoverTrip, setFlyoverTrip] = useState<Trip | null>(null);
 
   return (
-    <main className="h-screen flex flex-col" style={{backgroundColor:"#060e1e"}}>
+    // min-h-screen (non h-screen): con la tendina statistiche APERTA il
+    // contenuto supera il viewport e il main deve poter crescere — bloccato a
+    // h-screen il globo strabordava visivamente fuori dal main (fondo del
+    // globo/CASA irraggiungibili e firma "By" che finiva in mezzo al cielo).
+    <main className="min-h-screen flex flex-col" style={{backgroundColor:"#060e1e"}}>
       <AppHeader/>
 
       <div className="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6">
