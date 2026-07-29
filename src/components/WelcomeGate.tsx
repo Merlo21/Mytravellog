@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { loadTrips } from "@/lib/storage";
 import { useGoogleDrive } from "@/lib/googleDriveContext";
 import { GoogleG } from "@/components/GoogleG";
@@ -56,6 +56,34 @@ export function WelcomeGate() {
   const [error, setError] = useState<string | null>(null);
   const { connect } = useGoogleDrive();
 
+  // BLOCCA lo scroll della pagina sotto finché la welcome è aperta: senza,
+  // su mobile il dito scorreva il contenuto dietro al velo (si vedevano le
+  // Impostazioni "sotto" il login) e su iOS l'overscroll fa "ballare" anche
+  // gli elementi fixed. Pattern a prova di iOS: body position:fixed (il solo
+  // overflow:hidden su iOS Safari non ferma il touch-scroll), con la posizione
+  // di scroll congelata e ripristinata alla chiusura.
+  useEffect(() => {
+    if (!visible) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      position: body.style.position, top: body.style.top,
+      left: body.style.left, right: body.style.right, width: body.style.width,
+    };
+    html.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0"; body.style.right = "0"; body.style.width = "100%";
+    return () => {
+      html.style.overflow = prev.htmlOverflow;
+      body.style.position = prev.position; body.style.top = prev.top;
+      body.style.left = prev.left; body.style.right = prev.right; body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [visible]);
+
   if (!visible) return null;
 
   const dismiss = () => {
@@ -75,7 +103,11 @@ export function WelcomeGate() {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 100, background: "#060e1e",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 28,
+      display: "flex", padding: 28,
+      // scroll interno su schermi bassi, senza MAI incatenarsi alla pagina
+      // sotto; il centraggio è margin:auto sul figlio (alignItems:center +
+      // overflow taglierebbe la parte alta quando il contenuto non ci sta).
+      overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
       // cielo stellato leggero, coerente con la Home
       backgroundImage: `radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,0.5), transparent),
         radial-gradient(1px 1px at 78% 12%, rgba(255,255,255,0.35), transparent),
@@ -86,7 +118,7 @@ export function WelcomeGate() {
         radial-gradient(1px 1px at 10% 88%, rgba(255,255,255,0.3), transparent),
         radial-gradient(1px 1px at 92% 86%, rgba(255,255,255,0.35), transparent)`,
     }}>
-      <div style={{ width: "100%", maxWidth: 340, textAlign: "center" }}>
+      <div style={{ width: "100%", maxWidth: 340, textAlign: "center", margin: "auto" }}>
         <AppLogo />
         <p style={{ marginTop: 14, fontSize: 13.5, lineHeight: 1.6, color: "rgba(255,255,255,0.55)" }}>
           Il tuo atlante personale di viaggio.<br />Ogni meta, una stella.
