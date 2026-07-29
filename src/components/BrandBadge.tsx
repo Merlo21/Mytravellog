@@ -21,8 +21,8 @@ export function BrandBadge() {
       <img
         src={`${import.meta.env.BASE_URL}logo-orsi.png`}
         alt=""
-        width={18}
-        height={18}
+        width={30}
+        height={30}
         style={{ display: "block" }}
       />
     </div>
