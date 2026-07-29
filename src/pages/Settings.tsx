@@ -4,7 +4,7 @@ import { MapPin, Search, X, Ruler, RotateCw, CircleDot, UserCircle } from "lucid
 import { useSettings, DistanceUnit, TemperatureUnit, AutoRotate, HomeCity } from "@/lib/settings";
 import { searchPlaces, GeoResult } from "@/lib/geo";
 import { useState, useEffect } from "react";
-import { AccountSection } from "@/components/AccountSection";
+import { GoogleDriveSection } from "@/components/GoogleDriveSection";
 
 // Preset "da utente" per la dimensione dei marker sul globo: sotto il cofano
 // impostano la coppia min/max che prima andava digitata a mano (con tanto di
@@ -223,10 +223,10 @@ export default function Settings() {
 
         <Group
           icon={<UserCircle width="18" height="18"/>}
-          title="Account"
-          desc="Accedi per poter fare un backup dei tuoi viaggi (facoltativo, l'app funziona anche senza)"
+          title="Backup su Google Drive"
+          desc="Accedi con Google per salvare i viaggi nel tuo Drive, in automatico (facoltativo: l'app funziona anche come ospite)"
         >
-          <AccountSection/>
+          <GoogleDriveSection/>
         </Group>
 
       </div>

@@ -4,7 +4,7 @@ import { HashRouter, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Loader2 } from "lucide-react";
 import { SettingsProvider } from "./lib/settings";
-import { AuthProvider } from "./lib/auth";
+import { GoogleDriveProvider } from "./lib/googleDriveContext";
 import { BrandBadge } from "./components/BrandBadge";
 // Self-hosted (Fontsource), non da un CDN esterno: erano già dichiarati in
 // tailwind.config.ts (font-display/font-mono) ma senza i file veri restavano
@@ -56,7 +56,7 @@ rootEl.style.minHeight = "100vh";
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <SettingsProvider>
-      <AuthProvider>
+      <GoogleDriveProvider>
         <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
@@ -75,7 +75,7 @@ ReactDOM.createRoot(rootEl).render(
           <Toaster richColors position="top-right" />
           <BrandBadge />
         </HashRouter>
-      </AuthProvider>
+      </GoogleDriveProvider>
     </SettingsProvider>
   </React.StrictMode>
 );
