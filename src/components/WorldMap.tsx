@@ -290,10 +290,11 @@ export function WorldMap({
         container: containerRef.current!,
         style,
         center: [10, 20],
-        // Globo più "profondo"/distante all'apertura della Home (prima 1.5, era
-        // troppo vicino): lascia più cielo attorno. L'atmosfera (setFog) scala
-        // insieme al globo, quindi non serve ritarare nulla.
-        zoom: 0.8,
+        // Globo più "profondo"/distante all'apertura della Home (1.5 → 0.8 →
+        // 0.5, sempre su richiesta a vista dell'utente): lascia più cielo
+        // attorno. L'atmosfera (setFog) scala insieme al globo, quindi non
+        // serve ritarare nulla.
+        zoom: 0.5,
         attributionControl: false,
       });
       // Se la cleanup è scattata proprio durante l'ultimo await, distruggi
