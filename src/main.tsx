@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { SettingsProvider } from "./lib/settings";
 import { GoogleDriveProvider } from "./lib/googleDriveContext";
 import { BrandBadge } from "./components/BrandBadge";
+import { WelcomeGate } from "./components/WelcomeGate";
 // Self-hosted (Fontsource), non da un CDN esterno: erano già dichiarati in
 // tailwind.config.ts (font-display/font-mono) ma senza i file veri restavano
 // solo un'intenzione, con fallback silenzioso al font di sistema — self-
@@ -74,6 +75,9 @@ ReactDOM.createRoot(rootEl).render(
           </Suspense>
           <Toaster richColors position="top-right" />
           <BrandBadge />
+          {/* Benvenuto SOLO al primo avvio (dispositivo vergine): overlay sopra
+              tutto, si archivia per sempre al primo tap. */}
+          <WelcomeGate />
         </HashRouter>
       </GoogleDriveProvider>
     </SettingsProvider>
