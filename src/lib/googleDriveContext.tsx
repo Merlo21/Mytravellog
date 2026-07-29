@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { loadTrips, saveTrips } from "@/lib/storage";
 import {
   BACKUP_VERSION, requestAccessToken, revokeAccessToken, fetchUserEmail,
-  readBackup, writeBackup, mergeTrips,
+  readBackup, writeBackup, mergeTrips, clearDriveCache,
 } from "@/lib/googleDrive";
 
 export type DriveStatus = "guest" | "connecting" | "connected" | "syncing" | "expired" | "error";
@@ -130,6 +130,7 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     stopWatcher();
     if (tokenRef.current) revokeAccessToken(tokenRef.current.token);
     tokenRef.current = null;
+    clearDriveCache(); // l'id del file appartiene all'account appena scollegato
     localStorage.removeItem(LS_CONNECTED);
     if (mountedRef.current) { setEmail(null); setLastSyncAt(null); setErrorMsg(null); setStatus("guest"); }
   };

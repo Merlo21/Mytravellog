@@ -44,26 +44,51 @@ function loadGis(): Promise<void> {
 
 export interface TokenResult { token: string; expiresIn: number }
 
+// UN SOLO token client GIS, riusato per tutte le richieste (callback
+// riassegnata di volta in volta, prompt passato per-chiamata).
+let tokenClient: any = null;
+// Richiesta in corso: le chiamate concorrenti si agganciano alla stessa
+// Promise (evita doppi popup e callback che si pestano i piedi sul client unico).
+let pendingToken: Promise<TokenResult> | null = null;
+
 /**
  * Richiede un access token. `interactive`:
  *  - true  → può mostrare popup di consenso/scelta account (per "Connetti");
  *  - false → SILENZIOSO (prompt:"none"), per riconnettersi al riavvio senza UI.
+ * Con TIMEOUT di sicurezza (8s silenzioso / 120s interattivo): se GIS non
+ * richiama mai né callback né error_callback, la Promise fallisce pulita
+ * invece di restare appesa per sempre.
  */
 export function requestAccessToken(interactive: boolean): Promise<TokenResult> {
-  return loadGis().then(() => new Promise<TokenResult>((resolve, reject) => {
+  if (pendingToken) return pendingToken;
+  const p = loadGis().then(() => new Promise<TokenResult>((resolve, reject) => {
     const google = (window as any).google;
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: SCOPE,
-      prompt: interactive ? "" : "none",
-      callback: (resp: any) => {
-        if (resp.error) { reject(new Error(resp.error)); return; }
-        resolve({ token: resp.access_token, expiresIn: Number(resp.expires_in) || 3600 });
-      },
-      error_callback: (err: any) => reject(new Error(err?.type || "token_error")),
-    });
-    client.requestAccessToken();
+    if (!tokenClient) {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPE,
+        callback: () => { /* riassegnata per-richiesta qui sotto */ },
+      });
+    }
+    let done = false;
+    const timeout = window.setTimeout(() => {
+      if (!done) { done = true; reject(new Error("timeout")); }
+    }, interactive ? 120_000 : 8_000);
+    tokenClient.callback = (resp: any) => {
+      if (done) return; done = true; clearTimeout(timeout);
+      if (resp?.access_token) resolve({ token: resp.access_token, expiresIn: Number(resp.expires_in) || 3600 });
+      else reject(new Error(resp?.error || "no_token"));
+    };
+    tokenClient.error_callback = (err: any) => {
+      if (done) return; done = true; clearTimeout(timeout);
+      reject(new Error(err?.type || "token_error"));
+    };
+    try { tokenClient.requestAccessToken({ prompt: interactive ? "" : "none" }); }
+    catch (e) { if (!done) { done = true; clearTimeout(timeout); reject(e as Error); } }
   }));
+  pendingToken = p;
+  p.catch(() => { /* gestita dal chiamante */ }).finally(() => { if (pendingToken === p) pendingToken = null; });
+  return p;
 }
 
 /** Revoca il token (al "Disconnetti"): l'app perde l'accesso finché non ri-consenti. */
@@ -85,7 +110,17 @@ export async function fetchUserEmail(token: string): Promise<string | null> {
 }
 
 // ---- File di backup nell'appDataFolder --------------------------------------
-async function findBackupFileId(token: string): Promise<string | null> {
+
+// Id del file di backup, trovato UNA volta e riusato: senza cache ogni push
+// pagava una GET di ricerca in più. Invalidata sui 404 (file sparito/da
+// ricreare) e al disconnect (un altro account avrebbe un altro file).
+let cachedFileId: string | null = null;
+
+/** Da chiamare al disconnect: l'id del file appartiene all'account corrente. */
+export function clearDriveCache(): void { cachedFileId = null; }
+
+async function findBackupFileId(token: string, force = false): Promise<string | null> {
+  if (cachedFileId && !force) return cachedFileId;
   const q = encodeURIComponent(`name='${BACKUP_FILE}'`);
   const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -93,7 +128,8 @@ async function findBackupFileId(token: string): Promise<string | null> {
   if (!r.ok) throw new Error("drive_list_failed");
   const j = await r.json();
   const f = (j.files ?? []).find((x: any) => x.name === BACKUP_FILE);
-  return f?.id ?? null;
+  cachedFileId = f?.id ?? null;
+  return cachedFileId;
 }
 
 /** Legge il backup dal Drive (null se non esiste ancora). */
@@ -104,36 +140,50 @@ export async function readBackup(token: string): Promise<DriveBackup | null> {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (r.status === 401) throw new Error("unauthorized");
+  if (r.status === 404) { cachedFileId = null; return null; } // id stantio: come "nessun backup"
   if (!r.ok) throw new Error("drive_read_failed");
   return await r.json();
 }
 
-/** Scrive/aggiorna il backup nel Drive (appDataFolder). */
-export async function writeBackup(token: string, data: DriveBackup): Promise<void> {
-  const id = await findBackupFileId(token);
-  const body = JSON.stringify(data);
-  if (id) {
-    const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body,
-    });
-    if (r.status === 401) throw new Error("unauthorized");
-    if (!r.ok) throw new Error("drive_update_failed");
-    return;
-  }
+async function patchBackup(token: string, id: string, body: string): Promise<Response> {
+  return fetch(`https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body,
+  });
+}
+
+async function createBackup(token: string, body: string): Promise<void> {
   const boundary = "navta_" + Math.random().toString(36).slice(2);
   const metadata = { name: BACKUP_FILE, parents: ["appDataFolder"] };
   const multipart =
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
     `--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
-  const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+  const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": `multipart/related; boundary=${boundary}` },
     body: multipart,
   });
   if (r.status === 401) throw new Error("unauthorized");
   if (!r.ok) throw new Error("drive_create_failed");
+  try { const j = await r.json(); if (j?.id) cachedFileId = j.id; } catch { /* id alla prossima find */ }
+}
+
+/** Scrive/aggiorna il backup nel Drive (appDataFolder). */
+export async function writeBackup(token: string, data: DriveBackup): Promise<void> {
+  const body = JSON.stringify(data);
+  const id = await findBackupFileId(token);
+  if (!id) { await createBackup(token, body); return; }
+  let r = await patchBackup(token, id, body);
+  if (r.status === 404) {
+    // id in cache stantio (file cancellato da Drive): ricerca fresca e riprova.
+    cachedFileId = null;
+    const fresh = await findBackupFileId(token, true);
+    if (!fresh) { await createBackup(token, body); return; }
+    r = await patchBackup(token, fresh, body);
+  }
+  if (r.status === 401) throw new Error("unauthorized");
+  if (!r.ok) throw new Error("drive_update_failed");
 }
 
 /**
