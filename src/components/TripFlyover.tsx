@@ -116,6 +116,24 @@ function drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x:
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
+/** Firma "By 🐻" in basso a destra dello snapshot raster (Salva/Condividi),
+ *  equivalente a quella degli export SVG. Ombra morbida così gli orsi bianchi
+ *  restano visibili anche su porzioni chiare della mappa. */
+function drawBrandSignatureCanvas(ctx: CanvasRenderingContext2D, W: number, H: number, dpr: number, logo: HTMLImageElement) {
+  const u = dpr;
+  const size = 34 * u, pad = 18 * u, gap = 7 * u;
+  const top = H - pad - size, logoX = W - pad - size;
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 4 * u; ctx.shadowOffsetY = 1 * u;
+  ctx.drawImage(logo, logoX, top, size, size);
+  ctx.font = `italic ${16 * u}px Georgia, 'Times New Roman', serif`;
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  ctx.fillText("By", logoX - gap, top + size / 2);
+  ctx.restore();
+}
+
 /**
  * Immagine di una "puntina da mappa" (testa tonda ambra + punta), disegnata su
  * canvas e usata come icon-image di un symbol layer per le tappe. Essendo un
@@ -503,12 +521,14 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
    * grazie a preserveDrawingBuffer) + ventaglio foto in basso a sinistra +
    * pillola dati in alto a destra. Restituisce il canvas pronto per toBlob.
    */
-  const composePoster = (mapCanvas: HTMLCanvasElement, flagImgs: HTMLImageElement[]): HTMLCanvasElement => {
+  const composePoster = (mapCanvas: HTMLCanvasElement, flagImgs: HTMLImageElement[], logoImg: HTMLImageElement | null): HTMLCanvasElement => {
     const c = document.createElement("canvas");
     c.width = mapCanvas.width; c.height = mapCanvas.height;
     const ctx = c.getContext("2d")!;
     ctx.drawImage(mapCanvas, 0, 0);
     const dpr = mapCanvas.width / (mapCanvas.clientWidth || mapCanvas.width);
+    // Firma "By 🐻" in basso a destra, prima di ogni uscita (tutte le viste).
+    const stamp = () => { if (logoImg) drawBrandSignatureCanvas(ctx, c.width, c.height, dpr, logoImg); };
 
     // Ventaglio foto (basso a sinistra), scalato per stare nel frame.
     const imgs = finaleImgsRef.current.filter(im => im.complete && im.naturalWidth > 0);
@@ -547,7 +567,7 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
 
     // Mappa della vita: nessuna caption nemmeno nell'immagine salvata/condivisa
     // (coerente con la vista a schermo, mappa "nuda").
-    if (lifeMap) return c;
+    if (lifeMap) { stamp(); return c; }
 
     // Costellazione: DIDASCALIA senza riquadro (serif elegante, monocromatica),
     // allineata a destra, come la caption di una stampa celeste. Disegnata qui
@@ -611,6 +631,7 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
       ctx.fillText(stats, rightX, y);
       ctx.restore();
       ctx.textAlign = "left";
+      stamp();
       return c;
     }
 
@@ -715,8 +736,22 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     }
     ctx.textAlign = "left";
 
+    stamp();
     return c;
   };
+
+  /** Logo di marca per la firma sullo snapshot. Stessa origine (public/) →
+   *  non "sporca" il canvas, toBlob resta possibile. Caricato una volta sola. */
+  const brandLogoRef = useRef<HTMLImageElement | null>(null);
+  const loadBrandLogo = (): Promise<HTMLImageElement | null> => new Promise(res => {
+    const cached = brandLogoRef.current;
+    if (cached && cached.complete && cached.naturalWidth > 0) { res(cached); return; }
+    const img = new Image();
+    img.onload = () => { brandLogoRef.current = img; res(img); };
+    img.onerror = () => res(null);
+    setTimeout(() => res(img.complete && img.naturalWidth > 0 ? img : null), 2500);
+    img.src = `${import.meta.env.BASE_URL}logo-orsi.png`;
+  });
 
   /** Carica le bandiere dei paesi con crossOrigin (per non "sporcare" il canvas
    *  e permettere toBlob): se una non arriva CORS-clean viene semplicemente
@@ -743,7 +778,7 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
       const map = mapRef.current;
       const mapCanvas = containerRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
       if (!mapCanvas) return null;
-      const flagImgs = await loadFlagImages();
+      const [flagImgs, logoImg] = await Promise.all([loadFlagImages(), loadBrandLogo()]);
       // Assicura i font della card (typewriter) prima di disegnarli su canvas:
       // senza, il primo snapshot userebbe un fallback monospazio.
       try {
@@ -763,7 +798,7 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
         map.triggerRepaint();
         setTimeout(fin, 400); // salvagente se "render" non scatta
       });
-      const posterCanvas = composePoster(mapCanvas, flagImgs);
+      const posterCanvas = composePoster(mapCanvas, flagImgs, logoImg);
       return await new Promise(res => posterCanvas.toBlob(res, "image/jpeg", 0.9));
     } catch {
       return null;
