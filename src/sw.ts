@@ -4,7 +4,7 @@
 // che veniva visitato: le pagine lazy mai aperte (es. In programma) offline
 // non si caricavano. Qui la build inietta in __WB_MANIFEST l'elenco COMPLETO
 // degli asset (chunk lazy e font inclusi) e il precache li scarica subito.
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from "workbox-precaching";
+import { precache, addRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from "workbox-precaching";
 import type { PrecacheEntry } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import { CacheFirst } from "workbox-strategies";
@@ -16,9 +16,16 @@ declare let self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<PrecacheEntr
 self.skipWaiting();
 clientsClaim();
 
-// Precache di tutta l'app (asset con hash nel nome: restano validi finché
-// non cambiano d'indirizzo); le revisioni vecchie vengono eliminate da sole.
-precacheAndRoute(self.__WB_MANIFEST);
+// precacheAndRoute è DIVISA nei suoi due pezzi, e l'ordine è deliberato:
+// - precache() SUBITO: popola l'elenco degli asset — createHandlerBoundToURL
+//   qui sotto lo consulta in fase di valutazione e senza lancerebbe
+//   "non-precached-url", uccidendo l'intero service worker (bug reale trovato
+//   in verifica: la registrazione falliva in silenzio);
+// - addRoute() DOPO la NavigationRoute: le route Workbox si valutano in ordine
+//   di registrazione, e la route del precache (col suo directoryIndex)
+//   altrimenti intercetterebbe lei le navigazioni servendole cache-first —
+//   la freschezza post-deploy (no-cache) non funzionerebbe mai.
+precache(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
 // Le cache del VECCHIO sw.js a mano ("navta-cache-*") vanno eliminate
@@ -63,6 +70,10 @@ registerRoute(
     }
   }),
 );
+
+// La route del precache (serve gli asset cache-first): registrata DOPO la
+// NavigationRoute — vedi l'avvertenza sull'ordine in cima al file.
+addRoute();
 
 // Tessere/stili/glyph di MapTiler: cache-first con tetto — offline il globo
 // mostra le zone già viste invece di restare nero. purgeOnQuotaError: se lo
