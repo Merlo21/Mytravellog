@@ -161,10 +161,25 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
     patch.home_longitude = home?.lon ?? null;
     patch.home_label = home?.label ?? null;
     updatePlan(plan.id, patch);
+    dirtyRef.current = false; // già scritto: il persist di smontaggio non riscrive
     onChanged();
   };
 
   const close = () => { persist(); onClose(); };
+
+  // Ref sempre aggiornate per i listener/cleanup qui sotto (evitano closure stantie).
+  const persistRef = useRef(persist); persistRef.current = persist;
+  const closeRef = useRef(close); closeRef.current = close;
+
+  // Esc chiude (salvando) + persist allo SMONTAGGIO: il back di Android/lo
+  // swipe indietro cambiano rotta e smontano il pannello senza passare dalla
+  // X — senza questo cleanup budget e checklist modificati andavano persi.
+  // Dopo la promozione/eliminazione updatePlan non trova più l'id: no-op.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeRef.current(); };
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("keydown", onKey); persistRef.current(); };
+  }, []);
 
   // Wrapper degli update di stato che marcano il pannello come "toccato".
   const mutBudget = (fn: (rows: BudgetRow[]) => BudgetRow[]) => { dirtyRef.current = true; setBudget(fn); };
@@ -200,7 +215,8 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
   };
 
   return createPortal(
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#060e1e", display: "flex", flexDirection: "column" }}>
+    <div role="dialog" aria-modal="true" aria-label={`Pianifica — ${plan.title || plan.city}`}
+      style={{ position: "fixed", inset: 0, zIndex: 200, background: "#060e1e", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.1)", background: "rgba(6,14,30,0.95)" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
