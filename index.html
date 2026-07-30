@@ -21,7 +21,8 @@
     <meta property="og:description" content="Traccia ogni viaggio: stati, città, temperatura, altitudine e km percorsi." />
     <meta property="og:type" content="website" />
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.0.0/dist/maplibre-gl.css" />
+    <!-- CSS di MapLibre: bundlato via import in main.tsx (self-hosted, così
+         entra nel precache del service worker) — niente più CDN esterno. -->
   </head>
 
   <body>

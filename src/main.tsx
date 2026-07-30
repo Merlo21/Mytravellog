@@ -17,6 +17,10 @@ import "@fontsource/space-grotesk/latin-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-700.css";
 import "@fontsource/jetbrains-mono/latin-800.css";
+// Prima arrivava dal CDN jsdelivr (link in index.html): cross-origin, quindi
+// mai precache-abile — offline il globo perdeva lo stile. Bundlato qui finisce
+// negli asset con hash e quindi nel precache del service worker.
+import "maplibre-gl/dist/maplibre-gl.css";
 import "./index.css";
 
 const Home = lazy(() => import("./pages/Index"));
