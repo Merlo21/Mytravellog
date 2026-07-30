@@ -12,6 +12,7 @@ import {
   TripFormActions, useUnsavedChangesGuard, isReturnBeforeDeparture,
 } from "@/components/TripFormParts";
 import { TripPurposeCompanions } from "@/components/TripPurposeCompanions";
+import { CalendarClock, ArrowRight } from "lucide-react";
 
 const NuovoViaggio = () => {
   const navigate = useNavigate();
@@ -97,6 +98,21 @@ const NuovoViaggio = () => {
   };
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
+
+  // Data di partenza nel futuro: quasi certamente l'utente sta PROGRAMMANDO un
+  // viaggio, non registrando un ricordo (salvarlo qui sporcherebbe statistiche
+  // e globo). Il banner sotto le date lo porta alla mini-form di "In programma"
+  // trasferendo quanto già compilato (titolo, destinazione, date) via
+  // sessionStorage — stesso pattern di navta.prefill.city.
+  const goToPlanner = () => {
+    const dest = waypoints[waypoints.length - 1];
+    sessionStorage.setItem("navta.prefill.plan", JSON.stringify({
+      title: title.trim() || undefined,
+      dateStart, dateEnd: dateEnd || undefined,
+      dest: dest ? { name: dest.city, country: dest.country, country_code: dest.country_code, latitude: dest.lat, longitude: dest.lon } : undefined,
+    }));
+    navigate("/in-programma");
+  };
 
   const handleSave = async () => {
     if (waypoints.length === 0) {
@@ -249,6 +265,22 @@ const NuovoViaggio = () => {
             notes={notes} setNotes={setNotes}
             rating={rating} setRating={setRating}
           />
+
+          {/* Avviso "data futura" → In programma (vedi goToPlanner). */}
+          {dateStart > todayLocalISO() && (
+            <button type="button" onClick={goToPlanner}
+              style={{
+                display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left",
+                background:"rgba(251,191,36,0.10)", border:"0.5px solid rgba(251,191,36,0.35)",
+                borderRadius:10, padding:"9px 12px", cursor:"pointer", color:"#f0f4ff", fontSize:12,
+              }}>
+              <CalendarClock style={{width:15,height:15,color:"#fbbf24",flexShrink:0}}/>
+              <span style={{flex:1,minWidth:0}}>Data futura: è un viaggio in programma?</span>
+              <span style={{flexShrink:0,display:"inline-flex",alignItems:"center",gap:4,color:"#93c5fd",fontWeight:600}}>
+                Programmalo <ArrowRight style={{width:12,height:12}}/>
+              </span>
+            </button>
+          )}
 
           <TripPurposeCompanions purpose={purpose} setPurpose={setPurpose} companions={companions} setCompanions={setCompanions}/>
 

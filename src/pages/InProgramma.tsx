@@ -41,6 +41,23 @@ const InProgramma = () => {
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
 
+  // Prefill dal banner "data futura" di Nuovo viaggio: quanto l'utente aveva
+  // già compilato di là (titolo, destinazione, date) atterra qui pronto,
+  // con la mini-form già aperta — non deve ricominciare da capo.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("navta.prefill.plan");
+      if (!raw) return;
+      sessionStorage.removeItem("navta.prefill.plan");
+      const p = JSON.parse(raw);
+      setAdding(true);
+      if (p.title) setTitle(p.title);
+      if (p.dateStart) setDateStart(p.dateStart);
+      if (p.dateEnd) setDateEnd(p.dateEnd);
+      if (p.dest?.name) setDest(p.dest as GeoResult);
+    } catch { /* prefill malformato: si riparte dalla mini-form vuota */ }
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(async () => {
       if (query.length < 2 || dest) { setResults([]); return; }
