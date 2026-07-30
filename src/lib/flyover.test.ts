@@ -43,7 +43,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
 function makeStop(overrides: Partial<FlightStop> = {}): FlightStop {
   return {
     lat: 0, lon: 0, label: "Tappa", tripId: "1",
-    photoKey: "1", transportMode: null, routeGeometry: null,
+    transportMode: null, routeGeometry: null,
     ...overrides,
   };
 }
@@ -54,41 +54,29 @@ describe("buildFlightPath", () => {
     expect(stops.map(s => s.label)).toEqual(["Milano", "Roma"]);
   });
 
-  it("la casa ha photoKey 'idViaggio:home' e transportMode/routeGeometry null", () => {
+  it("la casa ha transportMode/routeGeometry null", () => {
     const trip = makeTrip();
     const [home] = buildFlightPath([trip]);
-    expect(home.photoKey).toBe(`${trip.id}:home`);
     expect(home.transportMode).toBeNull();
     expect(home.routeGeometry).toBeNull();
   });
 
-  it("la destinazione ha photoKey = id del viaggio nudo, e riporta transportMode/route_geometry del viaggio", () => {
+  it("la destinazione riporta transportMode/route_geometry del viaggio", () => {
     const trip = makeTrip({ transport_mode: "car", route_geometry: [[12.5, 41.9], [12.6, 42.0]] });
     const stops = buildFlightPath([trip]);
     const dest = stops[stops.length - 1];
-    expect(dest.photoKey).toBe(trip.id);
     expect(dest.transportMode).toBe("car");
     expect(dest.routeGeometry).toEqual([[12.5, 41.9], [12.6, 42.0]]);
   });
 
-  it("un waypoint con id ha photoKey 'idViaggio:waypoint:idTappa' e riporta il proprio transportMode/route_geometry", () => {
+  it("un waypoint riporta il proprio transportMode/route_geometry", () => {
     const trip = makeTrip({
       waypoints: [{ id: "wp-1", city: "Torino", country: "Italia", transport_mode: "car", lat: 45.07, lon: 7.68, route_geometry: [[9.19, 45.46], [7.68, 45.07]] }],
     });
     const stops = buildFlightPath([trip]);
     const wp = stops.find(s => s.label === "Torino")!;
-    expect(wp.photoKey).toBe(`${trip.id}:waypoint:wp-1`);
     expect(wp.transportMode).toBe("car");
     expect(wp.routeGeometry).toEqual([[9.19, 45.46], [7.68, 45.07]]);
-  });
-
-  it("un waypoint senza id (viaggio salvato prima del backfill) ricade sulla photoKey della destinazione", () => {
-    const trip = makeTrip({
-      waypoints: [{ city: "Torino", country: "Italia", transport_mode: "train", lat: 45.07, lon: 7.68 }],
-    });
-    const stops = buildFlightPath([trip]);
-    const wp = stops.find(s => s.label === "Torino")!;
-    expect(wp.photoKey).toBe(trip.id);
   });
 
   it("inserisce i waypoint tra casa e destinazione, nell'ordine dato", () => {

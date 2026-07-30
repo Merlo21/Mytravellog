@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, tripTotalKm, buildPerTripRouteCoords, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
-import { getPhotosForTrip, photoToBlob, saveReliefImage } from "@/lib/photoStorage";
+import { saveReliefImage } from "@/lib/photoStorage";
 import { buildPosterSvg, loadCountryRings, routeBounds } from "@/lib/posterSvg";
 import { X, Share2, Loader2, Download, Frame, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -236,27 +236,10 @@ function formatKm(km: number): string {
   return Math.round(km).toLocaleString("it-IT");
 }
 
-// Quante foto (una per tappa, in ordine) entrano nel ventaglio del poster.
-const FINALE_PHOTO_LIMIT = 5;
 // Margini (px) attorno al tracciato nel poster. Con fitBounds questi margini
 // fissi fanno sì che il percorso riempia SEMPRE il frame allo stesso modo,
-// qualunque sia la lunghezza (lo zoom si adatta): più sotto per non finire
-// dietro al ventaglio foto in basso a sinistra.
+// qualunque sia la lunghezza (lo zoom si adatta).
 const FINALE_PADDING = { top: 50, right: 60, bottom: 110, left: 60 };
-// Ventaglio "francobolli": carte ben distanziate così si vedono TUTTE le foto.
-const FINALE_CARD_W = 132;   // larghezza carta (px "a schermo"; il canvas scala per dpr)
-const FINALE_FAN_STEP = 126; // scostamento ≈ larghezza → praticamente affiancate
-
-/** Layout di una carta nel ventaglio: spread ampio (tutte visibili), leggero arco simmetrico. */
-export function finaleFanLayout(i: number, n: number) {
-  const center = (n - 1) / 2;
-  return {
-    tx: i * FINALE_FAN_STEP,
-    ty: Math.abs(i - center) * 3,
-    rotate: (i - center) * 3,
-    z: i,
-  };
-}
 
 interface Props {
   trips: Trip[];
@@ -288,9 +271,6 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
   // Segmenti del tracciato: uno per viaggio in modalità Mappa della vita (linee
   // separate), un unico segmento concatenato negli altri casi.
   const routeSegsRef = useRef<[number, number][][]>([]);
-  const finalePhotoKeysRef = useRef<string[]>([]);
-  const finaleImgsRef = useRef<HTMLImageElement[]>([]);
-  const finaleUrlsRef = useRef<string[]>([]);
   const totalKmRef = useRef(0);
   const legsRef = useRef<FlightLeg[]>([]);
   const stopsRef = useRef<{ lat: number; lon: number; label: string }[]>([]);
@@ -299,7 +279,6 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
 
   const [phase, setPhase] = useState<"loading" | "ready" | "error" | "empty">("loading");
   const [poster, setPoster] = useState(false); // overlay del poster pronti (dopo l'inquadratura)
-  const [finalePhotos, setFinalePhotos] = useState<string[]>([]);
   const [savingRelief, setSavingRelief] = useState(false);
   const [exportingSvg, setExportingSvg] = useState(false);
   // La Mappa della vita parte (e resta) in Costellazione: niente Satellite,
@@ -502,24 +481,10 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     applyStyle(mode);
   };
 
-  /** Carica fino a FINALE_PHOTO_LIMIT foto (una per tappa) per il ventaglio. */
-  const collectFinalePhotos = async (): Promise<void> => {
-    const urls: string[] = [];
-    for (const key of finalePhotoKeysRef.current) {
-      if (urls.length >= FINALE_PHOTO_LIMIT) break;
-      const raw = await getPhotosForTrip(key);
-      if (raw.length > 0) urls.push(URL.createObjectURL(photoToBlob(raw[0])));
-    }
-    if (!mountedRef.current) { urls.forEach(u => URL.revokeObjectURL(u)); return; }
-    finaleUrlsRef.current = urls;
-    finaleImgsRef.current = urls.map(u => { const img = new Image(); img.src = u; return img; });
-    setFinalePhotos(urls);
-  };
-
   /**
    * Compone il POSTER su un canvas: mappa (tracciato + puntine, dal canvas WebGL
-   * grazie a preserveDrawingBuffer) + ventaglio foto in basso a sinistra +
-   * pillola dati in alto a destra. Restituisce il canvas pronto per toBlob.
+   * grazie a preserveDrawingBuffer) + pillola dati in alto a destra.
+   * Restituisce il canvas pronto per toBlob.
    */
   const composePoster = (mapCanvas: HTMLCanvasElement, flagImgs: HTMLImageElement[], logoImg: HTMLImageElement | null): HTMLCanvasElement => {
     const c = document.createElement("canvas");
@@ -529,41 +494,6 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     const dpr = mapCanvas.width / (mapCanvas.clientWidth || mapCanvas.width);
     // Firma "By 🐻" in basso a destra, prima di ogni uscita (tutte le viste).
     const stamp = () => { if (logoImg) drawBrandSignatureCanvas(ctx, c.width, c.height, dpr, logoImg); };
-
-    // Ventaglio foto (basso a sinistra), scalato per stare nel frame.
-    const imgs = finaleImgsRef.current.filter(im => im.complete && im.naturalWidth > 0);
-    if (imgs.length > 0) {
-      const n = imgs.length;
-      const fanCssW = FINALE_CARD_W + (n - 1) * FINALE_FAN_STEP;
-      const fit = Math.min(1, (c.width / dpr - 40) / fanCssW);
-      const u = dpr * fit;
-      const cardW = FINALE_CARD_W * u;
-      const frame = 6 * u;
-      const photoW = cardW - frame * 2;
-      const photoH = photoW * 3 / 4;
-      const cardH = photoH + frame * 2;
-      const baseX = 20 * dpr;
-      const pivotY = c.height - 26 * dpr;
-      const order = imgs.map((_, i) => i).sort((a, b) => finaleFanLayout(a, n).z - finaleFanLayout(b, n).z);
-      for (const i of order) {
-        const t = finaleFanLayout(i, n);
-        ctx.save();
-        ctx.translate(baseX + t.tx * u, pivotY + t.ty * u);
-        ctx.rotate((t.rotate * Math.PI) / 180);
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 12 * dpr; ctx.shadowOffsetY = 4 * dpr;
-        ctx.fillStyle = "#fbfbf7";
-        roundRectPath(ctx, 0, -cardH, cardW, cardH, 5 * dpr);
-        ctx.fill();
-        ctx.restore();
-        ctx.save();
-        roundRectPath(ctx, frame, -cardH + frame, photoW, photoH, 3 * dpr);
-        ctx.clip();
-        drawImageCover(ctx, imgs[i], frame, -cardH + frame, photoW, photoH);
-        ctx.restore();
-        ctx.restore();
-      }
-    }
 
     // Mappa della vita: nessuna caption nemmeno nell'immagine salvata/condivisa
     // (coerente con la vista a schermo, mappa "nuda").
@@ -883,7 +813,6 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     const segs = lifeMap ? buildPerTripRouteCoords(trips) : [buildFlyoverRouteCoords(stops, legsLocal)];
     routeSegsRef.current = segs;
     allCoordsRef.current = segs.flat();
-    finalePhotoKeysRef.current = Array.from(new Set(stops.map(s => s.photoKey)));
 
     if (legsLocal.length === 0) {
       setPhase("empty");
@@ -954,11 +883,9 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
           setPhase("ready");
           setTimeout(() => { map.resize(); }, 100);
 
-          // Nessuna animazione di volo: carica le foto e inquadra subito il
-          // poster sull'intero percorso, poi mostra gli overlay. Costellazione
-          // (Mappa della vita) piatta dall'alto (pitch 0), come il master di stampa.
-          await collectFinalePhotos();
-          if (cancelled || !mountedRef.current) return;
+          // Nessuna animazione di volo: inquadra subito il poster sull'intero
+          // percorso, poi mostra gli overlay. Costellazione (Mappa della vita)
+          // piatta dall'alto (pitch 0), come il master di stampa.
           await flyToOverview(map, lifeMap ? 0 : 45);
           if (cancelled || !mountedRef.current) return;
           setPoster(true);
@@ -973,8 +900,6 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     return () => {
       cancelled = true;
       mountedRef.current = false;
-      finaleUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
-      finaleUrlsRef.current = [];
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1148,33 +1073,6 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
               )}
             </div>
             ))}
-
-            {/* Ventaglio foto in basso a sinistra. */}
-            {finalePhotos.length > 0 && (() => {
-              const n = finalePhotos.length;
-              const fanW = FINALE_CARD_W + (n - 1) * FINALE_FAN_STEP;
-              const fanScale = Math.min(1, (window.innerWidth * 0.9 - 40) / fanW);
-              return (
-                <div style={{ position: "absolute", left: 20, bottom: 20, zIndex: 25, transformOrigin: "bottom left", transform: `scale(${fanScale})` }}>
-                  <div style={{ position: "relative", width: fanW, height: FINALE_CARD_W * 0.75 + 30 }}>
-                    {finalePhotos.map((u, i) => {
-                      const t = finaleFanLayout(i, n);
-                      return (
-                        <div key={i} style={{
-                          position: "absolute", left: 0, bottom: 0, width: FINALE_CARD_W, transformOrigin: "bottom left",
-                          transform: `translate(${t.tx}px, ${t.ty}px) rotate(${t.rotate}deg)`, zIndex: t.z,
-                          background: "#fbfbf7", borderRadius: 6, padding: 6, boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
-                        }}>
-                          <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 3, overflow: "hidden", background: "#000" }}>
-                            <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
 
             {/* Azioni: Salva (solo single-trip, → biglietto) + Condividi (immagine)
                 + Esporta SVG (solo Costellazione: master vettoriale per stampa). */}

@@ -8,7 +8,7 @@ import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  TransportMode, Waypoint, ItineraryPanel, TripFormFields, TripPhotosPerStop,
+  TransportMode, Waypoint, ItineraryPanel, TripFormFields,
   TripFormActions, useUnsavedChangesGuard, isReturnBeforeDeparture,
 } from "@/components/TripFormParts";
 
@@ -304,10 +304,6 @@ const ModificaViaggio = () => {
             notes={notes} setNotes={setNotes}
             rating={rating} setRating={setRating}
           />
-
-          {/* Foto — una sezione per tappa (casa, ogni tappa intermedia,
-              destinazione), non più un'unica galleria per l'intero viaggio. */}
-          {id && <TripPhotosPerStop tripId={id} home={home} waypoints={waypoints}/>}
 
           <TripFormActions saving={saving} confirmDiscard={confirmDiscard} onSave={handleSave}/>
         </div>

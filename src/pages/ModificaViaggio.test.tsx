@@ -10,9 +10,6 @@ vi.mock("@/components/AppHeader", () => ({
   AppHeader: () => <header data-testid="app-header" />,
 }));
 
-vi.mock("@/components/TripPhotos", () => ({
-  TripPhotos: () => <div data-testid="trip-photos" />,
-}));
 
 // Le chiamate geo (Nominatim/Open-Meteo/OSRM) restano mai risolte finché il
 // test non lo decide esplicitamente: permette di ispezionare lo stato della

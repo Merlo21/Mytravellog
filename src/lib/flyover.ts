@@ -1,6 +1,5 @@
 import { Trip } from "./storage";
 import { distanceKm } from "./geo";
-import { destinationPhotoKey, homePhotoKey, waypointPhotoKey } from "./photoStorage";
 
 export type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
 
@@ -9,8 +8,6 @@ export interface FlightStop {
   lon: number;
   label: string;
   tripId: string;
-  /** Chiave IndexedDB delle foto di questa tappa (destinazione/casa/waypoint). */
-  photoKey: string;
   /** Mezzo usato per ARRIVARE a questa tappa (null per la prima, es. casa). */
   transportMode: TransportMode | null;
   /** Percorso stradale reale per arrivare qui, se disponibile (solo mezzo "car"). */
@@ -58,24 +55,23 @@ export function buildFlightPath(trips: Trip[]): FlightStop[] {
 
   const push = (
     lat: number, lon: number, label: string, tripId: string,
-    photoKey: string, transportMode: TransportMode | null, routeGeometry: [number, number][] | null,
+    transportMode: TransportMode | null, routeGeometry: [number, number][] | null,
   ) => {
     const last = stops[stops.length - 1];
     if (last && sameCoords(last, lat, lon)) return;
-    stops.push({ lat, lon, label, tripId, photoKey, transportMode, routeGeometry });
+    stops.push({ lat, lon, label, tripId, transportMode, routeGeometry });
   };
 
   for (const t of sorted) {
     if (t.home_latitude != null && t.home_longitude != null) {
-      push(t.home_latitude, t.home_longitude, t.home_label ?? "Casa", t.id, homePhotoKey(t.id), null, null);
+      push(t.home_latitude, t.home_longitude, t.home_label ?? "Casa", t.id, null, null);
     }
     for (const w of t.waypoints ?? []) {
       if (w.lat != null && w.lon != null) {
-        const photoKey = w.id ? waypointPhotoKey(t.id, w.id) : destinationPhotoKey(t.id);
-        push(w.lat, w.lon, w.city, t.id, photoKey, w.transport_mode, w.route_geometry ?? null);
+        push(w.lat, w.lon, w.city, t.id, w.transport_mode, w.route_geometry ?? null);
       }
     }
-    push(t.latitude, t.longitude, t.city, t.id, destinationPhotoKey(t.id), t.transport_mode, t.route_geometry ?? null);
+    push(t.latitude, t.longitude, t.city, t.id, t.transport_mode, t.route_geometry ?? null);
   }
 
   return stops;

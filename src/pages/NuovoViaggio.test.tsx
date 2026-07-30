@@ -1,12 +1,8 @@
-import "fake-indexeddb/auto";
-import { IDBFactory } from "fake-indexeddb";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import NuovoViaggio from "./NuovoViaggio";
 import { SettingsProvider } from "@/lib/settings";
-import { loadTrips } from "@/lib/storage";
-import { __resetPhotoDB, getPhotosForTrip } from "@/lib/photoStorage";
 
 vi.mock("@/components/AppHeader", () => ({
   AppHeader: () => <header data-testid="app-header" />,
@@ -147,39 +143,3 @@ describe("NuovoViaggio — feedback durante il salvataggio lento", () => {
   });
 });
 
-describe("NuovoViaggio — foto prima del salvataggio", () => {
-  beforeEach(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-    indexedDB = new IDBFactory();
-    __resetPhotoDB();
-    URL.createObjectURL = vi.fn(() => "blob:fake-url");
-    URL.revokeObjectURL = vi.fn();
-  });
-
-  it("una foto caricata prima di salvare resta collegata al viaggio dopo il salvataggio", async () => {
-    renderPage();
-
-    // Serve una destinazione perché compaia la sezione foto corrispondente.
-    fireEvent.click(screen.getByRole("button", { name: "+ Aggiungi tappa" }));
-    fireEvent.change(screen.getByPlaceholderText("Cerca città…"), { target: { value: "par" } });
-    await screen.findByText("Parigi, Francia");
-    fireEvent.click(screen.getByText("Parigi, Francia"));
-
-    // L'input file non ha una label accessibile diretta: lo individuiamo dal
-    // contenitore "Foto — Parigi" (l'intestazione della sezione destinazione).
-    const section = await screen.findByText("Foto — Parigi", { exact: false });
-    const container = section.closest("div")!.parentElement!;
-    const fileInput = container.querySelector('input[type="file"]:not([capture])') as HTMLInputElement;
-    fireEvent.change(fileInput, { target: { files: [new File(["bytes"], "foto.jpg", { type: "image/jpeg" })] } });
-    await waitFor(() => expect(screen.getAllByRole("button", { name: "Elimina foto" }).length).toBeGreaterThan(0));
-
-    fireEvent.click(screen.getByRole("button", { name: /Salva viaggio/ }));
-    geoGate.resolve?.();
-    await waitFor(() => expect(screen.getByText("HOME")).toBeInTheDocument());
-
-    const saved = loadTrips()[0];
-    const photos = await getPhotosForTrip(saved.id);
-    expect(photos).toHaveLength(1);
-  });
-});
