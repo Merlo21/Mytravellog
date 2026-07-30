@@ -10,6 +10,7 @@ export type Trip = {
   notes: string | null;
   purpose?: string | null; // motivo del viaggio: "Vacanza" | "Lavoro" (scelta singola, opzionale)
   companions?: string[];   // nomi delle persone con cui hai viaggiato (opzionali; assenti sui viaggi vecchi)
+  diary?: { date: string; text: string }[]; // racconto giorno-per-giorno (date YYYY-MM-DD; solo i giorni scritti)
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto" | null;
   waypoints: { id?: string; city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
   latitude: number;

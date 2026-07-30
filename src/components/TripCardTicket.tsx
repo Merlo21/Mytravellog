@@ -8,6 +8,7 @@ import { Motorcycle } from "@/components/icons/Motorcycle";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { TripFlyover } from "@/components/TripFlyover";
+import { TripDiary, DiaryEntry } from "@/components/TripDiary";
 import { getReliefImage } from "@/lib/photoStorage";
 import { tripTotalKm } from "@/lib/flyover";
 
@@ -52,6 +53,8 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const navigate = useNavigate();
   const [showFlyover, setShowFlyover] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [showDiary, setShowDiary] = useState(false);
+  const [diary, setDiary] = useState<DiaryEntry[]>(trip.diary ?? []);
   // Miniatura del "rilievo 3D" salvato a fine flyover (snapshot in IndexedDB):
   // appare come linguetta sul bordo destro della card; click → si ingrandisce.
   const [reliefUrl, setReliefUrl] = useState<string | null>(null);
@@ -316,17 +319,26 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
         </div>
       )}
 
-      {/* Motivo + compagni: chip discreti (motivo blu, compagni verdi con 👤). */}
-      {(purpose || companions.length > 0) && (
-        <div style={{padding:"0 20px 14px",display:"flex",flexWrap:"wrap",gap:6}}>
-          {purpose && (
-            <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",padding:"3px 9px",borderRadius:999,background:"rgba(96,165,250,0.14)",color:"#93c5fd"}}>{purpose}</span>
-          )}
-          {companions.map(c => (
-            <span key={"c"+c} style={{fontSize:10,fontWeight:600,padding:"3px 9px",borderRadius:999,background:"rgba(52,211,153,0.12)",color:"#6ee7b7"}}>👤 {c}</span>
-          ))}
-        </div>
-      )}
+      {/* Motivo + compagni (chip) + accesso al Diario giorno-per-giorno. */}
+      <div style={{padding:"0 20px 14px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:6}}>
+        {purpose && (
+          <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",padding:"3px 9px",borderRadius:999,background:"rgba(96,165,250,0.14)",color:"#93c5fd"}}>{purpose}</span>
+        )}
+        {companions.map(c => (
+          <span key={"c"+c} style={{fontSize:10,fontWeight:600,padding:"3px 9px",borderRadius:999,background:"rgba(52,211,153,0.12)",color:"#6ee7b7"}}>👤 {c}</span>
+        ))}
+        <button type="button" onClick={() => setShowDiary(true)}
+          aria-label={diary.length ? `Apri il diario (${diary.length} giorni scritti)` : "Apri il diario del viaggio"}
+          style={{
+            marginLeft: (purpose || companions.length > 0) ? "auto" : 0,
+            display:"inline-flex",alignItems:"center",gap:5,fontSize:10,fontWeight:600,padding:"3px 10px",borderRadius:999,
+            background: diary.length ? "rgba(96,165,250,0.12)" : "rgba(255,255,255,0.04)",
+            border:"0.5px solid " + (diary.length ? "rgba(96,165,250,0.35)" : "#1a2d4a"),
+            color: diary.length ? "#93c5fd" : "rgba(255,255,255,0.55)", cursor:"pointer",
+          }}>
+          📖 {diary.length ? `Diario · ${diary.length} ${diary.length === 1 ? "giorno" : "giorni"}` : "Diario"}
+        </button>
+      </div>
     </div>
 
       {/* Rilievo 3D come "foglio nella busta": il biglietto fa da busta e il
@@ -351,6 +363,10 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
     {/* onClose ricarica il rilievo: se il flyover l'ha appena generato, la
         linguetta compare senza ricaricare la pagina. */}
     {showFlyover && <TripFlyover trips={[trip]} onClose={() => { setShowFlyover(false); refreshRelief(); }} />}
+
+    {showDiary && (
+      <TripDiary trip={trip} entries={diary} onClose={() => setShowDiary(false)} onSaved={setDiary} />
+    )}
 
     {reliefOpen && reliefUrl && createPortal(
       <div onClick={() => setReliefOpen(false)}
