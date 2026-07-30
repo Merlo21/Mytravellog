@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { Trip, updatePlan, deletePlan, promotePlanToTrip } from "@/lib/storage";
+import { CUR } from "@/lib/plans";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,8 +15,6 @@ interface Props {
   /** Richiama il ricarico dei piani nella pagina (dopo salva / promuovi / elimina). */
   onChanged: () => void;
 }
-
-export const CUR = "€"; // valuta di default (nessun selettore valuta in v1)
 
 const DEFAULT_BUDGET: BudgetRow[] = [
   { label: "Volo", amount: 0 },
@@ -40,6 +40,11 @@ function fmt(n: number): string {
  * il viaggio nel diario (promotePlanToTrip). Scroll pagina bloccato (iOS-proof).
  */
 export function TripPlanner({ plan, onClose, onChanged }: Props) {
+  const navigate = useNavigate();
+  // "dirty": l'utente ha toccato qualcosa. Senza questo flag, aprire e chiudere
+  // il pannello salvava le categorie/voci di default precompilate (dati mai
+  // inseriti dall'utente) e la card mostrava "0/3 fatte" dal nulla.
+  const dirtyRef = useRef(false);
   const [budget, setBudget] = useState<BudgetRow[]>(() =>
     plan.budget && plan.budget.length ? plan.budget.map(r => ({ ...r })) : DEFAULT_BUDGET.map(r => ({ ...r })),
   );
@@ -66,6 +71,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
   }, []);
 
   const persist = () => {
+    if (!dirtyRef.current) return; // aperto e chiuso senza modifiche: non scrivere nulla
     const b = budget.filter(r => r.label.trim() || r.amount || r.paid)
       .map(r => ({ label: r.label.trim() || "Voce", amount: r.amount || 0, ...(r.paid ? { paid: r.paid } : {}) }));
     const c = checklist.filter(r => r.text.trim()).map(r => ({ text: r.text.trim(), done: r.done }));
@@ -75,13 +81,18 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
 
   const close = () => { persist(); onClose(); };
 
+  // Wrapper degli update di stato che marcano il pannello come "toccato".
+  const mutBudget = (fn: (rows: BudgetRow[]) => BudgetRow[]) => { dirtyRef.current = true; setBudget(fn); };
+  const mutChecklist = (fn: (rows: ChecklistRow[]) => ChecklistRow[]) => { dirtyRef.current = true; setChecklist(fn); };
+
   const promote = () => {
     if (!window.confirm(`Segnare "${plan.title || plan.city}" come fatto? Verrà spostato nei tuoi viaggi.`)) return;
     persist();
     promotePlanToTrip(plan.id);
-    toast.success("Spostato nei tuoi viaggi ✓");
-    onChanged();
-    onClose();
+    toast.success("Spostato nei tuoi viaggi ✓ Completa itinerario e dettagli.");
+    // Dritto in Modifica: il piano promosso è uno scheletro (niente itinerario,
+    // km, casa) e questo è il momento giusto per completarlo.
+    navigate(`/modifica-viaggio/${plan.id}`);
   };
 
   const remove = () => {
@@ -93,7 +104,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
   };
 
   const setBudgetRow = (i: number, patch: Partial<BudgetRow>) =>
-    setBudget(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+    mutBudget(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
 
   const numInput: React.CSSProperties = {
     width: 78, background: "rgba(255,255,255,0.04)", border: "0.5px solid #1a2d4a", borderRadius: 7,
@@ -129,25 +140,25 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
           <div style={sectionTitle}>Budget preventivo</div>
           {budget.map((r, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <input value={r.label} onChange={e => setBudgetRow(i, { label: e.target.value })} placeholder="Categoria"
+              <input value={r.label} onChange={e => setBudgetRow(i, { label: e.target.value })} placeholder="Categoria" aria-label="Categoria di spesa"
                 style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "0.5px solid #1a2d4a", borderRadius: 7, padding: "6px 10px", fontSize: 13, color: "#f0f4ff", outline: "none", fontFamily: "inherit" }} />
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <span style={{ position: "absolute", left: 8, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{CUR}</span>
                 <input type="number" inputMode="decimal" min={0} value={r.amount || ""} onChange={e => setBudgetRow(i, { amount: parseFloat(e.target.value) || 0 })}
-                  placeholder="0" title="Preventivo" style={{ ...numInput, paddingLeft: 18 }} />
+                  placeholder="0" title="Preventivo" aria-label="Importo preventivo" style={{ ...numInput, paddingLeft: 18 }} />
               </div>
               <div style={{ position: "relative", display: "flex", alignItems: "center" }} title="Già pagato / prenotato">
                 <Check style={{ position: "absolute", left: 7, width: 11, height: 11, color: "rgba(52,211,153,0.7)" }} />
                 <input type="number" inputMode="decimal" min={0} value={r.paid || ""} onChange={e => setBudgetRow(i, { paid: parseFloat(e.target.value) || 0 })}
-                  placeholder="pagato" style={{ ...numInput, paddingLeft: 22, color: "#6ee7b7" }} />
+                  placeholder="pagato" aria-label="Già pagato" style={{ ...numInput, paddingLeft: 22, color: "#6ee7b7" }} />
               </div>
-              <button type="button" onClick={() => setBudget(rows => rows.filter((_, idx) => idx !== i))} aria-label="Rimuovi categoria"
+              <button type="button" onClick={() => mutBudget(rows => rows.filter((_, idx) => idx !== i))} aria-label="Rimuovi categoria"
                 style={{ flexShrink: 0, background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: 4 }}>
                 <Trash2 style={{ width: 15, height: 15 }} />
               </button>
             </div>
           ))}
-          <button type="button" onClick={() => setBudget(rows => [...rows, { label: "", amount: 0 }])}
+          <button type="button" onClick={() => mutBudget(rows => [...rows, { label: "", amount: 0 }])}
             style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "none", color: "#60a5fa", cursor: "pointer", fontSize: 12, fontWeight: 600, padding: "2px 0", marginTop: 2 }}>
             <Plus style={{ width: 14, height: 14 }} /> aggiungi categoria
           </button>
@@ -177,21 +188,21 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
           </div>
           {checklist.map((c, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <button type="button" onClick={() => setChecklist(rows => rows.map((r, idx) => idx === i ? { ...r, done: !r.done } : r))}
+              <button type="button" onClick={() => mutChecklist(rows => rows.map((r, idx) => idx === i ? { ...r, done: !r.done } : r))}
                 aria-label={c.done ? "Segna da fare" : "Segna fatto"} role="checkbox" aria-checked={c.done}
                 style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: "1.5px solid " + (c.done ? "#34d399" : "#2a3f5f"), background: c.done ? "rgba(52,211,153,0.18)" : "transparent", color: "#34d399", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
                 {c.done && <Check style={{ width: 14, height: 14 }} />}
               </button>
-              <input value={c.text} onChange={e => setChecklist(rows => rows.map((r, idx) => idx === i ? { ...r, text: e.target.value } : r))}
-                placeholder="Cosa c'è da fare?"
+              <input value={c.text} onChange={e => mutChecklist(rows => rows.map((r, idx) => idx === i ? { ...r, text: e.target.value } : r))}
+                placeholder="Cosa c'è da fare?" aria-label="Voce da organizzare"
                 style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", borderBottom: "0.5px solid #1a2d4a", padding: "5px 2px", fontSize: 13, color: c.done ? "rgba(255,255,255,0.4)" : "#f0f4ff", textDecoration: c.done ? "line-through" : "none", outline: "none", fontFamily: "inherit" }} />
-              <button type="button" onClick={() => setChecklist(rows => rows.filter((_, idx) => idx !== i))} aria-label="Rimuovi voce"
+              <button type="button" onClick={() => mutChecklist(rows => rows.filter((_, idx) => idx !== i))} aria-label="Rimuovi voce"
                 style={{ flexShrink: 0, background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: 4 }}>
                 <Trash2 style={{ width: 15, height: 15 }} />
               </button>
             </div>
           ))}
-          <button type="button" onClick={() => setChecklist(rows => [...rows, { text: "", done: false }])}
+          <button type="button" onClick={() => mutChecklist(rows => [...rows, { text: "", done: false }])}
             style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "none", color: "#60a5fa", cursor: "pointer", fontSize: 12, fontWeight: 600, padding: "2px 0", marginTop: 2 }}>
             <Plus style={{ width: 14, height: 14 }} /> aggiungi cosa da fare
           </button>

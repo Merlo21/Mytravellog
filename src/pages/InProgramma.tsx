@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { searchPlaces, GeoResult } from "@/lib/geo";
-import { Trip, loadPlans, addPlan, todayLocalISO, formatTripDate, parseLocalDate } from "@/lib/storage";
-import { TripPlanner, CUR } from "@/components/TripPlanner";
-import { CalendarClock, Plus, MapPin, X } from "lucide-react";
+import { Trip, loadPlans, addPlan, formatTripDate } from "@/lib/storage";
+import { planCountdown, CUR } from "@/lib/plans";
+import { TripPlanner } from "@/components/TripPlanner";
+import { isReturnBeforeDeparture } from "@/components/TripFormParts";
+import { CalendarClock, Plus, MapPin, X, Check } from "lucide-react";
+import { toast } from "sonner";
 
 function buildPlan(dest: GeoResult, title: string, dateStart: string, dateEnd: string): Omit<Trip, "id" | "created_at" | "status"> {
   return {
@@ -18,16 +21,6 @@ function buildPlan(dest: GeoResult, title: string, dateStart: string, dateEnd: s
     hottest_temp_c: null, hottest_city: null, coldest_temp_c: null, coldest_city: null,
     region: null, region_details: null,
   };
-}
-
-/** "tra N giorni" / "domani" / "oggi" / "in corso" a partire dalla data di partenza. */
-function countdown(iso: string): { text: string; urgent: boolean } {
-  const today = parseLocalDate(todayLocalISO());
-  const days = Math.round((parseLocalDate(iso).getTime() - today.getTime()) / 86400000);
-  if (days > 1) return { text: `tra ${days} giorni`, urgent: days <= 14 };
-  if (days === 1) return { text: "domani", urgent: true };
-  if (days === 0) return { text: "oggi", urgent: true };
-  return { text: "in corso", urgent: false };
 }
 
 function dateRange(t: Trip): string {
@@ -61,6 +54,10 @@ const InProgramma = () => {
   const canSave = dest && dateStart;
   const create = () => {
     if (!dest || !dateStart) return;
+    if (isReturnBeforeDeparture(dateStart, dateEnd)) {
+      toast.error("Il ritorno non può essere prima della partenza");
+      return;
+    }
     addPlan(buildPlan(dest, title, dateStart, dateEnd));
     resetForm();
     reload();
@@ -161,17 +158,22 @@ const InProgramma = () => {
               const paid = (p.budget ?? []).reduce((s, r) => s + (r.paid || 0), 0);
               const cl = p.checklist ?? [];
               const done = cl.filter(c => c.done).length;
-              const cd = countdown(p.trip_date);
+              const cd = planCountdown(p);
               return (
                 <button key={p.id} type="button" onClick={() => setOpenId(p.id)}
-                  style={{ display: "block", width: "100%", textAlign: "left", background: "#0b1a33", border: "0.5px solid #1a2d4a", borderRadius: 12, padding: "16px 18px", color: "#f0f4ff", cursor: "pointer" }}>
+                  style={{ display: "block", width: "100%", textAlign: "left", background: "#0b1a33", border: "0.5px solid " + (cd.returned ? "rgba(52,211,153,0.35)" : "#1a2d4a"), borderRadius: 12, padding: "16px 18px", color: "#f0f4ff", cursor: "pointer" }}>
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
                     <div style={{ fontWeight: 600, fontSize: 16, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {p.title || p.city} {p.country_code && <span style={{ fontSize: 10, color: "#93c5fd" }}>{p.country_code.toUpperCase()}</span>}
                     </div>
-                    <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: cd.urgent ? "#fbbf24" : "rgba(255,255,255,0.5)" }}>{cd.text}</div>
+                    <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: cd.returned ? "#34d399" : cd.urgent ? "#fbbf24" : "rgba(255,255,255,0.5)" }}>{cd.text}</div>
                   </div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{dateRange(p)} · in programma</div>
+                  {cd.returned && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 11, color: "#34d399" }}>
+                      <Check style={{ width: 14, height: 14 }} /> Viaggio concluso — aprilo e segnalo come fatto
+                    </div>
+                  )}
 
                   <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 14 }}>
                     <div style={{ flex: 1, minWidth: 140 }}>

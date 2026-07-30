@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCardTicket } from "@/components/TripCardTicket";
 import { TripFlyover } from "@/components/TripFlyover";
-import { loadTrips, deleteTrip, Trip } from "@/lib/storage";
+import { loadTrips, loadPlans, deleteTrip, Trip } from "@/lib/storage";
+import { planCountdown } from "@/lib/plans";
 import { deletePhotosForTrip } from "@/lib/photoStorage";
-import { Search, X, Video, Plane, Plus, Sparkles, Globe2 } from "lucide-react";
+import { Search, X, Video, Plane, Plus, Sparkles, Globe2, CalendarClock, ArrowRight } from "lucide-react";
 
 const DELETE_ANIM_MS = 200;
 // Finestra di tempo in cui "Annulla" nel toast può ancora recuperare il
@@ -17,6 +18,7 @@ const UNDO_GRACE_MS = 5000;
 
 export default function MieiViaggi() {
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [plans, setPlans] = useState<Trip[]>([]); // viaggi "in programma": solo per la striscia-ponte in alto
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export default function MieiViaggi() {
     trip: Trip;
   }>>(new Map());
 
-  useEffect(() => { setTrips(loadTrips()); }, []);
+  useEffect(() => { setTrips(loadTrips()); setPlans(loadPlans()); }, []);
   useEffect(() => () => {
     // Alla chiusura della pagina, le cancellazioni ancora "in sospeso" (in
     // attesa che scada la finestra per l'Annulla) vengono eseguite subito
@@ -148,6 +150,29 @@ export default function MieiViaggi() {
             </button>
           )}
         </div>
+
+        {/* Striscia-ponte verso "In programma": i piani vivono in un bucket
+            separato (non compaiono qui sotto né nelle statistiche), ma questo è
+            l'hub dell'utente — senza questo richiamo la sezione non si scopre.
+            Mostra il piano più imminente (o "sei tornato?" se già concluso). */}
+        {plans.length > 0 && (() => {
+          const next = plans[0]; // loadPlans ordina per partenza crescente
+          const cd = planCountdown(next);
+          return (
+            <Link to="/in-programma"
+              style={{display:"flex",alignItems:"center",gap:10, background:"rgba(96,165,250,0.10)", border:"0.5px solid rgba(96,165,250,0.3)", borderRadius:10, padding:"10px 14px", marginBottom:20, textDecoration:"none", color:"#f0f4ff"}}>
+              <CalendarClock style={{width:17,height:17,color:"#93c5fd",flexShrink:0}}/>
+              <div style={{flex:1,minWidth:0,fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                <span style={{fontWeight:600}}>{next.title || next.city}</span>{" "}
+                <span style={{color: cd.returned ? "#34d399" : cd.urgent ? "#fbbf24" : "rgba(255,255,255,0.55)"}}>· {cd.text}</span>
+                {plans.length > 1 && <span style={{color:"rgba(255,255,255,0.4)"}}> ＋ {plans.length - 1} {plans.length - 1 === 1 ? "altro" : "altri"}</span>}
+              </div>
+              <span style={{flexShrink:0,fontSize:11,fontWeight:600,color:"#93c5fd",display:"inline-flex",alignItems:"center",gap:4}}>
+                In programma <ArrowRight style={{width:12,height:12}}/>
+              </span>
+            </Link>
+          );
+        })()}
 
         {/* Search — sticky sotto l'AppHeader (sticky top:0, alto 65px) mentre si
             scorre l'elenco, con sfondo pieno per non far intravedere il
