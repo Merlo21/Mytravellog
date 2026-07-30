@@ -7,7 +7,7 @@
 import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from "workbox-precaching";
 import type { PrecacheEntry } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
-import { NetworkFirst, CacheFirst } from "workbox-strategies";
+import { CacheFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { clientsClaim } from "workbox-core";
 
@@ -32,16 +32,34 @@ self.addEventListener("activate", (event) => {
 });
 
 // Navigazione network-first (stessa scelta del vecchio SW: con la rete l'app
-// è sempre fresca al primo caricamento); offline si ricade sulla shell
-// precache-ata, disponibile anche al primissimo avvio senza rete.
+// è sempre fresca al primo caricamento); offline si ricade sull'ultima copia
+// vista, poi sulla shell precache-ata (disponibile anche al primissimo avvio
+// senza rete). La richiesta è RICOSTRUITA dall'URL con cache:"no-cache":
+// GitHub Pages serve index.html con max-age=600 e la fetch di default lo
+// rispettava — dopo un deploy l'app restava stantia fino a 10 minuti. La
+// rivalidazione costa solo un 304. (Non si può usare fetchOptions di Workbox:
+// la piattaforma vieta RequestInit sulle richieste in modalità "navigate".)
 const navFallback = createHandlerBoundToURL(import.meta.env.BASE_URL + "index.html");
-const navStrategy = new NetworkFirst({ cacheName: "navta-pages", networkTimeoutSeconds: 3 });
+const NAV_TIMEOUT_MS = 3000;
 registerRoute(
   new NavigationRoute(async (params) => {
+    const url = params.request.url;
     try {
-      return await navStrategy.handle(params);
+      const fresh = await Promise.race([
+        fetch(new Request(url, { cache: "no-cache" })).then(async (r) => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const cache = await caches.open("navta-pages");
+          await cache.put(url, r.clone());
+          return r;
+        }),
+        // Su reti lente non si aspetta oltre 3s: si serve l'ultima copia
+        // (la fetch prosegue comunque e aggiorna la cache per la prossima).
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), NAV_TIMEOUT_MS)),
+      ]);
+      return fresh;
     } catch {
-      return navFallback(params);
+      const cached = await caches.match(url, { cacheName: "navta-pages" });
+      return cached ?? navFallback(params);
     }
   }),
 );
@@ -54,5 +72,16 @@ registerRoute(
   new CacheFirst({
     cacheName: "navta-tiles",
     plugins: [new ExpirationPlugin({ maxEntries: 500, maxAgeSeconds: 30 * 24 * 3600, purgeOnQuotaError: true })],
+  }),
+);
+
+// Confini world-atlas (topojson da jsdelivr, usati da ContinentsMap e
+// dall'editor quadro): due file statici versionati — cache-first, così mappa
+// dei continenti e quadro funzionano anche offline dopo il primo uso.
+registerRoute(
+  ({ url }) => url.hostname === "cdn.jsdelivr.net" && url.pathname.includes("world-atlas"),
+  new CacheFirst({
+    cacheName: "navta-world-atlas",
+    plugins: [new ExpirationPlugin({ maxEntries: 4, maxAgeSeconds: 180 * 24 * 3600, purgeOnQuotaError: true })],
   }),
 );

@@ -840,12 +840,9 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
           } catch { /* nessun medaglione: pin normale */ }
         }
 
-        if (!document.getElementById("ml-css")) {
-          const link = document.createElement("link");
-          link.id = "ml-css"; link.rel = "stylesheet";
-          link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.0.0/dist/maplibre-gl.css";
-          document.head.appendChild(link);
-        }
+        // CSS di MapLibre: bundlato globalmente (import in main.tsx) — la vecchia
+        // iniezione del link dal CDN jsdelivr è stata rimossa (ridondante, e
+        // offline riagganciava un CDN irraggiungibile).
 
         // Font serif per la didascalia della vista Costellazione (titolo/numeri
         // Cormorant Garamond + date Noto Serif corsivo). Caricati anche per lo

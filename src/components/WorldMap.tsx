@@ -270,13 +270,9 @@ export function WorldMap({
       const maplibregl = (ml as any).default || ml;
       if (cancelled) return;
 
-      // Inject CSS
-      if (!document.getElementById("ml-css")) {
-        const link = document.createElement("link");
-        link.id = "ml-css"; link.rel = "stylesheet";
-        link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.0.0/dist/maplibre-gl.css";
-        document.head.appendChild(link);
-      }
+      // CSS di MapLibre: bundlato globalmente (import in main.tsx) — la vecchia
+      // iniezione del link dal CDN jsdelivr è stata rimossa: era ridondante e
+      // offline riagganciava un CDN irraggiungibile (PWA).
 
       // Fetch style (cache-backed) and inject globe projection + glyphs (MapLibre 5.x)
       const style = await fetchMapStyle();
