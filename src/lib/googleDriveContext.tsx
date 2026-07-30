@@ -1,11 +1,15 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
-import { loadTrips, saveTrips } from "@/lib/storage";
+import { loadTrips, saveTrips, loadPlans, savePlans } from "@/lib/storage";
 import {
   BACKUP_VERSION, requestAccessToken, revokeAccessToken, fetchUserEmail,
   readBackup, writeBackup, mergeTrips, clearDriveCache,
 } from "@/lib/googleDrive";
 
 export type DriveStatus = "guest" | "connecting" | "connected" | "syncing" | "expired" | "error";
+
+// Impronta locale per il rilevamento delle modifiche: include SIA i viaggi SIA
+// i piani, così anche una modifica ai piani in programma fa scattare un push.
+const localSnapshot = () => JSON.stringify({ t: loadTrips(), p: loadPlans() });
 
 interface DriveContextValue {
   status: DriveStatus;
@@ -66,11 +70,12 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     const token = await ensureToken(false);
     if (!token) { toExpired(); return; }
     const trips = loadTrips();
+    const plans = loadPlans();
     const now = Date.now();
     try {
-      await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips });
+      await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips, plans });
       setLocalTs(now);
-      syncedHashRef.current = JSON.stringify(trips);
+      syncedHashRef.current = localSnapshot();
       if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
     } catch (e: any) {
       if (String(e?.message) === "unauthorized") toExpired();
@@ -82,14 +87,19 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     if (mountedRef.current) setStatus("syncing");
     const remote = await readBackup(token); // può lanciare "unauthorized"
     const local = loadTrips();
+    const localPlans = loadPlans();
     const now = Date.now();
     const merged = remote && Array.isArray(remote.trips)
       ? mergeTrips(local, getLocalTs(), remote.trips, remote.updatedAt || 0)
       : local;
+    const mergedPlans = remote && Array.isArray(remote.plans)
+      ? mergeTrips(localPlans, getLocalTs(), remote.plans, remote.updatedAt || 0)
+      : localPlans;
     saveTrips(merged);
-    await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips: merged });
+    savePlans(mergedPlans);
+    await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips: merged, plans: mergedPlans });
     setLocalTs(now);
-    syncedHashRef.current = JSON.stringify(merged);
+    syncedHashRef.current = localSnapshot();
     if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
   };
 
@@ -100,7 +110,7 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     stopWatcher();
     intervalRef.current = window.setInterval(() => {
       if (document.hidden || busyRef.current) return;
-      if (JSON.stringify(loadTrips()) === syncedHashRef.current) return; // niente di nuovo
+      if (localSnapshot() === syncedHashRef.current) return; // niente di nuovo
       busyRef.current = true;
       if (mountedRef.current) setStatus("syncing");
       pushLocal().finally(() => { busyRef.current = false; });
@@ -154,7 +164,7 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     // Salvataggio anche quando si lascia la scheda (chiusura app inclusa).
     const onVisibility = () => {
       if (!document.hidden || localStorage.getItem(LS_CONNECTED) !== "1" || busyRef.current) return;
-      if (JSON.stringify(loadTrips()) === syncedHashRef.current) return;
+      if (localSnapshot() === syncedHashRef.current) return;
       busyRef.current = true;
       pushLocal().finally(() => { busyRef.current = false; });
     };

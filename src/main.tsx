@@ -28,6 +28,7 @@ const MieiViaggi = lazy(() => import("./pages/MieiViaggi"));
 const QuadroEditor = lazy(() => import("./pages/QuadroEditor"));
 const ImportaGpx = lazy(() => import("./pages/ImportaGpx"));
 const Recap = lazy(() => import("./pages/Recap"));
+const InProgramma = lazy(() => import("./pages/InProgramma"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RouteFallback() {
@@ -70,6 +71,7 @@ ReactDOM.createRoot(rootEl).render(
               <Route path="/editor-quadro" element={<QuadroEditor />} />
               <Route path="/importa-gpx" element={<ImportaGpx />} />
               <Route path="/recap" element={<Recap />} />
+              <Route path="/in-programma" element={<InProgramma />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

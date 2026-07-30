@@ -24,6 +24,9 @@ export interface DriveBackup {
   /** ms epoch dell'ultimo salvataggio (per last-write-wins tra dispositivi). */
   updatedAt: number;
   trips: Trip[];
+  /** Viaggi "in programma" (bucket separato). Opzionale per retro-compatibilità
+   *  con backup più vecchi che non lo avevano. */
+  plans?: Trip[];
 }
 
 // ---- Caricamento dello script Google Identity Services (una volta sola) ------

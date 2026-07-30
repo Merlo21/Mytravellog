@@ -11,6 +11,9 @@ export type Trip = {
   purpose?: string | null; // motivo del viaggio: "Vacanza" | "Lavoro" (scelta singola, opzionale)
   companions?: string[];   // nomi delle persone con cui hai viaggiato (opzionali; assenti sui viaggi vecchi)
   diary?: { date: string; text: string }[]; // racconto giorno-per-giorno (date YYYY-MM-DD; solo i giorni scritti)
+  status?: "planned" | "done"; // "planned" = viaggio in programma (vive nel bucket piani, non nel diario); assente/"done" = viaggio del diario
+  budget?: { label: string; amount: number; paid?: number }[]; // preventivo per categoria (importo stimato + eventuale già pagato)
+  checklist?: { text: string; done: boolean }[];               // "da organizzare" prima di partire
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto" | null;
   waypoints: { id?: string; city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
   latitude: number;
@@ -80,6 +83,68 @@ export function updateTrip(id: string, patch: Partial<Omit<Trip, "id" | "created
 
 export function deleteTrip(id: string): void {
   saveTrips(loadTrips().filter((t) => t.id !== id));
+}
+
+// ————————————————————————————————————————————————————————————————
+// Viaggi "in programma": bucket SEPARATO dal diario, così i viaggi futuri non
+// entrano in statistiche/globo/recap/mappe (che leggono solo loadTrips()).
+// Stesso identico tipo Trip, con status "planned". "Segna come fatto"
+// (promotePlanToTrip) sposta il viaggio nel diario, dove diventa "done".
+// ————————————————————————————————————————————————————————————————
+const KEY_PLANS = "atlas.plans.v1";
+
+export function loadPlans(): Trip[] {
+  try {
+    const raw = localStorage.getItem(KEY_PLANS);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as Trip[];
+    return arr.sort((a, b) => a.trip_date.localeCompare(b.trip_date)); // i più imminenti prima
+  } catch {
+    return [];
+  }
+}
+
+export function savePlans(plans: Trip[]): void {
+  localStorage.setItem(KEY_PLANS, JSON.stringify(plans));
+}
+
+export function addPlan(t: Omit<Trip, "id" | "created_at" | "status">, id?: string): Trip {
+  const full: Trip = { ...t, id: id ?? crypto.randomUUID(), status: "planned", created_at: new Date().toISOString() };
+  const all = loadPlans();
+  all.push(full);
+  savePlans(all);
+  return full;
+}
+
+export function updatePlan(id: string, patch: Partial<Omit<Trip, "id" | "created_at">>): Trip | null {
+  const all = loadPlans();
+  const idx = all.findIndex((t) => t.id === id);
+  if (idx === -1) return null;
+  const updated = { ...all[idx], ...patch };
+  all[idx] = updated;
+  savePlans(all);
+  return updated;
+}
+
+export function deletePlan(id: string): void {
+  savePlans(loadPlans().filter((t) => t.id !== id));
+}
+
+/**
+ * "Segna come fatto": sposta un piano dal bucket piani a quello del diario
+ * (status "done", in cima alla lista). Ritorna il viaggio promosso, o null se
+ * l'id non esiste.
+ */
+export function promotePlanToTrip(id: string): Trip | null {
+  const plans = loadPlans();
+  const plan = plans.find((t) => t.id === id);
+  if (!plan) return null;
+  savePlans(plans.filter((t) => t.id !== id));
+  const done: Trip = { ...plan, status: "done" };
+  const trips = loadTrips();
+  trips.unshift(done);
+  saveTrips(trips);
+  return done;
 }
 
 /** Parse a YYYY-MM-DD string as local midnight (avoids UTC off-by-one). */
