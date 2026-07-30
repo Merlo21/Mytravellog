@@ -37,6 +37,16 @@ function abbr(city: string) {
   return city.slice(0, 3).toUpperCase();
 }
 
+// Etichetta compatta per una voce di diario: "MAR 10 GIU".
+function diaryDayChip(iso: string): string {
+  const d = parseLocalDate(iso);
+  const wd = d.toLocaleDateString("it-IT", { weekday: "short" }).replace(".", "");
+  const mon = d.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
+  return `${wd} ${d.getDate()} ${mon}`.toUpperCase();
+}
+
+const DIARY_PREVIEW_MAX = 2; // voci mostrate sul biglietto prima di "＋ altri N"
+
 interface Props {
   trip: Trip;
   /** Chiamato alla conferma (secondo tap): il viaggio NON è ancora stato
@@ -339,6 +349,32 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
           📖 {diary.length ? `Diario · ${diary.length} ${diary.length === 1 ? "giorno" : "giorni"}` : "Diario"}
         </button>
       </div>
+
+      {/* Anteprima in lettura del racconto: prime voci (data + prima riga) con
+          troncamento a una riga; un clic ovunque apre il pannello completo. */}
+      {diary.length > 0 && (
+        <div style={{padding:"0 20px 16px",display:"flex",flexDirection:"column",gap:8}}>
+          {diary.slice(0, DIARY_PREVIEW_MAX).map(e => (
+            <button key={e.date} type="button" onClick={() => setShowDiary(true)}
+              aria-label={`Apri il diario — ${diaryDayChip(e.date)}`}
+              style={{
+                display:"block",textAlign:"left",width:"100%",background:"transparent",border:"none",
+                borderLeft:"2px solid #1a2d4a",paddingLeft:10,cursor:"pointer",
+              }}>
+              <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.06em",color:"#93c5fd"}}>{diaryDayChip(e.date)}</div>
+              <div style={{fontSize:11,lineHeight:1.5,fontStyle:"italic",color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {e.text}
+              </div>
+            </button>
+          ))}
+          {diary.length > DIARY_PREVIEW_MAX && (
+            <button type="button" onClick={() => setShowDiary(true)}
+              style={{alignSelf:"flex-start",background:"transparent",border:"none",padding:0,cursor:"pointer",fontSize:10,fontWeight:600,color:"#93c5fd"}}>
+              ＋ altri {diary.length - DIARY_PREVIEW_MAX} {diary.length - DIARY_PREVIEW_MAX === 1 ? "giorno" : "giorni"} →
+            </button>
+          )}
+        </div>
+      )}
     </div>
 
       {/* Rilievo 3D come "foglio nella busta": il biglietto fa da busta e il
