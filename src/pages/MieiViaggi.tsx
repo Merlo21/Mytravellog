@@ -104,7 +104,7 @@ export default function MieiViaggi() {
     const fields = [
       t.title, t.city, t.country, t.notes,
       ...(t.waypoints ?? []).flatMap(w => [w.city, w.country]),
-      ...(t.tags ?? []), ...(t.companions ?? []),
+      t.purpose, ...(t.companions ?? []),
     ];
     return fields.some(s => s?.toLowerCase().includes(needle));
   };

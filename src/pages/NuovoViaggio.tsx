@@ -11,7 +11,7 @@ import {
   TransportMode, Waypoint, ItineraryPanel, TripFormFields,
   TripFormActions, useUnsavedChangesGuard, isReturnBeforeDeparture,
 } from "@/components/TripFormParts";
-import { TripTagsCompanions } from "@/components/TripTagsCompanions";
+import { TripPurposeCompanions } from "@/components/TripPurposeCompanions";
 
 const NuovoViaggio = () => {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ const NuovoViaggio = () => {
   const [dateEnd, setDateEnd] = useState("");
   const [notes, setNotes] = useState("");
   const [rating, setRating] = useState(0);
-  const [tags, setTags] = useState<string[]>([]);
+  const [purpose, setPurpose] = useState<string | null>(null);
   const [companions, setCompanions] = useState<string[]>([]);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
     try {
@@ -66,7 +66,7 @@ const NuovoViaggio = () => {
   if (draftIdRef.current === null) draftIdRef.current = crypto.randomUUID();
   const draftId = draftIdRef.current;
 
-  const { confirmDiscard } = useUnsavedChangesGuard([title, dateStart, dateEnd, notes, rating, tags, companions, waypoints, home]);
+  const { confirmDiscard } = useUnsavedChangesGuard([title, dateStart, dateEnd, notes, rating, purpose, companions, waypoints, home]);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -196,7 +196,7 @@ const NuovoViaggio = () => {
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
       distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null, region_details: regionDetails.length > 0 ? regionDetails : null,
       country_code: dest.country_code, rating: rating || null,
-      tags: tags.length ? tags : undefined, companions: companions.length ? companions : undefined,
+      purpose: purpose || undefined, companions: companions.length ? companions : undefined,
     }, draftId);
     toast.success("Viaggio salvato!");
     navigate("/");
@@ -250,7 +250,7 @@ const NuovoViaggio = () => {
             rating={rating} setRating={setRating}
           />
 
-          <TripTagsCompanions tags={tags} setTags={setTags} companions={companions} setCompanions={setCompanions}/>
+          <TripPurposeCompanions purpose={purpose} setPurpose={setPurpose} companions={companions} setCompanions={setCompanions}/>
 
           <TripFormActions saving={saving} confirmDiscard={confirmDiscard} onSave={handleSave}/>
         </div>

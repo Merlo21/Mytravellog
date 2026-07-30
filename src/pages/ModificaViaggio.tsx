@@ -11,7 +11,7 @@ import {
   TransportMode, Waypoint, ItineraryPanel, TripFormFields,
   TripFormActions, useUnsavedChangesGuard, isReturnBeforeDeparture,
 } from "@/components/TripFormParts";
-import { TripTagsCompanions } from "@/components/TripTagsCompanions";
+import { TripPurposeCompanions } from "@/components/TripPurposeCompanions";
 
 async function fetchNominatimRegion(lat: number, lon: number): Promise<RegionInfo> {
   if (!lat || !lon) return { name: null, code: null };
@@ -64,7 +64,7 @@ const ModificaViaggio = () => {
   const [dateEnd, setDateEnd] = useState(trip?.date_end ?? "");
   const [notes, setNotes] = useState(trip?.notes ?? "");
   const [rating, setRating] = useState(trip?.rating ?? 0);
-  const [tags, setTags] = useState<string[]>(trip?.tags ?? []);
+  const [purpose, setPurpose] = useState<string | null>(trip?.purpose ?? null);
   const [companions, setCompanions] = useState<string[]>(trip?.companions ?? []);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(
     trip ? [
@@ -98,7 +98,7 @@ const ModificaViaggio = () => {
   const [saving, setSaving] = useState(false);
   const [destinationError, setDestinationError] = useState(false);
 
-  const { confirmDiscard } = useUnsavedChangesGuard([title, dateStart, dateEnd, notes, rating, tags, companions, waypoints, home]);
+  const { confirmDiscard } = useUnsavedChangesGuard([title, dateStart, dateEnd, notes, rating, purpose, companions, waypoints, home]);
 
   // Le tappe salvate prima che avessero un id stabile lo ricevono al volo
   // sopra (in waypoints ?? crypto.randomUUID()), ma solo in memoria: se
@@ -255,7 +255,7 @@ const ModificaViaggio = () => {
       distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null, region_details: regionDetails,
       country_code: dest.country_code || trip?.country_code || "",
       rating: rating || null,
-      tags: tags.length ? tags : undefined, companions: companions.length ? companions : undefined,
+      purpose: purpose || null, companions: companions.length ? companions : undefined,
     });
     toast.success("Viaggio aggiornato!");
     navigate("/");
@@ -309,7 +309,7 @@ const ModificaViaggio = () => {
             rating={rating} setRating={setRating}
           />
 
-          <TripTagsCompanions tags={tags} setTags={setTags} companions={companions} setCompanions={setCompanions}/>
+          <TripPurposeCompanions purpose={purpose} setPurpose={setPurpose} companions={companions} setCompanions={setCompanions}/>
 
           <TripFormActions saving={saving} confirmDiscard={confirmDiscard} onSave={handleSave}/>
         </div>

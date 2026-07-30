@@ -88,7 +88,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const ts = TRANSPORT_STYLE[trip.transport_mode ?? ""] ?? DEFAULT_TRANSPORT;
 
   const notes = trip.notes?.trim() || null;
-  const tripTags = trip.tags ?? [];
+  const purpose = trip.purpose || null;
   const companions = trip.companions ?? [];
   // Lunghe per caratteri O per numero di righe: una lista di 8 righe corte
   // (whiteSpace:pre-wrap le rispetta) occuperebbe comunque troppa card.
@@ -316,12 +316,12 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
         </div>
       )}
 
-      {/* Tag + compagni: chip discreti (tag blu, compagni verdi con 👤). */}
-      {(tripTags.length > 0 || companions.length > 0) && (
+      {/* Motivo + compagni: chip discreti (motivo blu, compagni verdi con 👤). */}
+      {(purpose || companions.length > 0) && (
         <div style={{padding:"0 20px 14px",display:"flex",flexWrap:"wrap",gap:6}}>
-          {tripTags.map(tag => (
-            <span key={"t"+tag} style={{fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",padding:"3px 9px",borderRadius:999,background:"rgba(96,165,250,0.14)",color:"#93c5fd"}}>{tag}</span>
-          ))}
+          {purpose && (
+            <span style={{fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",padding:"3px 9px",borderRadius:999,background:"rgba(96,165,250,0.14)",color:"#93c5fd"}}>{purpose}</span>
+          )}
           {companions.map(c => (
             <span key={"c"+c} style={{fontSize:10,fontWeight:600,padding:"3px 9px",borderRadius:999,background:"rgba(52,211,153,0.12)",color:"#6ee7b7"}}>👤 {c}</span>
           ))}

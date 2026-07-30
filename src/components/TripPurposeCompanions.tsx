@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import { loadTrips } from "@/lib/storage";
 import { X } from "lucide-react";
 
-/** Tag preset del viaggio; l'utente può comunque aggiungerne di custom. */
-export const PRESET_TAGS = ["Vacanza", "Lavoro", "Coppia", "Weekend", "Famiglia", "Amici", "Avventura"];
+/** Motivi del viaggio (scelta singola). */
+export const PURPOSES = ["Vacanza", "Lavoro"];
 
 interface Props {
-  tags: string[];
-  setTags: (t: string[]) => void;
+  purpose: string | null;
+  setPurpose: (p: string | null) => void;
   companions: string[];
   setCompanions: (c: string[]) => void;
 }
@@ -19,38 +19,19 @@ const label: React.CSSProperties = {
   fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase",
   display: "block", marginBottom: 9,
 };
-const chipBase: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 999, cursor: "pointer",
-  border: "0.5px solid #1a2d4a", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.6)",
-};
-const chipOn: React.CSSProperties = {
-  ...chipBase, background: "rgba(96,165,250,0.16)", border: "1px solid #60a5fa", color: "#60a5fa",
-};
 const smallInput: React.CSSProperties = {
   background: "rgba(255,255,255,0.04)", border: "0.5px solid #1a2d4a", borderRadius: 8,
   padding: "8px 12px", color: "#f0f4ff", fontSize: 13, outline: "none", width: "100%",
 };
 
 /**
- * Blocco "Con chi / Che tipo" del form viaggio: tag (preset + custom, multi-
- * scelta) e compagni (nomi con autocomplete dai viaggi già salvati). Componente
- * controllato: lo stato vive nel form, che lo passa ad addTrip/updateTrip.
- * Standalone di proposito (TripFormParts è FROZEN): importato dai due form.
+ * Blocco "Motivo + Compagni" del form viaggio: il MOTIVO è a scelta singola
+ * (Vacanza/Lavoro, ri-toccare deseleziona → nessuno); i COMPAGNI sono nomi con
+ * autocomplete dai viaggi già salvati. Componente controllato: lo stato vive
+ * nel form. Standalone di proposito (TripFormParts è FROZEN).
  */
-export function TripTagsCompanions({ tags, setTags, companions, setCompanions }: Props) {
-  const [customTag, setCustomTag] = useState("");
+export function TripPurposeCompanions({ purpose, setPurpose, companions, setCompanions }: Props) {
   const [nameInput, setNameInput] = useState("");
-
-  const toggleTag = (t: string) =>
-    setTags(tags.includes(t) ? tags.filter(x => x !== t) : [...tags, t]);
-
-  const addCustomTag = () => {
-    const v = customTag.trim();
-    if (v && !tags.some(x => x.toLowerCase() === v.toLowerCase())) setTags([...tags, v]);
-    setCustomTag("");
-  };
-
-  const customTags = tags.filter(t => !PRESET_TAGS.includes(t));
 
   // Autocomplete compagni: nomi già usati negli altri viaggi (dedup).
   const knownNames = useMemo(() => {
@@ -74,34 +55,26 @@ export function TripTagsCompanions({ tags, setTags, companions, setCompanions }:
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {/* Tipo di viaggio (tag) */}
+      {/* Motivo — segmented a scelta singola */}
       <div style={box}>
-        <label style={label}>Tipo di viaggio <span style={{ opacity: 0.4, textTransform: "none" }}>(opzionale)</span></label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-          {PRESET_TAGS.map(t => (
-            <button key={t} type="button" onClick={() => toggleTag(t)}
-              style={tags.includes(t) ? chipOn : chipBase} aria-pressed={tags.includes(t)}>
-              {t}
-            </button>
-          ))}
-          {customTags.map(t => (
-            <span key={t} style={{ ...chipOn, display: "inline-flex", alignItems: "center", gap: 6 }}>
-              {t}
-              <button type="button" onClick={() => toggleTag(t)} aria-label={`Rimuovi tag ${t}`}
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", display: "flex", opacity: 0.7 }}>
-                <X style={{ width: 12, height: 12 }} />
+        <label style={label}>Motivo <span style={{ opacity: 0.4, textTransform: "none" }}>(opzionale)</span></label>
+        <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.04)", border: "0.5px solid #1a2d4a", borderRadius: 999, padding: 3, gap: 3 }}>
+          {PURPOSES.map(p => {
+            const on = purpose === p;
+            return (
+              <button key={p} type="button" aria-pressed={on}
+                onClick={() => setPurpose(on ? null : p)}
+                style={{
+                  fontSize: 12, fontWeight: 600, padding: "6px 18px", borderRadius: 999, cursor: "pointer",
+                  border: "none",
+                  background: on ? "rgba(96,165,250,0.18)" : "transparent",
+                  color: on ? "#60a5fa" : "rgba(255,255,255,0.55)",
+                }}>
+                {p}
               </button>
-            </span>
-          ))}
+            );
+          })}
         </div>
-        <input
-          value={customTag}
-          onChange={e => setCustomTag(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustomTag(); } }}
-          onBlur={addCustomTag}
-          placeholder="+ aggiungi un tag tuo…"
-          style={{ ...smallInput, marginTop: 10 }}
-        />
       </div>
 
       {/* Compagni di viaggio */}
@@ -139,8 +112,7 @@ export function TripTagsCompanions({ tags, setTags, companions, setCompanions }:
           <div style={{ marginTop: 6, background: "#0b1524", border: "0.5px solid #1a2d4a", borderRadius: 8, overflow: "hidden" }}>
             {suggestions.map(n => (
               <button key={n} type="button"
-                // onMouseDown (non onClick): parte PRIMA del blur dell'input, che
-                // altrimenti aggiungerebbe già il testo digitato e chiuderebbe la lista.
+                // onMouseDown (non onClick): parte PRIMA del blur dell'input.
                 onMouseDown={e => { e.preventDefault(); addName(n); }}
                 style={{
                   display: "block", width: "100%", textAlign: "left", padding: "8px 12px",
