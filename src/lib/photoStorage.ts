@@ -127,11 +127,6 @@ export function photoToBlob(photo: Photo): Blob {
   return new Blob([photo.data], { type: photo.type });
 }
 
-export async function deletePhoto(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete(STORE_NAME, id);
-}
-
 /** Cancella le foto di tutte le tappe del viaggio (casa, ogni waypoint, destinazione) + il rilievo 3D. */
 export async function deletePhotosForTrip(trip: Pick<Trip, "id" | "waypoints">): Promise<void> {
   const db = await getDB();

@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  savePhoto, getPhotosForTrip, deletePhoto, deletePhotosForTrip, photoToBlob, __resetPhotoDB,
+  savePhoto, getPhotosForTrip, deletePhotosForTrip, photoToBlob, __resetPhotoDB,
   destinationPhotoKey, homePhotoKey, waypointPhotoKey, stopPhotoKeys,
   reliefPhotoKey, saveReliefImage, getReliefImage,
 } from "./photoStorage";
@@ -49,13 +49,6 @@ describe("photoStorage", () => {
     expect(await getPhotosForTrip("trip-senza-foto")).toEqual([]);
   });
 
-  it("deletePhoto rimuove solo la foto indicata", async () => {
-    const id1 = await savePhoto("trip-1", makeBlob());
-    const id2 = await savePhoto("trip-1", makeBlob());
-    await deletePhoto(id1);
-    const remaining = await getPhotosForTrip("trip-1");
-    expect(remaining.map(p => p.id)).toEqual([id2]);
-  });
 
   it("deletePhotosForTrip rimuove tutte le foto di un viaggio senza toccare le altre", async () => {
     await savePhoto("trip-1", makeBlob());
