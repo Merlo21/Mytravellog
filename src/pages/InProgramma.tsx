@@ -8,12 +8,17 @@ import { isReturnBeforeDeparture } from "@/components/TripFormParts";
 import { CalendarClock, Plus, MapPin, X, Check } from "lucide-react";
 import { toast } from "sonner";
 
-function buildPlan(dest: GeoResult, title: string, dateStart: string, dateEnd: string): Omit<Trip, "id" | "created_at" | "status"> {
+type PlanWaypoint = Trip["waypoints"][number];
+
+function buildPlan(
+  dest: GeoResult, title: string, dateStart: string, dateEnd: string,
+  intermediates: PlanWaypoint[] = [], destMode: Trip["transport_mode"] = "plane",
+): Omit<Trip, "id" | "created_at" | "status"> {
   return {
     title: title.trim() || dest.name,
     country: dest.country, city: dest.name, country_code: dest.country_code ?? "",
     trip_date: dateStart, date_end: dateEnd || null,
-    rating: null, notes: null, transport_mode: "plane", waypoints: [],
+    rating: null, notes: null, transport_mode: destMode ?? "plane", waypoints: intermediates,
     latitude: dest.latitude, longitude: dest.longitude,
     home_latitude: null, home_longitude: null, home_label: null, route_geometry: null,
     temperature_c: null, altitude_m: null, max_altitude_m: null, max_altitude_city: null,
@@ -40,6 +45,11 @@ const InProgramma = () => {
   const [title, setTitle] = useState("");
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
+  // Tappe intermedie e mezzo della meta arrivati dal banner "data futura" di
+  // Nuovo viaggio: la mini-form mostra solo la meta, ma il piano creato le
+  // conserva tutte (poi si rifiniscono nel pannello, che apre l'itinerario pieno).
+  const [prefillWps, setPrefillWps] = useState<PlanWaypoint[]>([]);
+  const [destMode, setDestMode] = useState<Trip["transport_mode"]>("plane");
 
   // Prefill dal banner "data futura" di Nuovo viaggio: quanto l'utente aveva
   // già compilato di là (titolo, destinazione, date) atterra qui pronto,
@@ -54,7 +64,16 @@ const InProgramma = () => {
       if (p.title) setTitle(p.title);
       if (p.dateStart) setDateStart(p.dateStart);
       if (p.dateEnd) setDateEnd(p.dateEnd);
-      if (p.dest?.name) setDest(p.dest as GeoResult);
+      // Forma nuova: waypoints[] completi (l'ultimo è la meta, i precedenti
+      // tappe intermedie, ciascuno col suo mezzo). Retro-compat: p.dest singolo.
+      if (Array.isArray(p.waypoints) && p.waypoints.length > 0) {
+        const last = p.waypoints[p.waypoints.length - 1];
+        setDest({ name: last.city, country: last.country, country_code: last.country_code ?? "", latitude: last.lat ?? 0, longitude: last.lon ?? 0 } as GeoResult);
+        setDestMode(last.transport_mode ?? "plane");
+        setPrefillWps(p.waypoints.slice(0, -1).map((w: PlanWaypoint) => ({ ...w, route_geometry: null })));
+      } else if (p.dest?.name) {
+        setDest(p.dest as GeoResult);
+      }
     } catch { /* prefill malformato: si riparte dalla mini-form vuota */ }
   }, []);
 
@@ -66,7 +85,7 @@ const InProgramma = () => {
     return () => clearTimeout(t);
   }, [query, dest]);
 
-  const resetForm = () => { setAdding(false); setQuery(""); setResults([]); setDest(null); setTitle(""); setDateStart(""); setDateEnd(""); };
+  const resetForm = () => { setAdding(false); setQuery(""); setResults([]); setDest(null); setTitle(""); setDateStart(""); setDateEnd(""); setPrefillWps([]); setDestMode("plane"); };
 
   const canSave = dest && dateStart;
   const create = () => {
@@ -75,9 +94,12 @@ const InProgramma = () => {
       toast.error("Il ritorno non può essere prima della partenza");
       return;
     }
-    addPlan(buildPlan(dest, title, dateStart, dateEnd));
+    const p = addPlan(buildPlan(dest, title, dateStart, dateEnd, prefillWps, destMode));
     resetForm();
     reload();
+    // Dritto nel pannello: itinerario completo, budget e checklist si
+    // rifiniscono lì — flusso continuo invece di card muta.
+    setOpenId(p.id);
   };
 
   const openPlan = useMemo(() => plans.find(p => p.id === openId) ?? null, [plans, openId]);
@@ -186,6 +208,14 @@ const InProgramma = () => {
                     <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: cd.returned ? "#34d399" : cd.urgent ? "#fbbf24" : "rgba(255,255,255,0.5)" }}>{cd.text}</div>
                   </div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{dateRange(p)} · in programma</div>
+                  {(p.waypoints?.length ?? 0) > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#93c5fd", marginTop: 6, minWidth: 0 }}>
+                      <MapPin style={{ width: 12, height: 12, flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {[...p.waypoints.map(w => w.city), p.city].join(" → ")}
+                      </span>
+                    </div>
+                  )}
                   {cd.returned && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 11, color: "#34d399" }}>
                       <Check style={{ width: 14, height: 14 }} /> Viaggio concluso — aprilo e segnalo come fatto

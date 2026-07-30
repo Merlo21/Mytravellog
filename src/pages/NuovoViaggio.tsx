@@ -105,11 +105,15 @@ const NuovoViaggio = () => {
   // trasferendo quanto già compilato (titolo, destinazione, date) via
   // sessionStorage — stesso pattern di navta.prefill.city.
   const goToPlanner = () => {
-    const dest = waypoints[waypoints.length - 1];
     sessionStorage.setItem("navta.prefill.plan", JSON.stringify({
       title: title.trim() || undefined,
       dateStart, dateEnd: dateEnd || undefined,
-      dest: dest ? { name: dest.city, country: dest.country, country_code: dest.country_code, latitude: dest.lat, longitude: dest.lon } : undefined,
+      // TUTTE le tappe coi loro mezzi (l'ultima è la meta): il piano le
+      // conserva intere, niente si perde nel passaggio.
+      waypoints: waypoints.length ? waypoints.map(w => ({
+        id: w.id, city: w.city, country: w.country, country_code: w.country_code,
+        lat: w.lat, lon: w.lon, transport_mode: w.transport_mode,
+      })) : undefined,
     }));
     navigate("/in-programma");
   };

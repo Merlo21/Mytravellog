@@ -3,6 +3,9 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Trip, updatePlan, deletePlan, promotePlanToTrip } from "@/lib/storage";
 import { CUR } from "@/lib/plans";
+import { searchPlaces, GeoResult } from "@/lib/geo";
+import { useSettings } from "@/lib/settings";
+import { ItineraryPanel, Waypoint, TransportMode } from "@/components/TripFormParts";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,10 +44,73 @@ function fmt(n: number): string {
  */
 export function TripPlanner({ plan, onClose, onChanged }: Props) {
   const navigate = useNavigate();
+  const s = useSettings();
   // "dirty": l'utente ha toccato qualcosa. Senza questo flag, aprire e chiudere
   // il pannello salvava le categorie/voci di default precompilate (dati mai
   // inseriti dall'utente) e la card mostrava "0/3 fatte" dal nulla.
   const dirtyRef = useRef(false);
+
+  // ——— Itinerario: stesso ItineraryPanel di Nuovo viaggio (riusato, non copiato).
+  // Le tappe del piano = plan.waypoints (intermedie) + la meta finale ricostruita
+  // dai campi destinazione del Trip; alla chiusura si ri-scompone allo stesso modo.
+  // A differenza di Nuovo viaggio, QUI non si calcola nulla (percorsi/meteo/km):
+  // il piano è intenzione, le misure arrivano alla promozione in Modifica.
+  const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
+    const mid: Waypoint[] = (plan.waypoints ?? []).map(w => ({
+      id: w.id ?? crypto.randomUUID(), city: w.city, country: w.country,
+      country_code: w.country_code ?? "", lat: w.lat ?? 0, lon: w.lon ?? 0,
+      transport_mode: w.transport_mode,
+    }));
+    if (!plan.city) return mid;
+    return [...mid, {
+      id: "dest-" + plan.id, city: plan.city, country: plan.country,
+      country_code: plan.country_code ?? "", lat: plan.latitude ?? 0, lon: plan.longitude ?? 0,
+      transport_mode: (plan.transport_mode ?? "plane") as TransportMode,
+    }];
+  });
+  const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(() =>
+    plan.home_latitude != null && plan.home_longitude != null && plan.home_label
+      ? { lat: plan.home_latitude, lon: plan.home_longitude, label: plan.home_label }
+      : (s.homeCity ? { lat: s.homeCity.lat, lon: s.homeCity.lon, label: s.homeCity.label } : null),
+  );
+  const [editingHome, setEditingHome] = useState(false);
+  const [homeQuery, setHomeQuery] = useState("");
+  const [homeResults, setHomeResults] = useState<GeoResult[]>([]);
+  const [wpQuery, setWpQuery] = useState("");
+  const [wpResults, setWpResults] = useState<GeoResult[]>([]);
+  const [wpLoading, setWpLoading] = useState(false);
+  const [wpOpen, setWpOpen] = useState(false);
+  const [wpTransport, setWpTransport] = useState<TransportMode>("plane");
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (homeQuery.length < 2) { setHomeResults([]); return; }
+      setHomeResults(await searchPlaces(homeQuery));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [homeQuery]);
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (wpQuery.length < 2) { setWpResults([]); setWpLoading(false); return; }
+      setWpLoading(true);
+      setWpResults((await searchPlaces(wpQuery)).slice(0, 5));
+      setWpLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [wpQuery]);
+
+  const addWaypoint = (r: GeoResult) => {
+    dirtyRef.current = true;
+    setWaypoints(prev => [...prev, {
+      id: crypto.randomUUID(),
+      city: r.name, country: r.country, country_code: r.country_code ?? "",
+      lat: r.latitude, lon: r.longitude, transport_mode: wpTransport,
+    }]);
+    setWpQuery(""); setWpResults([]); setWpOpen(false);
+  };
+  const removeWaypoint = (i: number) => { dirtyRef.current = true; setWaypoints(prev => prev.filter((_, idx) => idx !== i)); };
+
   const [budget, setBudget] = useState<BudgetRow[]>(() =>
     plan.budget && plan.budget.length ? plan.budget.map(r => ({ ...r })) : DEFAULT_BUDGET.map(r => ({ ...r })),
   );
@@ -75,7 +141,26 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
     const b = budget.filter(r => r.label.trim() || r.amount || r.paid)
       .map(r => ({ label: r.label.trim() || "Voce", amount: r.amount || 0, ...(r.paid ? { paid: r.paid } : {}) }));
     const c = checklist.filter(r => r.text.trim()).map(r => ({ text: r.text.trim(), done: r.done }));
-    updatePlan(plan.id, { budget: b.length ? b : undefined, checklist: c.length ? c : undefined });
+    const patch: Parameters<typeof updatePlan>[1] = {
+      budget: b.length ? b : undefined,
+      checklist: c.length ? c : undefined,
+    };
+    // Itinerario: ultima tappa = destinazione del Trip, le precedenti = waypoints.
+    // Con zero tappe (tutte rimosse) i campi destinazione precedenti restano:
+    // un Trip senza città non è rappresentabile.
+    if (waypoints.length > 0) {
+      const dest = waypoints[waypoints.length - 1];
+      patch.waypoints = waypoints.slice(0, -1).map(w => ({
+        id: w.id, city: w.city, country: w.country, country_code: w.country_code,
+        transport_mode: w.transport_mode, lat: w.lat, lon: w.lon, route_geometry: null,
+      }));
+      patch.city = dest.city; patch.country = dest.country; patch.country_code = dest.country_code;
+      patch.latitude = dest.lat; patch.longitude = dest.lon; patch.transport_mode = dest.transport_mode;
+    }
+    patch.home_latitude = home?.lat ?? null;
+    patch.home_longitude = home?.lon ?? null;
+    patch.home_label = home?.label ?? null;
+    updatePlan(plan.id, patch);
     onChanged();
   };
 
@@ -135,6 +220,30 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
       {/* Corpo scrollabile */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: 16 }}>
         <div style={{ maxWidth: 640, margin: "0 auto" }}>
+
+          {/* ITINERARIO — lo stesso pannello di Nuovo viaggio, con i mezzi per
+              tratta: per chi pianifica nel dettaglio il "come" è metà del budget. */}
+          <div style={{ marginBottom: 28 }}>
+            <ItineraryPanel
+              waypoints={waypoints} home={home}
+              onEditHome={() => { setEditingHome(v => !v); setHomeQuery(home?.label ?? ""); }}
+              editingHome={editingHome}
+              homeQuery={homeQuery} setHomeQuery={setHomeQuery}
+              homeResults={homeResults}
+              onSelectHome={r => {
+                dirtyRef.current = true;
+                setHome({ lat: r.latitude, lon: r.longitude, label: `${r.name}, ${r.country}` });
+                setHomeQuery(`${r.name}, ${r.country}`);
+                setHomeResults([]); setEditingHome(false);
+              }}
+              onRemoveWaypoint={removeWaypoint}
+              wpTransport={wpTransport} setWpTransport={setWpTransport}
+              wpOpen={wpOpen} setWpOpen={setWpOpen}
+              wpQuery={wpQuery} setWpQuery={setWpQuery}
+              wpResults={wpResults} wpLoading={wpLoading}
+              onAddWaypoint={addWaypoint}
+            />
+          </div>
 
           {/* BUDGET */}
           <div style={sectionTitle}>Budget preventivo</div>

@@ -66,4 +66,16 @@ describe("plans bucket (viaggi in programma)", () => {
   it("promotePlanToTrip ritorna null se l'id non esiste", () => {
     expect(promotePlanToTrip("inesistente")).toBeNull();
   });
+
+  it("promotePlanToTrip conserva l'itinerario multi-tappa (waypoints coi mezzi)", () => {
+    const wps = [
+      { id: "w1", city: "Reykjavík", country: "Islanda", country_code: "IS", transport_mode: "plane" as const, lat: 64.1, lon: -21.9, route_geometry: null },
+      { id: "w2", city: "Vík", country: "Islanda", country_code: "IS", transport_mode: "car" as const, lat: 63.4, lon: -19.0, route_geometry: null },
+    ];
+    const p = addPlan(basePlan({ city: "Höfn", latitude: 64.25, longitude: -15.2, transport_mode: "car", waypoints: wps }));
+    const done = promotePlanToTrip(p.id);
+    expect(done?.waypoints).toEqual(wps);          // tappe intermedie intatte
+    expect(done?.city).toBe("Höfn");                // meta finale intatta
+    expect(done?.transport_mode).toBe("car");       // mezzo dell'ultima tratta intatto
+  });
 });
