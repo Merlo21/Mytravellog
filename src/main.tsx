@@ -7,6 +7,7 @@ import { SettingsProvider } from "./lib/settings";
 import { GoogleDriveProvider } from "./lib/googleDriveContext";
 import { BrandBadge } from "./components/BrandBadge";
 import { WelcomeGate } from "./components/WelcomeGate";
+import { AppTour } from "./components/AppTour";
 // Self-hosted (Fontsource), non da un CDN esterno: erano già dichiarati in
 // tailwind.config.ts (font-display/font-mono) ma senza i file veri restavano
 // solo un'intenzione, con fallback silenzioso al font di sistema — self-
@@ -84,6 +85,10 @@ ReactDOM.createRoot(rootEl).render(
           {/* Benvenuto SOLO al primo avvio (dispositivo vergine): overlay sopra
               tutto, si archivia per sempre al primo tap. */}
           <WelcomeGate />
+          {/* Mini tutorial per sezione, prima visita (dopo il benvenuto).
+              Montato qui una volta sola: legge la rotta e non tocca le pagine
+              (Index/MieiViaggi/Stats sono FROZEN). */}
+          <AppTour />
         </HashRouter>
       </GoogleDriveProvider>
     </SettingsProvider>
