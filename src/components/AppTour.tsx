@@ -88,6 +88,19 @@ export function AppTour() {
     };
   }, [active]);
 
+  // Esc = salta questa sezione (la marca come vista: non riappare). Il listener
+  // va su window, NON come onKeyDown sul div del portale: quel div non ha mai il
+  // focus, quindi la pressione reale (target = body) non lo raggiungerebbe mai —
+  // stesso pattern di TripDiary/TripPlanner.
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { localStorage.setItem(flagKey(active), "1"); setActive(null); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [active]);
+
   const reduce = useMemo(
     () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
@@ -100,11 +113,8 @@ export function AppTour() {
   const done = () => { localStorage.setItem(flagKey(active), "1"); setActive(null); };
   const next = () => { if (last) done(); else setI(n => n + 1); };
 
-  // Esc = salta questa sezione (la marca come vista: non riappare).
-  const onKey = (e: React.KeyboardEvent) => { if (e.key === "Escape") done(); };
-
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={`Tutorial — ${step.title}`} onKeyDown={onKey} tabIndex={-1}
+    <div role="dialog" aria-modal="true" aria-label={`Tutorial — ${step.title}`}
       style={{
         position: "fixed", inset: 0, zIndex: 250, background: "rgba(2,8,20,0.74)",
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
@@ -137,7 +147,7 @@ export function AppTour() {
             {!last && (
               <button type="button" onClick={done} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 12, cursor: "pointer" }}>Salta</button>
             )}
-            <button type="button" onClick={next}
+            <button type="button" onClick={next} autoFocus
               style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#60a5fa", border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 13, fontWeight: 700, color: "#04203f", cursor: "pointer" }}>
               {last ? "Ho capito" : "Avanti"}{!last && <ArrowRight style={{ width: 14, height: 14 }} />}
             </button>
