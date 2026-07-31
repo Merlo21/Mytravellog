@@ -710,12 +710,16 @@ export function WorldMap({
   function applyCursor(map: any) {
     if (!map) return;
     const c = cursorRef.current;
-    const filt = ["<=", ["get", "td"], c] as any;
+    // Cursore non-finito (Infinity di default) = nessun filtro. NON passare
+    // Infinity dentro l'espressione: MapLibre valida i literal numerici e
+    // potrebbe rifiutarlo → filtro null = "mostra tutto", robusto per ogni timing.
+    const finite = Number.isFinite(c);
+    const filt = finite ? (["<=", ["get", "td"], c] as any) : null;
     ["trips-single", "trips-single-icons", "trips-multi", "trips-multi-icons", "trips-waypoints", "trips-waypoints-icons"]
       .forEach(id => { if (map.getLayer(id)) map.setFilter(id, filt); });
     orderedRef.current.forEach((t: any) => {
       const id = "route-" + t.id;
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", dayNum(t.trip_date) <= c ? "visible" : "none");
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", (!finite || dayNum(t.trip_date) <= c) ? "visible" : "none");
     });
   }
 
