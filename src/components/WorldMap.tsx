@@ -247,6 +247,28 @@ export function WorldMap({
       .filter(t => t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude))
       .sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
 
+  // ── Timeline scrubber ────────────────────────────────────────────────────
+  // Cursore temporale: mostra solo le tratte con data ≤ cursore. Implementato
+  // con setFilter/visibility (NESSUN rebuild di sorgenti/layer) → non riapre il
+  // memory-leak WebGL. Default = "tutto visibile" (Infinity): il globo resta
+  // identico a prima finché non si trascina.
+  const dayNum = (iso: string) => new Date(iso + "T00:00:00").getTime();
+  const timeRange = useMemo(() => {
+    if (ordered.length < 2) return null; // <2 viaggi: niente barra del tempo
+    const ts = ordered.map(t => dayNum(t.trip_date));
+    return { min: Math.min(...ts), max: Math.max(...ts) };
+  }, [ordered]);
+  const [cursor, setCursor] = useState<number>(Infinity);
+  const cursorRef = useRef<number>(Infinity);
+  // Reset a "tutto visibile" quando cambia l'insieme dei viaggi.
+  useEffect(() => { setCursor(timeRange ? timeRange.max : Infinity); }, [timeRange]);
+  // Riapplica il cursore quando lo si trascina (o appena la mappa è pronta).
+  useEffect(() => {
+    cursorRef.current = cursor;
+    if (mapRef.current && mapReady) applyCursor(mapRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursor, mapReady]);
+
   // ── Init MapLibre ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
@@ -534,7 +556,7 @@ export function WorldMap({
       .filter((t: any) => !t.waypoints?.length)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane" },
+        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane", td: dayNum(t.trip_date) },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
@@ -543,7 +565,7 @@ export function WorldMap({
       .filter((t: any) => t.waypoints?.length > 0)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane" },
+        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane", td: dayNum(t.trip_date) },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
@@ -651,7 +673,7 @@ export function WorldMap({
         .filter((w: any) => w.lat && w.lon && !isNaN(w.lat) && !isNaN(w.lon))
         .map((w: any) => ({
           type: "Feature",
-          properties: { transport: w.transport_mode ?? "plane" },
+          properties: { transport: w.transport_mode ?? "plane", td: dayNum(t.trip_date) },
           geometry: { type: "Point", coordinates: [w.lon, w.lat] }
         }))
     );
@@ -678,6 +700,23 @@ export function WorldMap({
         layout: { "icon-image": ICON_MATCH_EXPR, "icon-size": 1, "icon-allow-overlap": true, "icon-ignore-placement": true },
       });
     }
+
+    // I layer appena ricreati non hanno filtro: riapplico il cursore corrente.
+    applyCursor(map);
+  }
+
+  // Applica il cursore temporale ai layer dei viaggi: nasconde marker/tratte con
+  // data successiva. setFilter + visibility, nessun rebuild → nessun rischio leak.
+  function applyCursor(map: any) {
+    if (!map) return;
+    const c = cursorRef.current;
+    const filt = ["<=", ["get", "td"], c] as any;
+    ["trips-single", "trips-single-icons", "trips-multi", "trips-multi-icons", "trips-waypoints", "trips-waypoints-icons"]
+      .forEach(id => { if (map.getLayer(id)) map.setFilter(id, filt); });
+    orderedRef.current.forEach((t: any) => {
+      const id = "route-" + t.id;
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", dayNum(t.trip_date) <= c ? "visible" : "none");
+    });
   }
 
   // ── City labels ────────────────────────────────────────────────────────────
@@ -819,8 +858,8 @@ export function WorldMap({
     <div className="relative w-full h-full overflow-hidden">
       <div ref={containerRef} style={{ position:"absolute", inset:0 }} />
 
-      {/* Zoom */}
-      <div className="absolute bottom-16 right-3 flex flex-col gap-1 z-40">
+      {/* Zoom (si alza sopra la barra del tempo quando presente) */}
+      <div className="absolute right-3 flex flex-col gap-1 z-40" style={{ bottom: timeRange ? 112 : 64 }}>
         <button onClick={() => mapRef.current?.zoomIn()}
           className="w-8 h-8 bg-black/60 backdrop-blur border border-white/15 rounded-lg text-white text-lg font-bold flex items-center justify-center hover:bg-white/10 transition-colors select-none">+</button>
         <button onClick={() => mapRef.current?.zoomOut()}
@@ -830,20 +869,48 @@ export function WorldMap({
 
 
       {/* Legend */}
-      <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40">
+      <div className="absolute right-3 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-white/60 z-40" style={{ bottom: timeRange ? 76 : 12 }}>
         <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"/>Casa</div>
       </div>
 
       {/* Hint drag-per-ruotare: solo al primo caricamento (flag in localStorage) */}
       {globeHint !== "hidden" && (
         <div
-          className="absolute bottom-3 left-3 z-40 flex items-center gap-2 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 text-[11px] text-white/70"
-          style={{ transition: `opacity ${GLOBE_HINT_FADE_MS}ms ease`, opacity: globeHint === "fading" ? 0 : 1, pointerEvents: "none" }}
+          className="absolute left-3 z-40 flex items-center gap-2 bg-black/50 backdrop-blur border border-white/10 rounded-lg px-3 py-2 text-[11px] text-white/70"
+          style={{ transition: `opacity ${GLOBE_HINT_FADE_MS}ms ease`, opacity: globeHint === "fading" ? 0 : 1, pointerEvents: "none", bottom: timeRange ? 76 : 12 }}
         >
           <Hand className="w-3.5 h-3.5" aria-hidden/>
           Trascina per ruotare
         </div>
       )}
+
+      {/* Timeline scrubber: trascina per far comparire i viaggi in ordine
+          cronologico. Solo con ≥2 viaggi; default = tutto visibile. */}
+      {timeRange && (() => {
+        const cursorEff = cursor === Infinity ? timeRange.max : cursor;
+        const count = ordered.filter(t => dayNum(t.trip_date) <= cursorEff).length;
+        const label = new Date(cursorEff).toLocaleDateString("it-IT", { month: "short", year: "numeric" });
+        const y0 = new Date(timeRange.min).getFullYear(), y1 = new Date(timeRange.max).getFullYear();
+        const years = Array.from({ length: y1 - y0 + 1 }, (_, k) => y0 + k);
+        return (
+          <div className="absolute z-40" style={{ left: 12, right: 12, bottom: 12, background: "rgba(6,14,30,0.72)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "8px 12px", backdropFilter: "blur(4px)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <input type="range" min={timeRange.min} max={timeRange.max} step={86400000} value={cursorEff}
+                onChange={e => setCursor(Number(e.target.value))} aria-label="Timeline dei viaggi"
+                style={{ flex: 1, accentColor: "#60a5fa", cursor: "pointer" }} />
+              <div style={{ flexShrink: 0, textAlign: "right", minWidth: 78 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f4ff", textTransform: "capitalize" }}>{label}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{count} {count === 1 ? "viaggio" : "viaggi"}</div>
+              </div>
+            </div>
+            {years.length <= 12 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 9, color: "rgba(255,255,255,0.35)" }}>
+                {years.map(y => <span key={y}>{y}</span>)}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
