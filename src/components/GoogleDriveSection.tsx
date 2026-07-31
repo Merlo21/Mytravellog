@@ -1,5 +1,6 @@
 import { useGoogleDrive } from "@/lib/googleDriveContext";
 import { GoogleG } from "@/components/GoogleG";
+import { CoupleMapSection } from "@/components/CoupleMapSection";
 import { Loader2, Check, AlertTriangle, LogOut } from "lucide-react";
 
 function relativeTime(ms: number): string {
@@ -46,6 +47,9 @@ export function GoogleDriveSection() {
             I viaggi si salvano nel tuo Google Drive a ogni modifica. Le foto restano sul dispositivo.
           </p>
         </div>
+
+        {/* Viaggi di coppia: attivazione della mappa condivisa (fase 2a). */}
+        <CoupleMapSection />
       </div>
     );
   }
