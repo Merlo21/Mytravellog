@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Heart, Loader2, Check, AlertTriangle, RefreshCw, UserPlus } from "lucide-react";
+import { Heart, Loader2, Check, AlertTriangle, RefreshCw, UserPlus, Link as LinkIcon } from "lucide-react";
 import { requestAccessToken, createSharedFile, SHARED_VERSION, SharedMap } from "@/lib/googleDrive";
 import { sharedTrips } from "@/lib/storage";
-import { setSharedFileId, sharedFileId, pushSharedMap, invitePartner } from "@/lib/coupleSync";
+import { setSharedFileId, sharedFileId, pushSharedMap, invitePartner, connectSharedMap } from "@/lib/coupleSync";
 
 /**
  * "La nostra mappa" (viaggi di coppia) in Impostazioni, sotto l'account Drive.
@@ -21,6 +21,19 @@ export function CoupleMapSection() {
 
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
+
+  const [connecting, setConnecting] = useState(false);
+  const [connectErr, setConnectErr] = useState<string | null>(null);
+
+  const connect = async () => {
+    setConnecting(true); setConnectErr(null);
+    try {
+      const ok = await connectSharedMap();
+      if (ok) { setFileId(sharedFileId()); }
+    } catch {
+      setConnectErr("Non è stato possibile aprire il selettore. Riprova.");
+    } finally { setConnecting(false); }
+  };
 
   const enable = async () => {
     setBusy(true); setError(null);
@@ -83,6 +96,22 @@ export function CoupleMapSection() {
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
             {busy ? "Creazione…" : "Attiva la nostra mappa"}
           </button>
+
+          {/* Lato partner: ha ricevuto l'invito e aggancia il file col Picker. */}
+          <div className="mt-3 pt-3 border-t border-border/60">
+            <p className="text-xs text-muted-foreground mb-2">Hai ricevuto un invito dal partner?</p>
+            {connectErr && (
+              <p role="alert" className="text-xs text-destructive flex items-center gap-1.5 mb-2">
+                <AlertTriangle className="w-3.5 h-3.5" /> {connectErr}
+              </p>
+            )}
+            <button onClick={connect} disabled={connecting}
+              className="inline-flex items-center gap-2 py-2 px-3 rounded-xl text-sm font-semibold text-primary"
+              style={{ background: "rgba(96,165,250,0.12)", border: "0.5px solid rgba(96,165,250,0.35)", cursor: connecting ? "default" : "pointer" }}>
+              {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
+              {connecting ? "Apertura…" : "Collega la mappa condivisa"}
+            </button>
+          </div>
         </>
       ) : (
         <>

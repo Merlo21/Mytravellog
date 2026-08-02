@@ -3,6 +3,7 @@ import {
   fetchUserEmail, SHARED_VERSION, SharedMap,
 } from "@/lib/googleDrive";
 import { sharedTrips, Trip } from "@/lib/storage";
+import { pickSharedFile } from "@/lib/googlePicker";
 
 // Chiavi localStorage della "nostra mappa" (viaggi di coppia).
 const LS_FILE = "atlas.shared.fileId";     // id del file Drive condiviso (dal proprietario o dal Picker)
@@ -78,6 +79,20 @@ export async function invitePartner(email: string): Promise<void> {
   if (!fileId) throw new Error("no_shared_file");
   const tok = await token(true);
   await shareSharedFile(tok, fileId, email);
+}
+
+/**
+ * Lato PARTNER: apre il Google Picker per scegliere il file condiviso ricevuto
+ * via invito. Selezionarlo concede all'app l'accesso (drive.file); ne salva
+ * l'id e fa un primo pull. Ritorna true se agganciato, false se annullato.
+ */
+export async function connectSharedMap(): Promise<boolean> {
+  const tok = await token(true); // interattivo: garantisce un token con drive.file
+  const id = await pickSharedFile(tok);
+  if (!id) return false;
+  setSharedFileId(id);
+  await pullSharedMap(true).catch(() => { /* aggancio ok, sync al prossimo giro */ });
+  return true;
 }
 
 /**
