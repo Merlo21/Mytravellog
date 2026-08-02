@@ -14,8 +14,6 @@ export type Trip = {
   status?: "planned" | "done"; // "planned" = viaggio in programma (vive nel bucket piani, non nel diario); assente/"done" = viaggio del diario
   budget?: { label: string; amount: number; paid?: number }[]; // preventivo per categoria (importo stimato + eventuale già pagato)
   checklist?: { text: string; done: boolean }[];               // "da organizzare" prima di partire
-  shared?: boolean;                                            // true = anche sulla "nostra mappa" condivisa col partner (resta comunque tuo)
-  sharedBy?: string;                                           // email di chi ha aggiunto il viaggio alla mappa condivisa (solo nel file Drive condiviso)
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto" | null;
   waypoints: { id?: string; city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
   latitude: number;
@@ -147,31 +145,6 @@ export function promotePlanToTrip(id: string): Trip | null {
   trips.unshift(done);
   saveTrips(trips);
   return done;
-}
-
-// ————————————————————————————————————————————————————————————————
-// Viaggi CONDIVISI ("la nostra mappa" — feature "viaggi di coppia").
-// MODELLO A FLAG (non a spostamento): un viaggio resta SEMPRE nel diario
-// personale (`atlas.trips.v1`) e visibile in tutte le tue viste; il flag
-// `shared` lo aggiunge alla mappa condivisa col partner. Stesso identico
-// viaggio, niente copie né spostamenti. La "nostra mappa" = i tuoi viaggi
-// flaggati + (con la sincronizzazione, fase successiva) quelli del partner,
-// che vivranno in un bucket a parte per non entrare nelle tue statistiche.
-// ————————————————————————————————————————————————————————————————
-
-/** Aggiunge il viaggio alla mappa condivisa (resta comunque nel tuo diario). */
-export function shareTrip(id: string): Trip | null {
-  return updateTrip(id, { shared: true });
-}
-
-/** Lo toglie dalla mappa condivisa (resta nel tuo diario). */
-export function unshareTrip(id: string): Trip | null {
-  return updateTrip(id, { shared: false });
-}
-
-/** I tuoi viaggi marcati come condivisi: il tuo contributo alla "nostra mappa". */
-export function sharedTrips(): Trip[] {
-  return loadTrips().filter((t) => t.shared);
 }
 
 /** Parse a YYYY-MM-DD string as local midnight (avoids UTC off-by-one). */

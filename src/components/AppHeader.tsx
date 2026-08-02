@@ -1,6 +1,6 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { Link } from "react-router-dom";
-import { Plane, PieChart, Settings, Plus, Menu, Upload, CalendarClock, Heart } from "lucide-react";
+import { Plane, PieChart, Settings, Plus, Menu, Upload, CalendarClock } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -54,11 +54,6 @@ export function AppHeader({ onTripsClick }: Props) {
             <DropdownMenuItem asChild>
               <Link to="/in-programma" className="flex items-center gap-2 cursor-pointer">
                 <CalendarClock className="w-4 h-4 text-primary"/> In programma
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/nostra-mappa" className="flex items-center gap-2 cursor-pointer">
-                <Heart className="w-4 h-4" style={{color:"#f472b6"}}/> La nostra mappa
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

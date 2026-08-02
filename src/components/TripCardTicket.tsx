@@ -1,9 +1,9 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Trip, formatTripDate, parseLocalDate, shareTrip, unshareTrip } from "@/lib/storage";
+import { Trip, formatTripDate, parseLocalDate } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
-import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video, X, MoreVertical, Heart } from "lucide-react";
+import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video, X, MoreVertical } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
@@ -65,7 +65,6 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [showDiary, setShowDiary] = useState(false);
   const [diary, setDiary] = useState<DiaryEntry[]>(trip.diary ?? []);
-  const [shared, setShared] = useState(!!trip.shared); // sulla "nostra mappa"?
   // Miniatura del "rilievo 3D" salvato a fine flyover (snapshot in IndexedDB):
   // appare come linguetta sul bordo destro della card; click → si ingrandisce.
   const [reliefUrl, setReliefUrl] = useState<string | null>(null);
@@ -175,10 +174,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
             {/* Titolo: max 2 righe con ellissi (prima un titolo lungo su mobile
                 andava a 3+ righe stringendo tutto). Rimossa la riga "città, paese":
                 ridondante con bandiere e percorso qui sotto. */}
-            <div className="font-display" style={{fontSize:14,fontWeight:700,color:"#f0f4ff",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>
-              {shared && <Heart aria-label="Sulla nostra mappa" style={{width:12,height:12,fill:"#f472b6",color:"#f472b6",display:"inline",verticalAlign:"middle",marginRight:5}}/>}
-              {displayTitle}
-            </div>
+            <div className="font-display" style={{fontSize:14,fontWeight:700,color:"#f0f4ff",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{displayTitle}</div>
           </div>
           {/* Le 5 stelle si distinguono solo per colore: senza aria-label uno
               screen reader leggerebbe cinque stelle identiche. role=img +
@@ -205,11 +201,6 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/modifica-viaggio/"+trip.id)} className="flex items-center gap-2 cursor-pointer">
                 <Pencil className="w-4 h-4"/> Modifica
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => { if (shared) { unshareTrip(trip.id); setShared(false); } else { shareTrip(trip.id); setShared(true); } }}
-                className="flex items-center gap-2 cursor-pointer" style={{color:"#f472b6"}}>
-                <Heart className="w-4 h-4" style={shared ? {fill:"#f472b6"} : undefined}/> {shared ? "Togli dalla nostra mappa" : "Aggiungi alla nostra mappa"}
               </DropdownMenuItem>
               <DropdownMenuSeparator/>
               <DropdownMenuItem onClick={() => onDeleteRequested?.(trip)} className="flex items-center gap-2 cursor-pointer" style={{color:"#f87171"}}>

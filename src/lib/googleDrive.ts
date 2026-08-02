@@ -15,10 +15,7 @@ import { Trip } from "@/lib/storage";
 export const GOOGLE_CLIENT_ID =
   "238461152099-10eqsi1gobbvqnoibjk81pucicgp9a41.apps.googleusercontent.com";
 
-// drive.appdata = backup personale (cartella privata per-utente); drive.file =
-// file creati/aperti dall'app in Drive normale, per la "nostra mappa" condivisa
-// col partner (viaggi di coppia). drive.file è NON sensibile (niente verifica).
-const SCOPE = "openid email profile https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file";
+const SCOPE = "openid email profile https://www.googleapis.com/auth/drive.appdata";
 const BACKUP_FILE = "navta-backup.json";
 export const BACKUP_VERSION = 1;
 
@@ -190,76 +187,6 @@ export async function writeBackup(token: string, data: DriveBackup): Promise<voi
   }
   if (r.status === 401) throw new Error("unauthorized");
   if (!r.ok) throw new Error("drive_update_failed");
-}
-
-// ---- File CONDIVISO della "nostra mappa" (viaggi di coppia) ------------------
-// A differenza del backup, vive in Drive NORMALE (niente parents = radice "Il
-// mio Drive"): solo così è condivisibile col partner via permissions.create.
-// Richiede lo scope drive.file. L'id del file va persistito dal chiamante
-// (localStorage): per il proprietario è quello creato qui, per il partner
-// quello scelto col Picker.
-export const SHARED_FILE = "navta-shared-map.json";
-export const SHARED_VERSION = 1;
-export interface SharedMap { version: number; updatedAt: number; trips: Trip[] }
-
-/** Crea il file della mappa condivisa in Drive normale. Ritorna il suo id. */
-export async function createSharedFile(token: string, data: SharedMap): Promise<string> {
-  const boundary = "navta_" + Math.random().toString(36).slice(2);
-  const metadata = { name: SHARED_FILE, mimeType: "application/json" };
-  const body = JSON.stringify(data);
-  const multipart =
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
-  const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": `multipart/related; boundary=${boundary}` },
-    body: multipart,
-  });
-  if (r.status === 401) throw new Error("unauthorized");
-  if (!r.ok) throw new Error("shared_create_failed");
-  const j = await r.json();
-  return j.id as string;
-}
-
-/** Legge il file condiviso (null se sparito/non accessibile). */
-export async function readSharedFile(token: string, fileId: string): Promise<SharedMap | null> {
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (r.status === 401) throw new Error("unauthorized");
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error("shared_read_failed");
-  return await r.json();
-}
-
-/** Sovrascrive il contenuto del file condiviso. */
-export async function writeSharedFile(token: string, fileId: string, data: SharedMap): Promise<void> {
-  const r = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
-    method: "PATCH",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (r.status === 401) throw new Error("unauthorized");
-  if (!r.ok) throw new Error("shared_update_failed");
-}
-
-/**
- * Invita il partner al file condiviso: gli dà accesso in scrittura (permesso
- * writer). Google gli manda una notifica via email. Con drive.file il
- * proprietario può gestire i permessi dei file che ha creato.
- */
-export async function shareSharedFile(token: string, fileId: string, email: string): Promise<void> {
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=true`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ role: "writer", type: "user", emailAddress: email }),
-  });
-  if (r.status === 401) throw new Error("unauthorized");
-  if (!r.ok) {
-    let msg = "share_failed";
-    try { const j = await r.json(); if (j?.error?.message) msg = j.error.message; } catch { /* corpo non-JSON */ }
-    throw new Error(msg);
-  }
 }
 
 /**
