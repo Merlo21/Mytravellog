@@ -15,6 +15,7 @@ export type Trip = {
   budget?: { label: string; amount: number; paid?: number }[]; // preventivo per categoria (importo stimato + eventuale già pagato)
   checklist?: { text: string; done: boolean }[];               // "da organizzare" prima di partire
   shared?: boolean;                                            // true = anche sulla "nostra mappa" condivisa col partner (resta comunque tuo)
+  sharedBy?: string;                                           // email di chi ha aggiunto il viaggio alla mappa condivisa (solo nel file Drive condiviso)
   transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto" | null;
   waypoints: { id?: string; city: string; country: string; country_code?: string; transport_mode: "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto"; lat?: number; lon?: number; route_geometry?: [number, number][] | null }[];
   latitude: number;

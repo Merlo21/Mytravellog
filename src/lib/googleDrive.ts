@@ -244,6 +244,25 @@ export async function writeSharedFile(token: string, fileId: string, data: Share
 }
 
 /**
+ * Invita il partner al file condiviso: gli dà accesso in scrittura (permesso
+ * writer). Google gli manda una notifica via email. Con drive.file il
+ * proprietario può gestire i permessi dei file che ha creato.
+ */
+export async function shareSharedFile(token: string, fileId: string, email: string): Promise<void> {
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?sendNotificationEmail=true`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "writer", type: "user", emailAddress: email }),
+  });
+  if (r.status === 401) throw new Error("unauthorized");
+  if (!r.ok) {
+    let msg = "share_failed";
+    try { const j = await r.json(); if (j?.error?.message) msg = j.error.message; } catch { /* corpo non-JSON */ }
+    throw new Error(msg);
+  }
+}
+
+/**
  * Unione dei viaggi locali e remoti (nessuna perdita di dati).
  * - `localTs`/`remoteTs`: quando è stato modificato ciascun lato (ms). Il lato
  *   più recente è "autoritativo" sui viaggi con lo STESSO id (last-write-wins);

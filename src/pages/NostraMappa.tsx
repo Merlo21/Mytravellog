@@ -1,17 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppHeader } from "@/components/AppHeader";
-import { sharedTrips, unshareTrip, formatTripDate, Trip } from "@/lib/storage";
-import { Heart, X, Plus } from "lucide-react";
+import { unshareTrip, formatTripDate, Trip } from "@/lib/storage";
+import { sharedMapView, pullSharedMap, pushSharedMap, hasSharedMap } from "@/lib/coupleSync";
+import { Heart, X, Plus, RefreshCw } from "lucide-react";
 
 /**
- * "La nostra mappa": i viaggi marcati come condivisi (`sharedTrips`). In questa
- * fase mostra solo i TUOI viaggi flaggati; i viaggi del partner compariranno
- * quando ci sarà la sincronizzazione via file Drive condiviso (fase successiva).
+ * "La nostra mappa": la mappa condivisa (i tuoi viaggi flaggati + quelli del
+ * partner, dalla cache sincronizzata). All'apertura fa un pull dal file Drive
+ * condiviso (best-effort). "Togli" agisce solo sui TUOI viaggi e propaga.
  */
 const NostraMappa = () => {
-  const [trips, setTrips] = useState<Trip[]>(() => sharedTrips());
-  const remove = (id: string) => { unshareTrip(id); setTrips(sharedTrips()); };
+  const myEmail = localStorage.getItem("atlas.shared.myEmail");
+  const [trips, setTrips] = useState<Trip[]>(() => sharedMapView());
+  const [syncing, setSyncing] = useState(false);
+
+  // Pull dal file condiviso all'apertura (se collegato); silenzioso se offline.
+  useEffect(() => {
+    if (!hasSharedMap()) return;
+    setSyncing(true);
+    pullSharedMap().then(t => setTrips(t)).catch(() => { /* offline */ }).finally(() => setSyncing(false));
+  }, []);
+
+  const isMine = (t: Trip) => !t.sharedBy || t.sharedBy === myEmail;
+
+  const remove = (id: string) => {
+    unshareTrip(id);
+    pushSharedMap().catch(() => { /* propaga al prossimo sync */ });
+    setTrips(sharedMapView());
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#060e1e", display: "flex", flexDirection: "column" }}>
@@ -20,11 +37,12 @@ const NostraMappa = () => {
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
           <Heart style={{ width: 22, height: 22, color: "#f472b6", fill: "#f472b6" }} />
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#f0f4ff", margin: 0 }}>La nostra mappa</h1>
+          {syncing && <RefreshCw style={{ width: 15, height: 15, color: "rgba(255,255,255,0.4)", animation: "spin 1s linear infinite" }} />}
         </div>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", margin: "0 0 20px" }}>
           {trips.length === 0
             ? "I viaggi che condividi con il partner. Aggiungine uno dal menu ⋮ del suo biglietto."
-            : `${trips.length} ${trips.length === 1 ? "viaggio condiviso" : "viaggi condivisi"} · collega il partner per unire le mappe.`}
+            : `${trips.length} ${trips.length === 1 ? "viaggio condiviso" : "viaggi condivisi"}${hasSharedMap() ? "" : " · attiva la mappa in Impostazioni per unirla al partner"}.`}
         </p>
 
         {trips.length === 0 ? (
@@ -37,22 +55,30 @@ const NostraMappa = () => {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {trips.map(t => (
-              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#0b1a33", border: "0.5px solid #1a2d4a", borderRadius: 12, padding: "12px 16px" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "#f0f4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {t.title || t.city} {t.country_code && <span style={{ fontSize: 10, color: "#93c5fd" }}>{t.country_code.toUpperCase()}</span>}
+            {trips.map(t => {
+              const mine = isMine(t);
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#0b1a33", border: "0.5px solid #1a2d4a", borderRadius: 12, padding: "12px 16px" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#f0f4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {t.title || t.city} {t.country_code && <span style={{ fontSize: 10, color: "#93c5fd" }}>{t.country_code.toUpperCase()}</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                      {formatTripDate(t.trip_date)}{t.date_end ? ` – ${formatTripDate(t.date_end)}` : ""}
+                      {!mine && t.sharedBy && <span style={{ color: "#f9a8d4" }}> · di {t.sharedBy.split("@")[0]}</span>}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                    {formatTripDate(t.trip_date)}{t.date_end ? ` – ${formatTripDate(t.date_end)}` : ""}
-                  </div>
+                  {mine ? (
+                    <button type="button" onClick={() => remove(t.id)} aria-label={`Togli "${t.title || t.city}" dalla nostra mappa`} title="Togli dalla nostra mappa"
+                      style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(244,114,182,0.12)", border: "0.5px solid rgba(244,114,182,0.35)", borderRadius: 999, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#f9a8d4", cursor: "pointer" }}>
+                      <X style={{ width: 13, height: 13 }} /> togli
+                    </button>
+                  ) : (
+                    <Heart style={{ width: 15, height: 15, color: "#f472b6", fill: "#f472b6", flexShrink: 0 }} aria-label="Del partner" />
+                  )}
                 </div>
-                <button type="button" onClick={() => remove(t.id)} aria-label={`Togli "${t.title || t.city}" dalla nostra mappa`} title="Togli dalla nostra mappa"
-                  style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(244,114,182,0.12)", border: "0.5px solid rgba(244,114,182,0.35)", borderRadius: 999, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#f9a8d4", cursor: "pointer" }}>
-                  <X style={{ width: 13, height: 13 }} /> togli
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

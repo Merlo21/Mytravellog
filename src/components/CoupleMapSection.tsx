@@ -1,36 +1,63 @@
 import { useState } from "react";
-import { Heart, Loader2, Check, AlertTriangle } from "lucide-react";
+import { Heart, Loader2, Check, AlertTriangle, RefreshCw, UserPlus } from "lucide-react";
 import { requestAccessToken, createSharedFile, SHARED_VERSION, SharedMap } from "@/lib/googleDrive";
 import { sharedTrips } from "@/lib/storage";
-
-const LS_SHARED_FILE = "atlas.shared.fileId";
+import { setSharedFileId, sharedFileId, pushSharedMap, invitePartner } from "@/lib/coupleSync";
 
 /**
- * "La nostra mappa" (viaggi di coppia) — sezione in Impostazioni, sotto l'account
- * Drive. FASE 2a: solo attivazione — crea il file condiviso in Drive normale
- * (richiede il consenso allo scope drive.file) e ne salva l'id. Invito al
- * partner, Picker e sync live arrivano nelle fasi successive.
+ * "La nostra mappa" (viaggi di coppia) in Impostazioni, sotto l'account Drive.
+ * Attivazione (crea il file), invito del partner (permissions.create) e
+ * sincronizzazione manuale. Il sync automatico in background arriverà dopo.
  */
 export function CoupleMapSection() {
-  const [fileId, setFileId] = useState<string | null>(() => localStorage.getItem(LS_SHARED_FILE));
+  const [fileId, setFileId] = useState<string | null>(() => sharedFileId());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [email, setEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [invited, setInvited] = useState<string | null>(null);
+  const [inviteErr, setInviteErr] = useState<string | null>(null);
+
+  const [syncing, setSyncing] = useState(false);
+  const [synced, setSynced] = useState(false);
 
   const enable = async () => {
     setBusy(true); setError(null);
     try {
-      const { token } = await requestAccessToken(true); // interattivo: chiede il consenso drive.file
+      const { token } = await requestAccessToken(true); // consenso drive.file
       const data: SharedMap = { version: SHARED_VERSION, updatedAt: Date.now(), trips: sharedTrips() };
       const id = await createSharedFile(token, data);
-      localStorage.setItem(LS_SHARED_FILE, id);
+      setSharedFileId(id);
       setFileId(id);
+      pushSharedMap().catch(() => { /* timbra i viaggi al primo sync utile */ });
     } catch (e: any) {
       setError(e?.message === "unauthorized" || e?.message === "access_denied"
         ? "Consenso negato: serve l'accesso a Drive per la mappa condivisa."
         : "Non è stato possibile creare la mappa condivisa. Riprova.");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
+  };
+
+  const invite = async () => {
+    const e = email.trim();
+    if (!e) return;
+    setInviting(true); setInviteErr(null); setInvited(null);
+    try {
+      await invitePartner(e);
+      await pushSharedMap().catch(() => {}); // così il partner trova subito i tuoi viaggi timbrati
+      setInvited(e); setEmail("");
+    } catch (err: any) {
+      setInviteErr(/permission|email|invalid/i.test(String(err?.message))
+        ? "Email non valida o non è un account Google."
+        : "Invito non riuscito. Controlla l'email e riprova.");
+    } finally { setInviting(false); }
+  };
+
+  const sync = async () => {
+    setSyncing(true); setSynced(false);
+    try { await pushSharedMap(true); setSynced(true); }
+    catch { /* offline / non connesso: silenzioso */ }
+    finally { setSyncing(false); }
   };
 
   return (
@@ -40,16 +67,7 @@ export function CoupleMapSection() {
         <span className="text-sm font-semibold text-foreground">La nostra mappa</span>
       </div>
 
-      {fileId ? (
-        <>
-          <p className="text-xs flex items-center gap-1.5" style={{ color: "#34d399" }}>
-            <Check className="w-3.5 h-3.5" /> Mappa condivisa attiva ({sharedTrips().length} viaggi condivisi)
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Invito del partner e sincronizzazione live in arrivo. Il file <code>navta-shared-map.json</code> è nel tuo Google Drive.
-          </p>
-        </>
-      ) : (
+      {!fileId ? (
         <>
           <p className="text-xs text-muted-foreground mb-2">
             Crea una mappa condivisa: i viaggi che marchi col cuore verranno sincronizzati con il partner.
@@ -59,15 +77,48 @@ export function CoupleMapSection() {
               <AlertTriangle className="w-3.5 h-3.5" /> {error}
             </p>
           )}
-          <button
-            onClick={enable}
-            disabled={busy}
-            className="inline-flex items-center gap-2 py-2 px-3 rounded-xl text-sm font-semibold transition-colors"
-            style={{ background: "rgba(244,114,182,0.14)", border: "0.5px solid rgba(244,114,182,0.4)", color: "#f9a8d4", cursor: busy ? "default" : "pointer" }}
-          >
+          <button onClick={enable} disabled={busy}
+            className="inline-flex items-center gap-2 py-2 px-3 rounded-xl text-sm font-semibold"
+            style={{ background: "rgba(244,114,182,0.14)", border: "0.5px solid rgba(244,114,182,0.4)", color: "#f9a8d4", cursor: busy ? "default" : "pointer" }}>
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
             {busy ? "Creazione…" : "Attiva la nostra mappa"}
           </button>
+        </>
+      ) : (
+        <>
+          <p className="text-xs flex items-center gap-1.5" style={{ color: "#34d399" }}>
+            <Check className="w-3.5 h-3.5" /> Mappa condivisa attiva ({sharedTrips().length} viaggi tuoi condivisi)
+          </p>
+
+          {/* Invito partner */}
+          <div className="mt-3">
+            <label className="text-xs text-muted-foreground">Invita il partner (email Google)</label>
+            <div className="flex gap-2 mt-1">
+              <input value={email} onChange={e => setEmail(e.target.value)} type="email" inputMode="email"
+                placeholder="partner@gmail.com" autoComplete="off"
+                className="flex-1 bg-secondary/20 border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none" />
+              <button onClick={invite} disabled={inviting || !email.trim()}
+                className="inline-flex items-center gap-1.5 py-2 px-3 rounded-xl text-sm font-semibold"
+                style={{ background: "rgba(244,114,182,0.14)", border: "0.5px solid rgba(244,114,182,0.4)", color: "#f9a8d4", cursor: inviting || !email.trim() ? "default" : "pointer" }}>
+                {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Invita
+              </button>
+            </div>
+            {invited && <p className="text-xs mt-1.5 flex items-center gap-1.5" style={{ color: "#34d399" }}><Check className="w-3.5 h-3.5" /> Invitato {invited}</p>}
+            {inviteErr && <p role="alert" className="text-xs text-destructive mt-1.5 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> {inviteErr}</p>}
+          </div>
+
+          {/* Sync manuale */}
+          <div className="mt-3 flex items-center gap-3">
+            <button onClick={sync} disabled={syncing}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:opacity-80">
+              {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Sincronizza ora
+            </button>
+            {synced && <span className="text-xs" style={{ color: "#34d399" }}>fatto</span>}
+          </div>
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            Il partner riceve un invito via email; aprendo l'app potrà agganciare la mappa condivisa. Il sync automatico in background arriverà a breve.
+          </p>
         </>
       )}
     </div>
