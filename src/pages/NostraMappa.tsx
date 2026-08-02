@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppHeader } from "@/components/AppHeader";
 import { unshareTrip, formatTripDate, Trip } from "@/lib/storage";
-import { sharedMapView, pullSharedMap, pushSharedMap, hasSharedMap } from "@/lib/coupleSync";
+import { sharedMapView, pushSharedMap, hasSharedMap } from "@/lib/coupleSync";
 import { Heart, X, Plus, RefreshCw } from "lucide-react";
 
 /**
@@ -15,11 +15,13 @@ const NostraMappa = () => {
   const [trips, setTrips] = useState<Trip[]>(() => sharedMapView());
   const [syncing, setSyncing] = useState(false);
 
-  // Pull dal file condiviso all'apertura (se collegato); silenzioso se offline.
+  // Sync bidirezionale all'apertura (se collegato): push propaga i miei viaggi
+  // condivisi E scarica quelli del partner, poi ricalcolo la vista. Silenzioso
+  // se offline/non connesso (nessun popup su apertura pagina).
   useEffect(() => {
     if (!hasSharedMap()) return;
     setSyncing(true);
-    pullSharedMap().then(t => setTrips(t)).catch(() => { /* offline */ }).finally(() => setSyncing(false));
+    pushSharedMap(false).then(() => setTrips(sharedMapView())).catch(() => { /* offline */ }).finally(() => setSyncing(false));
   }, []);
 
   const isMine = (t: Trip) => !t.sharedBy || t.sharedBy === myEmail;

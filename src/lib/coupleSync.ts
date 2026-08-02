@@ -80,9 +80,17 @@ export async function invitePartner(email: string): Promise<void> {
   await shareSharedFile(tok, fileId, email);
 }
 
-/** La "nostra mappa" da mostrare: cache (miei + partner) se c'è, altrimenti i
- *  miei flaggati (prima del primo sync). */
+/**
+ * La "nostra mappa" da mostrare: SEMPRE i miei viaggi condivisi freschi
+ * (`sharedTrips`) + quelli del partner dalla cache. Così un viaggio appena
+ * condiviso (o tolto) dal biglietto si vede subito, senza aspettare un push;
+ * i viaggi del partner arrivano dall'ultima sincronizzazione. Dedup per id
+ * (i miei, freschi, hanno priorità).
+ */
 export function sharedMapView(): Trip[] {
-  const cache = loadSharedCache();
-  return cache.length ? cache : sharedTrips();
+  const me = localStorage.getItem(LS_EMAIL);
+  const partner = me ? loadSharedCache().filter(t => t.sharedBy && t.sharedBy !== me) : [];
+  const mine = sharedTrips();
+  const seen = new Set(mine.map(t => t.id));
+  return [...mine, ...partner.filter(t => !seen.has(t.id))];
 }
