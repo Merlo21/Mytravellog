@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Trip } from "@/lib/storage";
 import { AutoRotate } from "@/lib/settings";
 import { unwrapPath } from "@/lib/lonWrap";
+import { hasCoords } from "@/lib/coords";
 import { Play, Square, Hand } from "lucide-react";
 
 export interface CityInfo {
@@ -248,7 +249,7 @@ export function WorldMap({
 
   const ordered = useMemo(() =>
     [...trips]
-      .filter(t => t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude))
+      .filter(t => hasCoords(t.latitude, t.longitude))
       .sort((a,b) => a.trip_date.localeCompare(b.trip_date)), [trips]);
 
   // ── Timeline scrubber ────────────────────────────────────────────────────
@@ -549,7 +550,7 @@ export function WorldMap({
     // Home marker
     const homeEl = document.createElement("div");
     homeEl.style.cssText = "width:16px;height:16px;border-radius:50%;background:#fbbf24;border:2.5px solid #fff;box-shadow:0 0 8px rgba(251,191,36,0.6);cursor:pointer";
-    const firstWithHome = ordered.find((t: any) => t.home_latitude && t.home_longitude);
+    const firstWithHome = ordered.find((t: any) => hasCoords(t.home_latitude, t.home_longitude));
     if (firstWithHome) {
       markersRef.current.push(
         new maplibregl.Marker({ element: homeEl })
@@ -633,14 +634,14 @@ export function WorldMap({
     if (selectedTrip) {
       const labelFeatures: any[] = [
         // Home label
-        ...(selectedTrip.home_latitude && selectedTrip.home_longitude ? [{
+        ...(hasCoords(selectedTrip.home_latitude, selectedTrip.home_longitude) ? [{
           type: "Feature",
           properties: { name: selectedTrip.home_label?.split(",")[0] ?? "Casa" },
           geometry: { type: "Point", coordinates: [selectedTrip.home_longitude, selectedTrip.home_latitude] }
         }] : []),
         // Waypoint labels
         ...(selectedTrip.waypoints ?? [])
-          .filter((w: any) => w.lat && w.lon)
+          .filter((w: any) => hasCoords(w.lat, w.lon))
           .map((w: any) => ({
             type: "Feature",
             properties: { name: w.city },
@@ -678,7 +679,7 @@ export function WorldMap({
     // Waypoint intermediate stop markers (smaller dots, colored by transport)
     const waypointFeatures = ordered.flatMap((t: any) =>
       (t.waypoints ?? [])
-        .filter((w: any) => w.lat && w.lon && !isNaN(w.lat) && !isNaN(w.lon))
+        .filter((w: any) => hasCoords(w.lat, w.lon))
         .map((w: any) => ({
           type: "Feature",
           properties: { transport: w.transport_mode ?? "plane", td: dayNum(t.trip_date) },

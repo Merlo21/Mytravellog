@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, Component, ReactNode } from "reac
 import { useNavigate } from "react-router-dom";
 import { loadTrips, updateTrip, formatTripDate, Trip } from "@/lib/storage";
 import { distanceKm } from "@/lib/geo";
+import { hasCoords } from "@/lib/coords";
 import { tripTotalKm } from "@/lib/flyover";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { Compass, Globe, MapPin, Pencil, Plane, Plus, Video, X, ChevronDown } from "lucide-react";
@@ -177,7 +178,7 @@ function HomeInner() {
     const allTrips = loadTrips();
     let changed = false;
     allTrips.forEach(t => {
-      if (t.latitude && t.longitude && !isNaN(t.latitude) && !isNaN(t.longitude) &&
+      if (hasCoords(t.latitude, t.longitude) &&
           (t.distance_from_home_km == null || t.distance_from_home_km === 0)) {
         updateTrip(t.id, backfillDistanceFromHome(t, homeCity));
         changed = true;

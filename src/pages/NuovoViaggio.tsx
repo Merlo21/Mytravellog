@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { useNavigate } from "react-router-dom";
 import { searchPlaces, fetchElevation, fetchTemperature, fetchRegion, fetchDrivingRoute, mergeRegions, distanceKm, GeoResult } from "@/lib/geo";
+import { hasCoords } from "@/lib/coords";
 import { addTrip, todayLocalISO } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import { sequentialMap } from "@/lib/utils";
@@ -142,7 +143,7 @@ const NuovoViaggio = () => {
     if (distHome) {
       const points: { lat: number; lon: number }[] = [
         { lat: distHome.lat, lon: distHome.lon },
-        ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ lat: w.lat, lon: w.lon })),
+        ...waypoints.slice(0, -1).filter(w => hasCoords(w.lat, w.lon)).map(w => ({ lat: w.lat, lon: w.lon })),
         { lat: dest.lat, lon: dest.lon },
       ];
       dist = 0;
@@ -155,7 +156,7 @@ const NuovoViaggio = () => {
     let maxDistCity: string | null = null;
     if (distHome) {
       const allStops = [
-        ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ lat: w.lat, lon: w.lon, city: w.city })),
+        ...waypoints.slice(0, -1).filter(w => hasCoords(w.lat, w.lon)).map(w => ({ lat: w.lat, lon: w.lon, city: w.city })),
         { lat: dest.lat, lon: dest.lon, city: dest.city },
       ];
       const distances = allStops.map(p => ({ city: p.city, d: distanceKm(distHome.lat, distHome.lon, p.lat, p.lon) }));
@@ -164,7 +165,7 @@ const NuovoViaggio = () => {
       maxDistCity = max.city;
     }
     const allStopsWithCoords = [
-      ...waypoints.slice(0, -1).filter(w => w.lat && w.lon).map(w => ({ city: w.city, lat: w.lat, lon: w.lon })),
+      ...waypoints.slice(0, -1).filter(w => hasCoords(w.lat, w.lon)).map(w => ({ city: w.city, lat: w.lat, lon: w.lon })),
       { city: dest.city, lat: dest.lat, lon: dest.lon },
     ];
     // Percorso stradale reale per ogni tratta in auto (home→tappa1→...→destinazione),
@@ -174,11 +175,11 @@ const NuovoViaggio = () => {
     let prevPt: { lat: number; lon: number } | null = home ? { lat: home.lat, lon: home.lon } : null;
     const routePromises = waypoints.map((wp) => {
       const p = prevPt;
-      prevPt = wp.lat && wp.lon ? { lat: wp.lat, lon: wp.lon } : prevPt;
+      prevPt = hasCoords(wp.lat, wp.lon) ? { lat: wp.lat, lon: wp.lon } : prevPt;
       // Bici e moto seguono la strada reale esattamente come l'auto (stessa
       // richiesta esplicita: "stile di viaggio" uguale alla macchina).
       const followsRoad = wp.transport_mode === "car" || wp.transport_mode === "bici" || wp.transport_mode === "moto";
-      if (followsRoad && p && wp.lat && wp.lon) {
+      if (followsRoad && p && hasCoords(wp.lat, wp.lon)) {
         return fetchDrivingRoute(p.lat, p.lon, wp.lat, wp.lon);
       }
       return Promise.resolve(null);
