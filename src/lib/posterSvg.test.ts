@@ -135,6 +135,19 @@ describe("buildEditorQuadroSvg — quadro dall'editor (pannelli a mano)", () => 
     expect(svg).toContain('id="firma"');
     expect(svg).toContain('xlink:href="data:image/png;base64,');
   });
+
+  it("con page (stampa): viewBox = pagina, fondo pieno non-nero, contenuto trasformato", () => {
+    const p = buildEditorQuadroSvg({
+      panels, borders: [[[0, 40], [20, 40], [20, 55], [0, 55], [0, 40]]],
+      links: [], stops: [{ lon: 9, lat: 45 }],
+      width: 1600, height: 980, page: { width: 2000, height: 3000 },
+    });
+    expect(p).toContain('viewBox="0 0 2000 3000"');
+    expect(p).toContain('width="2000" height="3000"');
+    expect(p).toContain('fill="#05080f"');          // fondo pagina pieno
+    expect(p).not.toContain('fill="#000000"');       // mai nero puro
+    expect(p).toMatch(/<g transform="translate\([-\d. ]+\) scale\([\d.]+\)">/); // contenuto inquadrato+scalato
+  });
 });
 
 describe("panelGeoBounds / pickPanelIndex", () => {

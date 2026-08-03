@@ -296,6 +296,14 @@ export interface EditorQuadroInput {
   stops: { lon: number; lat: number }[];
   width: number;
   height: number;
+  /**
+   * Pagina di STAMPA opzionale: se data, il contenuto (arrangiato in
+   * width×height) viene inquadrato e centrato dentro una pagina di questa
+   * proporzione, con un fondo pieno (per un file autoconsistente da stampare).
+   * Senza, resta il comportamento originale (viewBox = contenuto, fondo
+   * trasparente). `bg` = colore del fondo pagina.
+   */
+  page?: { width: number; height: number; bg?: string };
 }
 
 /**
@@ -307,7 +315,7 @@ export interface EditorQuadroInput {
  * trasparente. Stessa gerarchia visiva del vecchio collage.
  */
 export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
-  const { panels, borders, links, stops, width: W, height: H } = input;
+  const { panels, borders, links, stops, width: W, height: H, page } = input;
   const nn = round1;
 
   const shadows = panels.map(p => `<rect x="${nn(p.x + 6)}" y="${nn(p.y + 12)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="rgba(0,0,0,0.55)"/>`).join("");
@@ -336,18 +344,37 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
     return sc ? `<circle cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="20" fill="url(#cGlow)"/><circle data-led="1" cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="5.5" fill="#ffffff"/>` : "";
   }).join("");
 
+  // Pagina di stampa: contenuto (W×H) inquadrato e centrato dentro la pagina
+  // scelta, con fondo pieno. Senza `page`, viewBox = contenuto e nessun fondo
+  // (comportamento originale). Il clipPath è userSpaceOnUse: le sue coordinate
+  // vivono nello stesso spazio trasformato del contenuto, quindi il ritaglio
+  // resta allineato anche con la scala della pagina.
+  const outW = page?.width ?? W;
+  const outH = page?.height ?? H;
+  let open = "", close = "", bg = "";
+  if (page) {
+    const s = Math.min(outW / W, outH / H);
+    const tx = (outW - W * s) / 2, ty = (outH - H * s) / 2;
+    bg = `<rect x="0" y="0" width="${nn(outW)}" height="${nn(outH)}" fill="${page.bg ?? "#05080f"}"/>`;
+    open = `<g transform="translate(${nn(tx)} ${nn(ty)}) scale(${s.toFixed(4)})">`;
+    close = `</g>`;
+  }
+
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${nn(outW)} ${nn(outH)}" width="${nn(outW)}" height="${nn(outH)}">`,
     `<defs><radialGradient id="cGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="40%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>`,
     `<filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>`,
     `${clips}</defs>`,
+    bg,
+    open,
     `<g id="ombre">${shadows}</g>`,
     `<g id="tele">${tiles}</g>`,
     `<g id="regioni">${maps}</g>`,
     `<g id="tratte-glow" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)">${lineEls}</g>`,
     `<g id="tratte" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
     `<g id="stelle">${starEls}</g>`,
-    brandSignatureSvg(W, H - 10),
+    close,
+    brandSignatureSvg(outW, outH - 10),
     `</svg>`,
   ].join("");
 }

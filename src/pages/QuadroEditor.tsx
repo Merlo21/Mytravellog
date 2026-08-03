@@ -33,6 +33,39 @@ import {
 const VBW = 1600;
 const VBH = 980;
 const MIN_SIZE = 120;      // lato minimo di una tela (px canvas)
+
+// Formati di stampa: proporzione + dimensione pixel del PNG (l'SVG è
+// vettoriale, la px conta solo per il raster). Verticali A3/A2 stessa
+// proporzione √2, cambia la risoluzione; long-edge tenuto ≤4000 per non
+// saturare la memoria del canvas su mobile.
+const PRINT_FORMATS = [
+  { id: "a3v",  label: "A3 verticale", w: 2480, h: 3508 },
+  { id: "a2v",  label: "A2 verticale", w: 2828, h: 4000 },
+  { id: "sq",   label: "Quadrato",     w: 3000, h: 3000 },
+  { id: "land", label: "Orizzontale",  w: 3508, h: 2480 },
+];
+
+/** Rasterizza una stringa SVG in un PNG (Blob) alle dimensioni date. L'SVG è
+ *  autoconsistente (path/gradienti/filtri + logo data-URI) → niente taint. */
+function svgToPng(svg: string, w: number, h: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("no_ctx")); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error("no_blob")), "image/png");
+      } catch (e) { URL.revokeObjectURL(url); reject(e as Error); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("img_load_failed")); };
+    img.src = url;
+  });
+}
 const SCALE_MIN = 0.25;
 const SCALE_MAX = 600;
 const STORAGE_KEY = "atlas.quadro.layout.v1";
@@ -532,18 +565,36 @@ export default function QuadroEditor() {
     setSelectedId(id);
   };
 
-  // Sincrono e istantaneo (i confini sono già in memoria): niente stato
-  // "esporto…", sarebbe uno spinner che non si vede mai.
-  const exportSvg = () => {
+  // Pannello di export: formato di stampa + scarica SVG/PNG.
+  const [exportOpen, setExportOpen] = useState(false);
+  const [fmtId, setFmtId] = useState("a3v");
+  const [exporting, setExporting] = useState(false);
+  const fmt = PRINT_FORMATS.find(f => f.id === fmtId) ?? PRINT_FORMATS[0];
+
+  const buildFor = () =>
+    buildEditorQuadroSvg({ panels, borders: borders!, links, stops, width: VBW, height: VBH, page: { width: fmt.w, height: fmt.h } });
+
+  const triggerDownload = (blob: Blob, ext: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `mappa-della-vita-quadro.${ext}`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
+
+  const downloadSvg = () => {
     if (!borders) return;
+    try { triggerDownload(new Blob([buildFor()], { type: "image/svg+xml" }), "svg"); }
+    catch { /* export fallito: non bloccare */ }
+  };
+
+  const downloadPng = async () => {
+    if (!borders || exporting) return;
+    setExporting(true);
     try {
-      const svg = buildEditorQuadroSvg({ panels, borders, links, stops, width: VBW, height: VBH });
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "mappa-della-vita-quadro.svg"; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch { /* export fallito: non bloccare */ }
+      const png = await svgToPng(buildFor(), fmt.w, fmt.h);
+      triggerDownload(png, "png");
+    } catch { /* raster fallito: non bloccare */ }
+    finally { setExporting(false); }
   };
 
   const btn = (extra?: React.CSSProperties): React.CSSProperties => ({
@@ -594,12 +645,50 @@ export default function QuadroEditor() {
 
         <div style={{ flex: 1 }} />
 
-        <button type="button" onClick={exportSvg} disabled={!borders}
-          style={btn(borders
-            ? { background: "rgba(96,165,250,0.16)", borderColor: "#60a5fa", color: "#60a5fa" }
-            : { opacity: 0.5, cursor: "default" })}>
-          <Download style={{ width: 15, height: 15 }} /> Esporta SVG
-        </button>
+        <div style={{ position: "relative" }}>
+          <button type="button" onClick={() => borders && setExportOpen(o => !o)} disabled={!borders}
+            style={btn(borders
+              ? { background: "rgba(96,165,250,0.16)", borderColor: "#60a5fa", color: "#60a5fa" }
+              : { opacity: 0.5, cursor: "default" })}>
+            <Download style={{ width: 15, height: 15 }} /> Esporta
+          </button>
+
+          {exportOpen && borders && (
+            <div style={{
+              position: "absolute", top: 48, right: 0, zIndex: 30, width: 250,
+              background: "#0b1a33", border: "0.5px solid #2a3f5f", borderRadius: 12,
+              padding: 14, boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
+            }}>
+              <div style={{ fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Formato</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                {PRINT_FORMATS.map(f => (
+                  <button key={f.id} type="button" onClick={() => setFmtId(f.id)}
+                    style={{
+                      fontSize: 12, fontWeight: 500, padding: "6px 10px", borderRadius: 8, cursor: "pointer",
+                      background: f.id === fmtId ? "rgba(96,165,250,0.2)" : "transparent",
+                      border: "0.5px solid " + (f.id === fmtId ? "rgba(96,165,250,0.5)" : "#1a2d4a"),
+                      color: f.id === fmtId ? "#93c5fd" : "rgba(255,255,255,0.6)",
+                    }}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={downloadPng} disabled={exporting}
+                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#60a5fa", border: "none", borderRadius: 9, padding: "9px", fontSize: 13, fontWeight: 700, color: "#04203f", cursor: exporting ? "default" : "pointer" }}>
+                  <Download style={{ width: 14, height: 14 }} /> {exporting ? "Creazione…" : "PNG"}
+                </button>
+                <button type="button" onClick={downloadSvg}
+                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, background: "transparent", border: "0.5px solid #2a3f5f", borderRadius: 9, padding: "9px", fontSize: 13, fontWeight: 600, color: "#f0f4ff", cursor: "pointer" }}>
+                  SVG
+                </button>
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>
+                PNG {fmt.w}×{fmt.h}px, pronto per la stampa. SVG vettoriale per Illustrator.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Suggerimento */}
