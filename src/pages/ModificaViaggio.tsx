@@ -75,7 +75,9 @@ const ModificaViaggio = () => {
         // generiamo uno nuovo qui, e un effect subito dopo lo salva davvero
         // (altrimenti resterebbe solo in memoria finché non si preme "Salva").
         id: w.id ?? crypto.randomUUID(),
-        city: w.city, country: w.country, country_code: "",
+        // country_code VA conservato: con "" hardcoded bastava aprire e salvare
+        // per azzerare i codici delle intermedie (bandiere sparite per sempre).
+        city: w.city, country: w.country, country_code: w.country_code ?? "",
         lat: w.lat ?? 0, lon: w.lon ?? 0, transport_mode: w.transport_mode as TransportMode,
       })),
       { id: crypto.randomUUID(), city: trip.city, country: trip.country, country_code: trip.country_code ?? "",
