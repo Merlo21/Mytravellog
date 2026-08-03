@@ -37,3 +37,32 @@ export function unwrapPath(coords: [number, number][]): [number, number][] {
   }
   return out;
 }
+
+/**
+ * Srotola PIÙ segmenti in un'unica catena: il primo punto di ogni segmento
+ * viene portato vicino all'ULTIMO punto del segmento precedente, poi il
+ * segmento prosegue punto-per-punto come unwrapPath. Equivale a srotolare la
+ * concatenazione e rispezzarla.
+ *
+ * Senza, ogni segmento viveva nella propria finestra di 360°: nella Mappa
+ * della vita due viaggi ai lati opposti dell'antimeridiano (Auckland→Samoa e
+ * LA→Hawaii) finivano a un giro di distanza — fitBounds inquadrava il mondo
+ * intero e nel poster lo stesso oceano compariva in due punti diversi.
+ * Idempotente: ri-applicata a segmenti già srotolati non cambia nulla.
+ */
+export function unwrapSegments(segs: [number, number][][]): [number, number][][] {
+  let prevEnd: number | null = null;
+  return segs.map(seg => {
+    if (!seg.length) return seg;
+    const start = prevEnd == null ? seg[0][0] : unwrapNear(seg[0][0], prevEnd);
+    const out: [number, number][] = [[start, seg[0][1]]];
+    let p = start;
+    for (let i = 1; i < seg.length; i++) {
+      const lon = unwrapNear(seg[i][0], p);
+      out.push([lon, seg[i][1]]);
+      p = lon;
+    }
+    prevEnd = p;
+    return out;
+  });
+}

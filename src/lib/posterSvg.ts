@@ -35,14 +35,21 @@ export interface PosterSvgInput {
   height?: number;
 }
 
-import { unwrapNear, unwrapPath } from "./lonWrap";
+import { unwrapNear, unwrapPath, unwrapSegments } from "./lonWrap";
 // Ri-esportati: gli helper vivono in lonWrap.ts (senza dipendenze) ma il resto
 // dell'app li ha sempre presi da qui insieme al resto della geometria poster.
-export { unwrapNear, unwrapPath };
+export { unwrapNear, unwrapPath, unwrapSegments };
 
 const RAD = Math.PI / 180;
 const mercX = (lon: number) => lon;
-export const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
+// Lat clampata al limite del Web Mercator: l'anello dell'Antartide (world-atlas)
+// arriva a -90, e mercY(-90) = -Infinity avrebbe reso invalido l'INTERO path
+// dei confini (un solo "-Infinity" nel d = layer confini sparito).
+const MAX_MERC_LAT = 85.051129;
+export const mercY = (lat: number) => {
+  const c = Math.max(-MAX_MERC_LAT, Math.min(MAX_MERC_LAT, lat));
+  return Math.log(Math.tan(Math.PI / 4 + (c * RAD) / 2)) / RAD;
+};
 /** Inverso di mercY: latitudine (gradi) da una coordinata mercatore Y. */
 export const latFromMercY = (y: number) => (2 * Math.atan(Math.exp(y * RAD)) - Math.PI / 2) / RAD;
 
@@ -157,24 +164,22 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   const { routeCoords = [], routeSegments, stops, borders = [], title, dateLabel, stats, hideLabels = false } = input;
   // Uno o più tracciati: la Mappa della vita passa un percorso per viaggio; gli
   // altri poster un singolo percorso. Normalizzati qui in una lista di segmenti.
-  const segments: [number, number][][] = (routeSegments && routeSegments.length
+  // Antimeridiano: i segmenti vengono srotolati in un'UNICA catena (il primo
+  // punto di ogni segmento vicino all'ultimo del precedente), non ciascuno per
+  // conto proprio — altrimenti nella Mappa della vita due viaggi ai lati
+  // opposti del Pacifico finivano a 360° di distanza.
+  const segments: [number, number][][] = unwrapSegments(routeSegments && routeSegments.length
     ? routeSegments
-    : (routeCoords.length ? [routeCoords] : [])
-  ).map(unwrapPath); // antimeridiano: ogni tratta prende l'arco più corto
+    : (routeCoords.length ? [routeCoords] : []));
   const routePts = segments.flat();
 
-  // Tutto il resto (tappe, confini) va portato nella STESSA finestra di 360°
-  // del percorso, altrimenti una tappa a -118 e la sua linea a 242 finirebbero
-  // ai due capi opposti del poster.
-  const anchorLon = routePts.length ? routePts[0][0] : (stops[0]?.lon ?? 0);
-  const uStops = stops.map(s => ({ ...s, lon: unwrapNear(s.lon, anchorLon) }));
-  /** Anello di confine traslato di un giro intero se serve (mai spezzato: lo
-   *  scostamento è uno solo per tutto l'anello, calcolato dal primo vertice). */
-  const shiftRing = (ring: [number, number][]): [number, number][] => {
-    if (!ring.length) return ring;
-    const off = unwrapNear(ring[0][0], anchorLon) - ring[0][0];
-    return off === 0 ? ring : ring.map(([lon, lat]) => [lon + off, lat] as [number, number]);
-  };
+  // Le tappe vanno srotolate IN CATENA (ognuna vicino alla precedente), come
+  // la rotta: un'ancora unica riportava tutto entro ±180° dal primo punto, e
+  // oltre i 180° cumulativi (Roma→Tokyo→LA) stella e linea divergevano di un
+  // giro intero. La sequenza delle tappe È quella del percorso, quindi la
+  // catena produce la stessa finestra.
+  const uLons = unwrapPath(stops.map(s => [s.lon, s.lat] as [number, number]));
+  const uStops = stops.map((s, i) => ({ ...s, lon: uLons[i][0] }));
 
   // Fascia inferiore RISERVATA alla didascalia (titolo/date/stats): la mappa
   // disegna solo SOPRA, così le scritte non si sovrappongono mai al tracciato
@@ -195,6 +200,19 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   }
   const spanX = Math.max(1e-6, maxX - minX);
   const spanY = Math.max(1e-6, maxY - minY);
+
+  /** Anello di confine traslato di un giro intero se serve (mai spezzato: lo
+   *  scostamento è unico per tutto l'anello, dal primo vertice). Ancorato al
+   *  CENTRO del riquadro, non al primo punto della rotta: con un frame più
+   *  largo di 180° (Roma→Tokyo→LA) l'ancora d'inizio lasciava gli anelli
+   *  americani un giro a ovest, fuori tela, pur avendoli caricati. */
+  const frameCenterLon = (minX + maxX) / 2; // mercX è l'identità: minX/maxX SONO longitudini
+  const shiftRing = (ring: [number, number][]): [number, number][] => {
+    if (!ring.length) return ring;
+    const off = unwrapNear(ring[0][0], frameCenterLon) - ring[0][0];
+    return off === 0 ? ring : ring.map(([lon, lat]) => [lon + off, lat] as [number, number]);
+  };
+
   const scale = Math.min((W - 2 * pad) / spanX, (mapH - 2 * pad) / spanY);
   const offX = (W - spanX * scale) / 2;
   const offY = (mapH - spanY * scale) / 2;

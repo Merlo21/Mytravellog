@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPosterSvg, buildEditorQuadroSvg, panelGeoBounds, pickPanelIndex, routeBounds, unwrapNear, unwrapPath, type EditorPanel } from "./posterSvg";
+import { buildPosterSvg, buildEditorQuadroSvg, panelGeoBounds, pickPanelIndex, routeBounds, unwrapNear, unwrapPath, unwrapSegments, mercY, type EditorPanel } from "./posterSvg";
 
 const INPUT = {
   routeCoords: [[9.19, 45.46], [11.39, 47.27], [13.78, 45.65]] as [number, number][],
@@ -221,6 +221,19 @@ describe("antimeridiano — unwrapNear / unwrapPath", () => {
     expect(unwrapPath(pts)).toEqual(pts);
     expect(unwrapPath([[9, 45]])).toEqual([[9, 45]]); // percorso di un punto
   });
+
+  it("unwrapSegments: più segmenti restano in un'unica finestra (lifeMap)", () => {
+    // Auckland→Samoa (srotola a 188) e poi LA→Hawaii: il secondo segmento deve
+    // ripartire vicino a 188 (242, 205), non nella sua finestra raw (-118, -155).
+    const out = unwrapSegments([
+      [[174, -37], [-172, -13]],
+      [[-118, 34], [-155, 20]],
+    ]);
+    expect(out[0].map(c => c[0])).toEqual([174, 188]);
+    expect(out[1].map(c => c[0])).toEqual([242, 205]);
+    // idempotente: ri-applicata non cambia nulla
+    expect(unwrapSegments(out)).toEqual(out);
+  });
 });
 
 describe("buildPosterSvg — antimeridiano", () => {
@@ -243,6 +256,48 @@ describe("buildPosterSvg — antimeridiano", () => {
     expect(xs).toHaveLength(3);
     expect(xs[0]).toBeLessThan(xs[1]);
     expect(xs[1]).toBeLessThan(xs[2]);
+  });
+
+  it("multi-tappa OLTRE 180° cumulativi dall'Europa: stelle in catena con la linea", () => {
+    // Il caso che l'ancora unica NON reggeva: Roma→Tokyo→Honolulu→LA supera i
+    // 180° dal primo punto, e Honolulu (raw -157, a soli 170° da Roma) restava
+    // nella finestra sbagliata → stella a 360° dalla linea, poster schiacciato.
+    const svg = buildPosterSvg({
+      routeCoords: [[12.5, 42], [139, 35], [-157, 21], [-118, 34]],
+      stops: [
+        { lon: 12.5, lat: 42, label: "Roma" },
+        { lon: 139, lat: 35, label: "Tokyo" },
+        { lon: -157, lat: 21, label: "Honolulu" },
+        { lon: -118, lat: 34, label: "Los Angeles" },
+      ],
+      title: "Giro lungo",
+    });
+    const xs = Array.from(svg.matchAll(/data-led="1" cx="([\d.]+)"/g)).map(m => parseFloat(m[1]));
+    expect(xs).toHaveLength(4);
+    for (let i = 1; i < xs.length; i++) expect(xs[i]).toBeGreaterThan(xs[i - 1]); // ordine del viaggio
+    for (const x of xs) { expect(x).toBeGreaterThan(0); expect(x).toBeLessThan(1600); } // tutte in tela
+    // e i confini USA finiscono sul lato americano (destro), non un giro a ovest
+    const usa: [number, number][] = [[-125, 32], [-115, 32], [-115, 42], [-125, 42], [-125, 32]];
+    const withBorders = buildPosterSvg({
+      routeCoords: [[12.5, 42], [139, 35], [-157, 21], [-118, 34]],
+      stops: [{ lon: 12.5, lat: 42, label: "Roma" }, { lon: -118, lat: 34, label: "LA" }],
+      borders: [usa], title: "Giro lungo",
+    });
+    const m = withBorders.match(/<g id="confini"[^>]*><path d="M([-\d.]+),/);
+    expect(m).toBeTruthy();
+    expect(parseFloat(m![1])).toBeGreaterThan(800); // metà destra della tela
+  });
+
+  it("Antartide (lat -90) non invalida il path dei confini con -Infinity", () => {
+    const antartide: [number, number][] = [[-60, -60], [60, -60], [0, -90], [-60, -60]];
+    const svg = buildPosterSvg({
+      routeCoords: [[-68.3, -54.8], [-58, -62]], // Ushuaia → penisola antartica
+      stops: [{ lon: -68.3, lat: -54.8, label: "Ushuaia" }],
+      borders: [antartide], title: "Sud",
+    });
+    expect(svg).not.toContain("Infinity");
+    expect(svg).not.toContain("NaN");
+    expect(mercY(-90)).toBe(mercY(-85.051129)); // clamp esplicito
   });
 
   it("i confini oltre l'antimeridiano vengono traslati dentro l'inquadratura", () => {
