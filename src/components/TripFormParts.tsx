@@ -122,6 +122,11 @@ export interface RouteHeroProps {
   homeResults: GeoResult[];
   onSelectHome: (r: GeoResult) => void;
   onRemoveWaypoint: (i: number) => void;
+  /** Cambia il mezzo della tappa `i`. Prima il selettore mutava
+   *  `waypoints[i].transport_mode` in place e chiamava `onRemoveWaypoint(-99)`
+   *  come trucco per forzare un nuovo array: funzionava solo grazie a come è
+   *  implementata la rimozione, e la mutazione avveniva fuori dal setter. */
+  onChangeTransport: (i: number, mode: TransportMode) => void;
   wpTransport: TransportMode;
   setWpTransport: (v: TransportMode) => void;
   wpOpen: boolean;
@@ -136,7 +141,7 @@ export interface RouteHeroProps {
 
 function RouteHero({
   waypoints, home, onEditHome, editingHome,
-  homeQuery, setHomeQuery, homeResults, onSelectHome, onRemoveWaypoint,
+  homeQuery, setHomeQuery, homeResults, onSelectHome, onRemoveWaypoint, onChangeTransport,
   wpTransport, setWpTransport, wpOpen, setWpOpen, wpQuery, setWpQuery,
   wpResults, wpLoading, onAddWaypoint, destinationError
 }: RouteHeroProps) {
@@ -260,7 +265,7 @@ function RouteHero({
                       const bx = midX - 96 + j * 32, by = py + 40;
                       return (
                         <g key={opt.value} style={{cursor:"pointer"}}
-                          onClick={() => { waypoints[activeArc-1].transport_mode = opt.value; onRemoveWaypoint(-99); setActiveArc(null); }}>
+                          onClick={() => { onChangeTransport(activeArc-1, opt.value); setActiveArc(null); }}>
                           <rect x={bx-16} y={by-18} width="32" height="36" fill="transparent"/>
                           <rect x={bx-14} y={by-14} width="28" height="28" rx="8"
                             fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.05)"}

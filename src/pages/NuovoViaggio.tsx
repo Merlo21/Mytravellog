@@ -107,6 +107,8 @@ const NuovoViaggio = () => {
   };
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
+  const changeTransport = (i: number, mode: TransportMode) =>
+    setWaypoints(prev => prev.map((w, idx) => idx === i ? { ...w, transport_mode: mode } : w));
 
   // Data di partenza nel futuro: quasi certamente l'utente sta PROGRAMMANDO un
   // viaggio, non registrando un ricordo (salvarlo qui sporcherebbe statistiche
@@ -265,6 +267,7 @@ const NuovoViaggio = () => {
             setHomeResults([]); setEditingHome(false);
           }}
           onRemoveWaypoint={removeWaypoint}
+          onChangeTransport={changeTransport}
           wpTransport={wpTransport} setWpTransport={setWpTransport}
           wpOpen={wpOpen} setWpOpen={setWpOpen}
           wpQuery={wpQuery} setWpQuery={setWpQuery}

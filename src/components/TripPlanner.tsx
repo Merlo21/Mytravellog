@@ -110,6 +110,12 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
     setWpQuery(""); setWpResults([]); setWpOpen(false);
   };
   const removeWaypoint = (i: number) => { dirtyRef.current = true; setWaypoints(prev => prev.filter((_, idx) => idx !== i)); };
+  // dirtyRef va segnato anche qui: prima ci pensava l'hack onRemoveWaypoint(-99)
+  // che il selettore del mezzo usava per forzare il re-render.
+  const changeTransport = (i: number, mode: TransportMode) => {
+    dirtyRef.current = true;
+    setWaypoints(prev => prev.map((w, idx) => idx === i ? { ...w, transport_mode: mode } : w));
+  };
 
   const [budget, setBudget] = useState<BudgetRow[]>(() =>
     plan.budget && plan.budget.length ? plan.budget.map(r => ({ ...r })) : DEFAULT_BUDGET.map(r => ({ ...r })),
@@ -253,6 +259,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
                 setHomeResults([]); setEditingHome(false);
               }}
               onRemoveWaypoint={removeWaypoint}
+              onChangeTransport={changeTransport}
               wpTransport={wpTransport} setWpTransport={setWpTransport}
               wpOpen={wpOpen} setWpOpen={setWpOpen}
               wpQuery={wpQuery} setWpQuery={setWpQuery}

@@ -158,6 +158,8 @@ const ModificaViaggio = () => {
   };
 
   const removeWaypoint = (i: number) => setWaypoints(prev => prev.filter((_, idx) => idx !== i));
+  const changeTransport = (i: number, mode: TransportMode) =>
+    setWaypoints(prev => prev.map((w, idx) => idx === i ? { ...w, transport_mode: mode } : w));
 
   const handleSave = async () => {
     if (!id || waypoints.length === 0) {
@@ -296,6 +298,7 @@ const ModificaViaggio = () => {
             setHomeResults([]); setEditingHome(false);
           }}
           onRemoveWaypoint={removeWaypoint}
+          onChangeTransport={changeTransport}
           wpTransport={wpTransport} setWpTransport={setWpTransport}
           wpOpen={wpOpen} setWpOpen={setWpOpen}
           wpQuery={wpQuery} setWpQuery={setWpQuery}
