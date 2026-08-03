@@ -148,6 +148,20 @@ describe("buildEditorQuadroSvg — quadro dall'editor (pannelli a mano)", () => 
     expect(p).not.toContain('fill="#000000"');       // mai nero puro
     expect(p).toMatch(/<g transform="translate\([-\d. ]+\) scale\([\d.]+\)">/); // contenuto inquadrato+scalato
   });
+
+  it("con palette (Oro): usa ink/bg su fondo, terre/linee e stelle", () => {
+    const p = buildEditorQuadroSvg({
+      panels, borders: [[[0, 40], [20, 40], [20, 55], [0, 55], [0, 40]]],
+      links: [[[9, 45], [70, 35]]], stops: [{ lon: 9, lat: 45 }],
+      width: 1600, height: 980, page: { width: 2000, height: 2000 },
+      palette: { bg: "#0a0700", ink: "#fbbf24" },
+    });
+    expect(p).toContain('fill="#0a0700"');          // fondo pagina + tele
+    expect(p).toContain('stroke="#fbbf24"');         // confini + linee
+    expect(p).toContain('stop-color="#fbbf24"');     // glow delle stelle
+    expect(p).toContain('data-led="1" cx="'); // stella presente
+    expect(p).not.toContain('fill="#050505"');       // niente tele near-black legacy con palette
+  });
 });
 
 describe("panelGeoBounds / pickPanelIndex", () => {

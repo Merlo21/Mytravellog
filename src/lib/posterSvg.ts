@@ -304,6 +304,13 @@ export interface EditorQuadroInput {
    * trasparente). `bg` = colore del fondo pagina.
    */
   page?: { width: number; height: number; bg?: string };
+  /**
+   * Palette colore per la stampa: `bg` = fondo pagina/tele, `ink` = colore di
+   * terre, confini, linee e stelle. Senza, resta bianco su near-black (Notte).
+   * (Palette a fondo CHIARO non ancora supportate: la firma "By" bianca
+   * sparirebbe — servirebbe un logo scuro.)
+   */
+  palette?: { bg: string; ink: string };
 }
 
 /**
@@ -315,11 +322,16 @@ export interface EditorQuadroInput {
  * trasparente. Stessa gerarchia visiva del vecchio collage.
  */
 export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
-  const { panels, borders, links, stops, width: W, height: H, page } = input;
+  const { panels, borders, links, stops, width: W, height: H, page, palette } = input;
   const nn = round1;
+  // Colori: `ink` = terre/confini/linee/stelle; `tileFill` = fondo delle tele.
+  // Senza palette restano i valori originali (bianco su near-black), così
+  // l'export legacy e i test non cambiano.
+  const ink = palette?.ink ?? "#ffffff";
+  const tileFill = palette?.bg ?? "#050505";
 
   const shadows = panels.map(p => `<rect x="${nn(p.x + 6)}" y="${nn(p.y + 12)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="rgba(0,0,0,0.55)"/>`).join("");
-  const tiles = panels.map(p => `<rect x="${nn(p.x)}" y="${nn(p.y)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="#050505" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1"/>`).join("");
+  const tiles = panels.map(p => `<rect x="${nn(p.x)}" y="${nn(p.y)}" width="${nn(p.w)}" height="${nn(p.h)}" rx="6" fill="${tileFill}" stroke="${ink}" stroke-opacity="0.12" stroke-width="1"/>`).join("");
   const clips = panels.map((p, i) => `<clipPath id="ep${i}"><rect x="${nn(p.x)}" y="${nn(p.y)}" width="${nn(p.w)}" height="${nn(p.h)}"/></clipPath>`).join("");
   // Resa "D — corpo + gerarchia" (scelta utente 2026-07-27): le terre hanno un
   // riempimento grigio tenue (evenodd per i buchi: laghi/enclave) così i
@@ -327,7 +339,7 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
   // presenti del vecchio wireframe. Un SOLO path con fill+stroke insieme:
   // nessun raddoppio di peso dell'SVG.
   const maps = panels.map((p, i) =>
-    `<g clip-path="url(#ep${i})"><path d="${panelBorderPath(p, borders)}" fill="#ffffff" fill-opacity="0.055" fill-rule="evenodd" stroke="#ffffff" stroke-opacity="0.5" stroke-width="0.75" stroke-linejoin="round"/></g>`
+    `<g clip-path="url(#ep${i})"><path d="${panelBorderPath(p, borders)}" fill="${ink}" fill-opacity="0.055" fill-rule="evenodd" stroke="${ink}" stroke-opacity="0.5" stroke-width="0.75" stroke-linejoin="round"/></g>`
   ).join("");
 
   const screen = (lon: number, lat: number): [number, number] | null => {
@@ -341,7 +353,7 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
   }).join("");
   const starEls = stops.map(s => {
     const sc = screen(s.lon, s.lat);
-    return sc ? `<circle cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="20" fill="url(#cGlow)"/><circle data-led="1" cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="5.5" fill="#ffffff"/>` : "";
+    return sc ? `<circle cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="20" fill="url(#cGlow)"/><circle data-led="1" cx="${nn(sc[0])}" cy="${nn(sc[1])}" r="5.5" fill="${ink}"/>` : "";
   }).join("");
 
   // Pagina di stampa: contenuto (W×H) inquadrato e centrato dentro la pagina
@@ -355,14 +367,14 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
   if (page) {
     const s = Math.min(outW / W, outH / H);
     const tx = (outW - W * s) / 2, ty = (outH - H * s) / 2;
-    bg = `<rect x="0" y="0" width="${nn(outW)}" height="${nn(outH)}" fill="${page.bg ?? "#05080f"}"/>`;
+    bg = `<rect x="0" y="0" width="${nn(outW)}" height="${nn(outH)}" fill="${palette?.bg ?? page.bg ?? "#05080f"}"/>`;
     open = `<g transform="translate(${nn(tx)} ${nn(ty)}) scale(${s.toFixed(4)})">`;
     close = `</g>`;
   }
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${nn(outW)} ${nn(outH)}" width="${nn(outW)}" height="${nn(outH)}">`,
-    `<defs><radialGradient id="cGlow"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="40%" stop-color="#ffffff" stop-opacity="0.3"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>`,
+    `<defs><radialGradient id="cGlow"><stop offset="0%" stop-color="${ink}" stop-opacity="0.95"/><stop offset="40%" stop-color="${ink}" stop-opacity="0.3"/><stop offset="100%" stop-color="${ink}" stop-opacity="0"/></radialGradient>`,
     `<filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>`,
     `${clips}</defs>`,
     bg,
@@ -370,8 +382,8 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
     `<g id="ombre">${shadows}</g>`,
     `<g id="tele">${tiles}</g>`,
     `<g id="regioni">${maps}</g>`,
-    `<g id="tratte-glow" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)">${lineEls}</g>`,
-    `<g id="tratte" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
+    `<g id="tratte-glow" fill="none" stroke="${ink}" stroke-width="6" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)">${lineEls}</g>`,
+    `<g id="tratte" fill="none" stroke="${ink}" stroke-width="2.2" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
     `<g id="stelle">${starEls}</g>`,
     close,
     brandSignatureSvg(outW, outH - 10),

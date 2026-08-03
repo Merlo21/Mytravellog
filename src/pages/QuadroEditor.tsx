@@ -45,6 +45,15 @@ const PRINT_FORMATS = [
   { id: "land", label: "Orizzontale",  w: 3508, h: 2480 },
 ];
 
+// Palette di stampa (fondo scuro: la firma "By" bianca resta leggibile). bg =
+// fondo pagina/tele, ink = terre/confini/linee/stelle. "Carta" (fondo chiaro)
+// non c'è ancora: servirebbe un logo scuro per la firma.
+const PALETTES = [
+  { id: "notte", label: "Notte", bg: "#05080f", ink: "#ffffff" },
+  { id: "oro",   label: "Oro",   bg: "#0a0700", ink: "#fbbf24" },
+  { id: "blu",   label: "Blu",   bg: "#02122a", ink: "#7dd3fc" },
+];
+
 /** Rasterizza una stringa SVG in un PNG (Blob) alle dimensioni date. L'SVG è
  *  autoconsistente (path/gradienti/filtri + logo data-URI) → niente taint. */
 function svgToPng(svg: string, w: number, h: number): Promise<Blob> {
@@ -568,11 +577,24 @@ export default function QuadroEditor() {
   // Pannello di export: formato di stampa + scarica SVG/PNG.
   const [exportOpen, setExportOpen] = useState(false);
   const [fmtId, setFmtId] = useState("a3v");
+  const [palId, setPalId] = useState("notte");
   const [exporting, setExporting] = useState(false);
+  const exportBoxRef = useRef<HTMLDivElement>(null);
   const fmt = PRINT_FORMATS.find(f => f.id === fmtId) ?? PRINT_FORMATS[0];
+  const pal = PALETTES.find(p => p.id === palId) ?? PALETTES[0];
+
+  // Chiudi il pannello export cliccando fuori (fix UX fase 1).
+  useEffect(() => {
+    if (!exportOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (exportBoxRef.current && !exportBoxRef.current.contains(e.target as Node)) setExportOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [exportOpen]);
 
   const buildFor = () =>
-    buildEditorQuadroSvg({ panels, borders: borders!, links, stops, width: VBW, height: VBH, page: { width: fmt.w, height: fmt.h } });
+    buildEditorQuadroSvg({ panels, borders: borders!, links, stops, width: VBW, height: VBH, page: { width: fmt.w, height: fmt.h }, palette: { bg: pal.bg, ink: pal.ink } });
 
   const triggerDownload = (blob: Blob, ext: string) => {
     const url = URL.createObjectURL(blob);
@@ -645,7 +667,7 @@ export default function QuadroEditor() {
 
         <div style={{ flex: 1 }} />
 
-        <div style={{ position: "relative" }}>
+        <div ref={exportBoxRef} style={{ position: "relative" }}>
           <button type="button" onClick={() => borders && setExportOpen(o => !o)} disabled={!borders}
             style={btn(borders
               ? { background: "rgba(96,165,250,0.16)", borderColor: "#60a5fa", color: "#60a5fa" }
@@ -673,6 +695,24 @@ export default function QuadroEditor() {
                   </button>
                 ))}
               </div>
+
+              <div style={{ fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Colore</div>
+              <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+                {PALETTES.map(p => (
+                  <button key={p.id} type="button" onClick={() => setPalId(p.id)} title={p.label}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
+                    <span style={{
+                      width: 34, height: 34, borderRadius: 9, background: p.bg,
+                      border: "2px solid " + (p.id === palId ? "#60a5fa" : "rgba(255,255,255,0.15)"),
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 999, background: p.ink, boxShadow: `0 0 5px ${p.ink}` }} />
+                    </span>
+                    <span style={{ fontSize: 9, color: p.id === palId ? "#93c5fd" : "rgba(255,255,255,0.5)" }}>{p.label}</span>
+                  </button>
+                ))}
+              </div>
+
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={downloadPng} disabled={exporting}
                   style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#60a5fa", border: "none", borderRadius: 9, padding: "9px", fontSize: 13, fontWeight: 700, color: "#04203f", cursor: exporting ? "default" : "pointer" }}>
