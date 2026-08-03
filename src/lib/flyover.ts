@@ -1,5 +1,6 @@
 import { Trip } from "./storage";
 import { distanceKm } from "./geo";
+import { haversineKm } from "./haversine";
 
 export type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
 
@@ -200,11 +201,14 @@ export function buildPerTripRouteCoords(trips: Trip[]): [number, number][][] {
   return out;
 }
 
-/** Lunghezza approssimata (km) di un percorso [lon,lat][], sommando ogni segmento. */
+/** Lunghezza approssimata (km) di un percorso [lon,lat][], sommando ogni
+ *  segmento con la haversine NON arrotondata: coi tracciati densi
+ *  (route_geometry stradale, GPX) i segmenti sono spesso < 1 km e
+ *  l'arrotondamento a km intero di `distanceKm` li azzererebbe uno per uno. */
 export function pathLengthKm(path: [number, number][]): number {
   let total = 0;
   for (let i = 1; i < path.length; i++) {
-    total += distanceKm(path[i - 1][1], path[i - 1][0], path[i][1], path[i][0]);
+    total += haversineKm(path[i - 1][1], path[i - 1][0], path[i][1], path[i][0]);
   }
   return total;
 }
@@ -226,7 +230,7 @@ export function pointAlongPath(path: [number, number][], t: number): [number, nu
   const targetKm = total * t;
   let covered = 0;
   for (let i = 1; i < path.length; i++) {
-    const segKm = distanceKm(path[i - 1][1], path[i - 1][0], path[i][1], path[i][0]);
+    const segKm = haversineKm(path[i - 1][1], path[i - 1][0], path[i][1], path[i][0]);
     if (covered + segKm >= targetKm || i === path.length - 1) {
       const segT = segKm === 0 ? 0 : (targetKm - covered) / segKm;
       const clampedT = Math.min(1, Math.max(0, segT));

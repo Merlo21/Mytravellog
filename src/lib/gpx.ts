@@ -1,4 +1,5 @@
 import { distanceKm } from "@/lib/geo";
+import { haversineKm } from "@/lib/haversine";
 
 /**
  * Import GPX (Modello A "crea viaggio da GPX"): parsing della traccia,
@@ -47,10 +48,12 @@ export function downsample(coords: [number, number][], max = 800): [number, numb
   return out;
 }
 
-/** Lunghezza del percorso (km), sommando i segmenti reali. */
+/** Lunghezza del percorso (km), sommando i segmenti reali con la haversine NON
+ *  arrotondata: i punti GPX distano spesso pochi metri e l'arrotondamento a km
+ *  intero di `distanceKm` azzererebbe ogni segmento (traccia da 50 km → 0). */
 export function trackLengthKm(coords: [number, number][]): number {
   let tot = 0;
-  for (let i = 1; i < coords.length; i++) tot += distanceKm(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+  for (let i = 1; i < coords.length; i++) tot += haversineKm(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
   return tot;
 }
 

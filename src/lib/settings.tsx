@@ -86,7 +86,7 @@ export function useSettings(): Ctx {
 export function fmtDistance(km: number | null | undefined, unit: DistanceUnit): string {
   if (km == null) return "—";
   if (unit === "imperial") return `${Math.round(km * 0.621371).toLocaleString("it-IT")} mi`;
-  return `${km.toLocaleString("it-IT")} km`;
+  return `${Math.round(km).toLocaleString("it-IT")} km`;
 }
 
 export function fmtAltitude(m: number | null | undefined, unit: DistanceUnit): string {

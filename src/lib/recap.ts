@@ -72,7 +72,9 @@ export function computeYearRecap(allTrips: Trip[], year: number): YearRecap {
   const days = trips.reduce((s, t) => {
     if (!t.date_end || t.date_end === t.trip_date) return s + 1;
     const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
-    return s + Math.max(1, d + 1); // inclusivo, come TripCardTicket/heatmap
+    // date_end malformata → d = NaN: senza guardia, un solo viaggio corrotto
+    // rendeva NaN i giorni dell'INTERO anno ("NaN giorni" nel recap).
+    return s + (Number.isFinite(d) ? Math.max(1, d + 1) : 1); // inclusivo, come TripCardTicket/heatmap
   }, 0);
 
   const byMode = computeKmByTransportMode(trips) as unknown as Record<string, number>;
