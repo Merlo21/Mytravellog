@@ -35,6 +35,11 @@ export interface PosterSvgInput {
   height?: number;
 }
 
+import { unwrapNear, unwrapPath } from "./lonWrap";
+// Ri-esportati: gli helper vivono in lonWrap.ts (senza dipendenze) ma il resto
+// dell'app li ha sempre presi da qui insieme al resto della geometria poster.
+export { unwrapNear, unwrapPath };
+
 const RAD = Math.PI / 180;
 const mercX = (lon: number) => lon;
 export const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
@@ -57,7 +62,15 @@ function bboxIntersects(ring: [number, number][], b: { lonMin: number; lonMax: n
     lonMin = Math.min(lonMin, lon); lonMax = Math.max(lonMax, lon);
     latMin = Math.min(latMin, lat); latMax = Math.max(latMax, lat);
   }
-  return !(lonMax < b.lonMin || lonMin > b.lonMax || latMax < b.latMin || latMin > b.latMax);
+  if (latMax < b.latMin || latMin > b.latMax) return false;
+  // Il riquadro può essere "srotolato" oltre ±180 (percorsi che scavalcano
+  // l'antimeridiano, vedi unwrapPath): gli anelli del world-atlas stanno però
+  // sempre in [-180,180], quindi si prova anche traslati di un giro — senza,
+  // per un Tokyo→Los Angeles i confini degli USA non venivano caricati.
+  for (const off of [0, 360, -360]) {
+    if (!(lonMax + off < b.lonMin || lonMin + off > b.lonMax)) return true;
+  }
+  return false;
 }
 
 // Cache in memoria (per sessione) del topojson per risoluzione: il file 50m
@@ -144,10 +157,24 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   const { routeCoords = [], routeSegments, stops, borders = [], title, dateLabel, stats, hideLabels = false } = input;
   // Uno o più tracciati: la Mappa della vita passa un percorso per viaggio; gli
   // altri poster un singolo percorso. Normalizzati qui in una lista di segmenti.
-  const segments: [number, number][][] = routeSegments && routeSegments.length
+  const segments: [number, number][][] = (routeSegments && routeSegments.length
     ? routeSegments
-    : (routeCoords.length ? [routeCoords] : []);
+    : (routeCoords.length ? [routeCoords] : [])
+  ).map(unwrapPath); // antimeridiano: ogni tratta prende l'arco più corto
   const routePts = segments.flat();
+
+  // Tutto il resto (tappe, confini) va portato nella STESSA finestra di 360°
+  // del percorso, altrimenti una tappa a -118 e la sua linea a 242 finirebbero
+  // ai due capi opposti del poster.
+  const anchorLon = routePts.length ? routePts[0][0] : (stops[0]?.lon ?? 0);
+  const uStops = stops.map(s => ({ ...s, lon: unwrapNear(s.lon, anchorLon) }));
+  /** Anello di confine traslato di un giro intero se serve (mai spezzato: lo
+   *  scostamento è uno solo per tutto l'anello, calcolato dal primo vertice). */
+  const shiftRing = (ring: [number, number][]): [number, number][] => {
+    if (!ring.length) return ring;
+    const off = unwrapNear(ring[0][0], anchorLon) - ring[0][0];
+    return off === 0 ? ring : ring.map(([lon, lat]) => [lon + off, lat] as [number, number]);
+  };
 
   // Fascia inferiore RISERVATA alla didascalia (titolo/date/stats): la mappa
   // disegna solo SOPRA, così le scritte non si sovrappongono mai al tracciato
@@ -159,7 +186,7 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   // Riquadro (in mercatore) sul solo percorso+tappe: il tracciato riempie
   // sempre l'area-mappa allo stesso modo; i confini che sforano vengono
   // ritagliati dal viewBox.
-  const framePts: [number, number][] = [...routePts, ...stops.map(s => [s.lon, s.lat] as [number, number])];
+  const framePts: [number, number][] = [...routePts, ...uStops.map(s => [s.lon, s.lat] as [number, number])];
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const [lon, lat] of framePts) {
     const x = mercX(lon), y = mercY(lat);
@@ -182,19 +209,19 @@ export function buildPosterSvg(input: PosterSvgInput): string {
     "M" + ring.map(([lon, lat]) => { const [x, y] = project(lon, lat); return `${n(x)},${n(y)}`; }).join("L") + "Z";
 
   const bordersPaths = borders
-    .map(r => `<path d="${ringToPath(r)}"/>`)
+    .map(r => `<path d="${ringToPath(shiftRing(r))}"/>`)
     .join("");
 
   const routePaths = segments
     .filter(seg => seg.length > 1)
     .map(seg => "M" + seg.map(([lon, lat]) => { const [x, y] = project(lon, lat); return `${n(x)},${n(y)}`; }).join("L"));
 
-  const starEls = stops.map(s => {
+  const starEls = uStops.map(s => {
     const [x, y] = project(s.lon, s.lat);
     return `<circle cx="${n(x)}" cy="${n(y)}" r="16" fill="url(#starGlow)"/><circle data-led="1" cx="${n(x)}" cy="${n(y)}" r="5" fill="#ffffff"/>`;
   }).join("");
 
-  const labelEls = hideLabels ? "" : stops.map(s => {
+  const labelEls = hideLabels ? "" : uStops.map(s => {
     const [x, y] = project(s.lon, s.lat);
     return `<text x="${n(x)}" y="${n(y - 14)}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#ffffff">${escapeXml(s.label)}</text>`;
   }).join("");

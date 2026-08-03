@@ -5,7 +5,7 @@ import { Trip, formatTripDate } from "@/lib/storage";
 import { buildFlightPath, buildFlightLegs, tripTotalKm, buildPerTripRouteCoords, FlightLeg } from "@/lib/flyover";
 import { fetchMapStyle } from "@/components/WorldMap";
 import { saveReliefImage } from "@/lib/photoStorage";
-import { buildPosterSvg, loadCountryRings, routeBounds } from "@/lib/posterSvg";
+import { buildPosterSvg, loadCountryRings, routeBounds, unwrapPath } from "@/lib/posterSvg";
 import { X, Share2, Loader2, Download, Frame, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Motorcycle } from "@/components/icons/Motorcycle";
@@ -810,7 +810,11 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
     // Mappa della vita: un segmento per viaggio (linee separate). Altri poster:
     // un unico segmento concatenato. allCoordsRef resta l'unione di tutti i punti
     // (per fitBounds e per il riquadro dell'export SVG).
-    const segs = lifeMap ? buildPerTripRouteCoords(trips) : [buildFlyoverRouteCoords(stops, legsLocal)];
+    // `unwrapPath`: le tratte che scavalcano l'antimeridiano (es. Tokyo→Los
+    // Angeles) prendono l'arco più corto invece di attraversare tutta la mappa.
+    // Le longitudini possono uscire da ±180 — MapLibre le avvolge da sé, e
+    // fitBounds così inquadra il Pacifico e non mezzo mondo.
+    const segs = (lifeMap ? buildPerTripRouteCoords(trips) : [buildFlyoverRouteCoords(stops, legsLocal)]).map(unwrapPath);
     routeSegsRef.current = segs;
     allCoordsRef.current = segs.flat();
 

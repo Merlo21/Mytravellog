@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPosterSvg, buildEditorQuadroSvg, panelGeoBounds, pickPanelIndex, routeBounds, type EditorPanel } from "./posterSvg";
+import { buildPosterSvg, buildEditorQuadroSvg, panelGeoBounds, pickPanelIndex, routeBounds, unwrapNear, unwrapPath, type EditorPanel } from "./posterSvg";
 
 const INPUT = {
   routeCoords: [[9.19, 45.46], [11.39, 47.27], [13.78, 45.65]] as [number, number][],
@@ -193,6 +193,69 @@ describe("panelGeoBounds / pickPanelIndex", () => {
     const tight: EditorPanel = { id: "t", x: 0, y: 0, w: 400, h: 300, refLon: 5, refLat: 47, scale: 40 };
     // (9,45) è dentro entrambe → vince la più zoomata (area minore) = tight (indice 1)
     expect(pickPanelIndex([wide, tight], 9, 45)).toBe(1);
+  });
+});
+
+describe("antimeridiano — unwrapNear / unwrapPath", () => {
+  it("porta la longitudine entro ±180° dall'ancora (Tokyo→Los Angeles)", () => {
+    expect(unwrapNear(-118, 139)).toBe(242); // via Pacifico, non via Europa
+    expect(unwrapNear(139, 139)).toBe(139);  // già vicina: intatta
+    expect(unwrapNear(12, 9)).toBe(12);      // caso normale europeo: intatto
+    expect(unwrapNear(170, -170)).toBe(-190);
+  });
+
+  it("non cicla né sporca su valori non finiti", () => {
+    expect(unwrapNear(Infinity, 0)).toBe(Infinity);
+    expect(unwrapNear(NaN, 0)).toBeNaN();
+    expect(unwrapNear(10, NaN)).toBe(10);
+  });
+
+  it("srotola il percorso: ogni punto prende l'arco più corto dal precedente", () => {
+    const p = unwrapPath([[139, 35], [-157, 21], [-118, 34]]); // Tokyo→Honolulu→LA
+    expect(p.map(c => c[0])).toEqual([139, 203, 242]);          // monotono verso est
+    expect(p.map(c => c[1])).toEqual([35, 21, 34]);             // latitudini intatte
+  });
+
+  it("lascia intatto un percorso che non scavalca l'antimeridiano", () => {
+    const pts: [number, number][] = [[9.19, 45.46], [11.39, 47.27], [13.78, 45.65]];
+    expect(unwrapPath(pts)).toEqual(pts);
+    expect(unwrapPath([[9, 45]])).toEqual([[9, 45]]); // percorso di un punto
+  });
+});
+
+describe("buildPosterSvg — antimeridiano", () => {
+  // Tokyo → Honolulu → Los Angeles: la tappa INTERMEDIA è il giudice. Srotolando
+  // finisce in mezzo (x crescente); col vecchio min/max su [-180,180] Honolulu
+  // (-157) finiva all'estremo sinistro e la rotta attraversava tutta la mappa.
+  const pacifico = {
+    routeCoords: [[139, 35], [-157, 21], [-118, 34]] as [number, number][],
+    stops: [
+      { lon: 139, lat: 35, label: "Tokyo" },
+      { lon: -157, lat: 21, label: "Honolulu" },
+      { lon: -118, lat: 34, label: "Los Angeles" },
+    ],
+    title: "Trans-Pacifico",
+  };
+
+  it("le tappe restano nell'ordine del viaggio (x crescente), non ai due capi", () => {
+    const svg = buildPosterSvg(pacifico);
+    const xs = Array.from(svg.matchAll(/data-led="1" cx="([\d.]+)"/g)).map(m => parseFloat(m[1]));
+    expect(xs).toHaveLength(3);
+    expect(xs[0]).toBeLessThan(xs[1]);
+    expect(xs[1]).toBeLessThan(xs[2]);
+  });
+
+  it("i confini oltre l'antimeridiano vengono traslati dentro l'inquadratura", () => {
+    // Anello finto "USA" a lon -120: l'inquadratura ora vive a 139..242, quindi
+    // senza traslazione di +360 l'anello cadrebbe a x molto negativa (invisibile).
+    const usa: [number, number][] = [[-125, 32], [-115, 32], [-115, 42], [-125, 42], [-125, 32]];
+    const svg = buildPosterSvg({ ...pacifico, borders: [usa] });
+    const first = svg.match(/<g id="confini"[^>]*><path d="M([-\d.]+),/);
+    expect(first).toBeTruthy();
+    const x = parseFloat(first![1]);
+    const xs = Array.from(svg.matchAll(/data-led="1" cx="([\d.]+)"/g)).map(m => parseFloat(m[1]));
+    expect(x).toBeGreaterThan(xs[1]); // sul lato americano (oltre Honolulu), non fuori tela
+    expect(x).toBeLessThan(1600);
   });
 });
 

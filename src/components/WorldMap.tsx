@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Trip } from "@/lib/storage";
 import { AutoRotate } from "@/lib/settings";
+import { unwrapPath } from "@/lib/lonWrap";
 import { Play, Square, Hand } from "lucide-react";
 
 export interface CityInfo {
@@ -193,7 +194,10 @@ export function buildRouteCoords(t: Trip): [number, number][] {
     if (stop.route && stop.route.length > 1) coords.push(...stop.route);
     else coords.push([stop.lon, stop.lat]);
   }
-  return coords;
+  // Antimeridiano: una tratta Tokyo→Los Angeles verrebbe disegnata attraverso
+  // Europa e Atlantico (il verso lungo). Srotolando, prende il Pacifico; le
+  // longitudini oltre ±180 le avvolge MapLibre da sé.
+  return unwrapPath(coords);
 }
 
 export function WorldMap({
