@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   addTrip,
   loadTrips,
+  saveTrips,
+  setStorageErrorHandler,
   updateTrip,
   deleteTrip,
   parseLocalDate,
@@ -78,6 +80,33 @@ describe("loadTrips", () => {
     expect(trips[0].trip_date).toBe("2024-06-15");
     expect(trips[1].trip_date).toBe("2023-01-01");
     expect(trips[2].trip_date).toBe("2022-12-31");
+  });
+});
+
+describe("quota di localStorage esaurita", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => { setStorageErrorHandler(null); vi.restoreAllMocks(); });
+
+  it("segnala l'errore invece di lasciar risalire l'eccezione", () => {
+    // NB: setup.ts installa localStorage da un SECONDO realm jsdom, quindi lo
+    // `Storage.prototype` globale non è il suo → si prende dall'istanza vera.
+    const proto = Object.getPrototypeOf(localStorage);
+    vi.spyOn(proto, "setItem").mockImplementation(() => {
+      throw new DOMException("pieno", "QuotaExceededError");
+    });
+    const errors: unknown[] = [];
+    setStorageErrorHandler(e => errors.push(e));
+
+    // Prima: QuotaExceededError risaliva fino ad addTrip e il salvataggio
+    // falliva senza che l'utente vedesse nulla.
+    expect(() => addTrip(makeTrip())).not.toThrow();
+    expect(errors).toHaveLength(1);
+    expect(saveTrips([])).toBe(false); // dice di NON aver scritto
+    expect(errors).toHaveLength(2);
+  });
+
+  it("saveTrips conferma la scrittura quando c'è spazio", () => {
+    expect(saveTrips([])).toBe(true);
   });
 });
 

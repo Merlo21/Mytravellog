@@ -1,7 +1,8 @@
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter, Route, Routes } from "react-router-dom";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
+import { setStorageErrorHandler } from "./lib/storage";
 import { Loader2 } from "lucide-react";
 import { SettingsProvider } from "./lib/settings";
 import { GoogleDriveProvider } from "./lib/googleDriveContext";
@@ -35,6 +36,16 @@ const ImportaGpx = lazy(() => import("./pages/ImportaGpx"));
 const Recap = lazy(() => import("./pages/Recap"));
 const InProgramma = lazy(() => import("./pages/InProgramma"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Spazio di localStorage esaurito: prima il salvataggio falliva in silenzio e
+// l'utente credeva di aver salvato. Un toast persistente lo dice chiaramente e
+// suggerisce l'unica via d'uscita utile (liberare spazio / backup su Drive).
+setStorageErrorHandler(() => {
+  toast.error("Spazio del browser esaurito: il viaggio NON è stato salvato.", {
+    description: "Libera spazio eliminando qualche viaggio o foto; se hai il backup su Drive i dati restano lì.",
+    duration: Infinity,
+  });
+});
 
 function RouteFallback() {
   return (

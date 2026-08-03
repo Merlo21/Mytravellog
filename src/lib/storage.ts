@@ -55,8 +55,34 @@ export function loadTrips(): Trip[] {
   }
 }
 
-export function saveTrips(trips: Trip[]): void {
-  localStorage.setItem(KEY, JSON.stringify(trips));
+/**
+ * Notificatore degli errori di scrittura, iniettato dall'app (main.tsx) per non
+ * legare questo modulo alla UI: qui resta senza dipendenze e testabile.
+ */
+let onWriteError: ((err: unknown) => void) | null = null;
+export function setStorageErrorHandler(fn: ((err: unknown) => void) | null): void {
+  onWriteError = fn;
+}
+
+/**
+ * Scrittura a prova di quota piena. `setItem` lancia QuotaExceededError quando
+ * lo spazio finisce (le `route_geometry` dei percorsi stradali sono grosse):
+ * prima l'eccezione risaliva fino ad addTrip/updateTrip e il salvataggio
+ * falliva SENZA alcun segnale per l'utente. Ora l'errore viene notificato
+ * (toast) e la funzione dice se ha scritto davvero.
+ */
+function persist(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    onWriteError?.(err);
+    return false;
+  }
+}
+
+export function saveTrips(trips: Trip[]): boolean {
+  return persist(KEY, JSON.stringify(trips));
 }
 
 /**
@@ -107,8 +133,8 @@ export function loadPlans(): Trip[] {
   }
 }
 
-export function savePlans(plans: Trip[]): void {
-  localStorage.setItem(KEY_PLANS, JSON.stringify(plans));
+export function savePlans(plans: Trip[]): boolean {
+  return persist(KEY_PLANS, JSON.stringify(plans));
 }
 
 export function addPlan(t: Omit<Trip, "id" | "created_at" | "status">, id?: string): Trip {
