@@ -83,21 +83,29 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
   const [wpTransport, setWpTransport] = useState<TransportMode>("plane");
 
   useEffect(() => {
+    // `cancelled`: il debounce annulla il timer, ma una searchPlaces GIÀ in volo
+    // no — due risposte possono arrivare fuori ordine e lasciare a schermo i
+    // suggerimenti della query precedente (o fare setState su smontato).
+    let cancelled = false;
     const t = setTimeout(async () => {
       if (homeQuery.length < 2) { setHomeResults([]); return; }
-      setHomeResults(await searchPlaces(homeQuery));
+      const r = await searchPlaces(homeQuery);
+      if (!cancelled) setHomeResults(r);
     }, 300);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [homeQuery]);
 
   useEffect(() => {
+    let cancelled = false;
     const t = setTimeout(async () => {
       if (wpQuery.length < 2) { setWpResults([]); setWpLoading(false); return; }
       setWpLoading(true);
-      setWpResults((await searchPlaces(wpQuery)).slice(0, 5));
+      const r = await searchPlaces(wpQuery);
+      if (cancelled) return; // una ricerca più recente ha già preso il posto
+      setWpResults(r.slice(0, 5));
       setWpLoading(false);
     }, 300);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [wpQuery]);
 
   const addWaypoint = (r: GeoResult) => {
