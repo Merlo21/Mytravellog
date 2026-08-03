@@ -4,6 +4,9 @@ import {
   loadTrips,
   saveTrips,
   setStorageErrorHandler,
+  loadTombstones,
+  mergeTombstones,
+  TOMBSTONE_TTL_MS,
   updateTrip,
   deleteTrip,
   parseLocalDate,
@@ -80,6 +83,50 @@ describe("loadTrips", () => {
     expect(trips[0].trip_date).toBe("2024-06-15");
     expect(trips[1].trip_date).toBe("2023-01-01");
     expect(trips[2].trip_date).toBe("2022-12-31");
+  });
+});
+
+describe("updated_at e tombstone (backup Drive)", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("addTrip timbra updated_at e updateTrip lo rinfresca", async () => {
+    const t1 = addTrip(makeTrip());
+    expect(t1.updated_at).toBeTruthy();
+    await new Promise(r => setTimeout(r, 5));
+    const t2 = updateTrip(t1.id, { title: "Cambiato" })!;
+    expect(Date.parse(t2.updated_at!)).toBeGreaterThan(Date.parse(t1.updated_at!));
+  });
+
+  it("updated_at non è impostabile dal chiamante (vince il momento reale)", () => {
+    const t1 = addTrip(makeTrip());
+    const t2 = updateTrip(t1.id, { updated_at: "1999-01-01T00:00:00Z" } as any)!;
+    expect(Date.parse(t2.updated_at!)).toBeGreaterThan(Date.parse("2000-01-01T00:00:00Z"));
+  });
+
+  it("deleteTrip registra un tombstone (così la cancellazione si propaga)", () => {
+    const t1 = addTrip(makeTrip());
+    deleteTrip(t1.id);
+    expect(loadTrips()).toHaveLength(0);
+    expect(loadTombstones("trips").map(d => d.id)).toContain(t1.id);
+    expect(loadTombstones("plans")).toHaveLength(0); // bucket separati
+  });
+
+  it("mergeTombstones: unione per id con la cancellazione più recente", () => {
+    // NB timestamp realistici: `at` è un epoch in ms e le voci oltre la
+    // scadenza vengono potate (con valori tipo 100 sarebbero del 1970).
+    const now = Date.now();
+    const out = mergeTombstones(
+      [{ id: "a", at: now - 5000 }, { id: "b", at: now - 9000 }],
+      [{ id: "a", at: now - 10 }],
+    );
+    expect(out.find(d => d.id === "a")?.at).toBe(now - 10);
+    expect(out.map(d => d.id).sort()).toEqual(["a", "b"]);
+  });
+
+  it("mergeTombstones dimentica i tombstone oltre la scadenza", () => {
+    const vecchio = { id: "vecchio", at: Date.now() - TOMBSTONE_TTL_MS - 1000 };
+    const fresco = { id: "fresco", at: Date.now() };
+    expect(mergeTombstones([vecchio, fresco], []).map(d => d.id)).toEqual(["fresco"]);
   });
 });
 

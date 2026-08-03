@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { mergeTrips } from "./googleDrive";
-import type { Trip } from "./storage";
+import { addPlan, promotePlanToTrip, loadTrips, loadTombstones, type Trip } from "./storage";
 
-const t = (id: string, title: string): Trip => ({ id, title } as unknown as Trip);
+const t = (id: string, title: string, updated_at?: string): Trip =>
+  ({ id, title, ...(updated_at ? { updated_at } : {}) } as unknown as Trip);
 
 describe("mergeTrips — unione senza perdita di dati", () => {
   it("nuovo dispositivo (locale vuoto): scarica tutti i remoti", () => {
@@ -29,5 +30,76 @@ describe("mergeTrips — unione senza perdita di dati", () => {
     expect(out.map(x => x.id).sort()).toEqual(["a", "b", "c"]);
     // b è in entrambi, locale più recente → resta "B"
     expect(out.find(x => x.id === "b")?.title).toBe("B");
+  });
+});
+
+describe("mergeTrips — confronto PER VIAGGIO (updated_at)", () => {
+  it("due dispositivi che modificano viaggi diversi: nessuna modifica va persa", () => {
+    // Il bug: si eleggeva un lato "autoritativo" col solo timestamp di
+    // collezione, quindi il lato più vecchio perdeva le sue modifiche anche sui
+    // viaggi che l'altro non aveva mai toccato.
+    const local = [ // collezione VECCHIA, ma ha modificato "a" di recente
+      t("a", "A modificato qui", "2024-03-01T10:00:00Z"),
+      t("b", "B vecchio", "2024-01-01T00:00:00Z"),
+    ];
+    const remote = [ // collezione NUOVA, ha modificato "b"
+      t("a", "A vecchio", "2024-01-01T00:00:00Z"),
+      t("b", "B modificato altrove", "2024-03-02T10:00:00Z"),
+    ];
+    const out = mergeTrips(local, 1_000, remote, 9_999);
+    expect(out.find(x => x.id === "a")?.title).toBe("A modificato qui");
+    expect(out.find(x => x.id === "b")?.title).toBe("B modificato altrove");
+  });
+
+  it("viaggi vecchi senza updated_at: ricade sul timestamp di collezione", () => {
+    const out = mergeTrips([t("a", "Locale")], 5_000, [t("a", "Remoto")], 1_000);
+    expect(out[0].title).toBe("Locale");
+  });
+
+  it("updated_at illeggibile: ricade sul timestamp di collezione invece di sparire", () => {
+    const out = mergeTrips([t("a", "Locale", "non-una-data")], 5_000, [t("a", "Remoto")], 1_000);
+    expect(out).toHaveLength(1);
+    expect(out[0].title).toBe("Locale");
+  });
+});
+
+describe("mergeTrips — le cancellazioni si propagano (tombstone)", () => {
+  it("un viaggio cancellato altrove non resuscita", () => {
+    const local = [t("a", "A")];                 // qui "b" è stato eliminato
+    const remote = [t("a", "A"), t("b", "B")];   // l'altro dispositivo lo ha ancora
+    const out = mergeTrips(local, 2_000, remote, 1_000, [{ id: "b", at: 3_000 }]);
+    expect(out.map(x => x.id)).toEqual(["a"]);
+  });
+
+  it("ma una modifica SUCCESSIVA alla cancellazione vince", () => {
+    const out = mergeTrips(
+      [t("a", "A")], 1_000,
+      [t("a", "A ripreso", "2024-05-01T00:00:00Z")], 1_000,
+      [{ id: "a", at: Date.parse("2024-04-01T00:00:00Z") }],
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].title).toBe("A ripreso");
+  });
+
+  it("tombstone malformati vengono ignorati senza far cadere il merge", () => {
+    const out = mergeTrips([t("a", "A")], 1, [], 0, [
+      null as any, { id: "a", at: NaN } as any, { at: 5 } as any,
+    ]);
+    expect(out.map(x => x.id)).toEqual(["a"]);
+  });
+});
+
+describe("promozione di un piano: tombstone per BUCKET", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("il piano promosso sparisce dai piani ma il viaggio creato sopravvive al merge", () => {
+    const plan = addPlan({ title: "Futuro", city: "Oslo" } as any);
+    const done = promotePlanToTrip(plan.id)!;
+    expect(loadTombstones("plans").map(d => d.id)).toContain(plan.id);
+    // Il tombstone NON deve finire nel bucket viaggi: il viaggio promosso ha lo
+    // STESSO id, e verrebbe cancellato appena si sincronizza.
+    expect(loadTombstones("trips").map(d => d.id)).not.toContain(plan.id);
+    const merged = mergeTrips(loadTrips(), Date.now(), [], 0, loadTombstones("trips"));
+    expect(merged.map(x => x.id)).toContain(done.id);
   });
 });

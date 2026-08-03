@@ -37,9 +37,64 @@ export type Trip = {
   region_details: { name: string; code: string | null }[] | null; // stesse regioni con codice ISO 3166-2, per l'abbinamento indipendente dalla lingua in CountryMapModal
   country_code: string;
   created_at: string;
+  /** Ultima modifica (ISO). Serve al backup su Drive per fondere PER VIAGGIO
+   *  invece che per collezione intera: senza, il dispositivo col timestamp più
+   *  vecchio perdeva le proprie modifiche anche sui viaggi che l'altro non aveva
+   *  toccato. Assente sui viaggi salvati prima di questa versione: in quel caso
+   *  il merge ricade sul timestamp della collezione (comportamento precedente). */
+  updated_at?: string;
 };
 
 const KEY = "atlas.trips.v1";
+
+// ── Tombstone: le cancellazioni devono propagarsi ────────────────────────────
+// Senza, l'unione dei due lati faceva RESUSCITARE i viaggi cancellati (il
+// dispositivo che ancora li aveva li ri-aggiungeva, e li ri-pubblicava).
+// Sono per BUCKET: promotePlanToTrip cancella il piano e crea un viaggio con lo
+// STESSO id — un tombstone condiviso ucciderebbe il viaggio appena promosso.
+export type Tombstone = { id: string; at: number }; // at = ms epoch
+export type TombstoneBucket = "trips" | "plans";
+const KEY_DELETED: Record<TombstoneBucket, string> = {
+  trips: "atlas.deleted.trips.v1",
+  plans: "atlas.deleted.plans.v1",
+};
+/** Oltre questo tempo un tombstone si può dimenticare: un dispositivo rimasto
+ *  offline più di così ripescherebbe comunque dati troppo vecchi. Evita che la
+ *  lista cresca per sempre. */
+export const TOMBSTONE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+
+const prune = (list: Tombstone[], now = Date.now()): Tombstone[] =>
+  list.filter(d => d && typeof d.id === "string" && Number.isFinite(d.at) && now - d.at < TOMBSTONE_TTL_MS);
+
+export function loadTombstones(bucket: TombstoneBucket): Tombstone[] {
+  try {
+    const raw = localStorage.getItem(KEY_DELETED[bucket]);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? prune(arr) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveTombstones(bucket: TombstoneBucket, list: Tombstone[]): boolean {
+  return persist(KEY_DELETED[bucket], JSON.stringify(prune(list)));
+}
+
+/** Unione di due liste di tombstone: per ogni id vince la cancellazione più
+ *  recente. Pura, così è testabile e riusabile dal merge del backup. */
+export function mergeTombstones(a: Tombstone[], b: Tombstone[]): Tombstone[] {
+  const byId = new Map<string, number>();
+  for (const d of [...prune(a ?? []), ...prune(b ?? [])]) {
+    const cur = byId.get(d.id);
+    if (cur == null || d.at > cur) byId.set(d.id, d.at);
+  }
+  return [...byId.entries()].map(([id, at]) => ({ id, at }));
+}
+
+function recordTombstone(bucket: TombstoneBucket, id: string): void {
+  saveTombstones(bucket, [...loadTombstones(bucket), { id, at: Date.now() }]);
+}
 
 export function loadTrips(): Trip[] {
   try {
@@ -93,7 +148,8 @@ export function saveTrips(trips: Trip[]): boolean {
  * orfane sotto un id che il viaggio non ha più.
  */
 export function addTrip(t: Omit<Trip, "id" | "created_at">, id?: string): Trip {
-  const full: Trip = { ...t, id: id ?? crypto.randomUUID(), created_at: new Date().toISOString() };
+  const now = new Date().toISOString();
+  const full: Trip = { ...t, id: id ?? crypto.randomUUID(), created_at: now, updated_at: now };
   const all = loadTrips();
   all.unshift(full);
   saveTrips(all);
@@ -104,7 +160,9 @@ export function updateTrip(id: string, patch: Partial<Omit<Trip, "id" | "created
   const all = loadTrips();
   const idx = all.findIndex((t) => t.id === id);
   if (idx === -1) return null;
-  const updated = { ...all[idx], ...patch };
+  // `updated_at` DOPO il patch: è la verità su QUANDO è cambiato, non un campo
+  // che il chiamante possa impostare per sbaglio. Lo usa il merge del backup.
+  const updated = { ...all[idx], ...patch, updated_at: new Date().toISOString() };
   all[idx] = updated;
   saveTrips(all);
   return updated;
@@ -112,6 +170,7 @@ export function updateTrip(id: string, patch: Partial<Omit<Trip, "id" | "created
 
 export function deleteTrip(id: string): void {
   saveTrips(loadTrips().filter((t) => t.id !== id));
+  recordTombstone("trips", id); // così la cancellazione si propaga agli altri dispositivi
 }
 
 // ————————————————————————————————————————————————————————————————
@@ -138,7 +197,8 @@ export function savePlans(plans: Trip[]): boolean {
 }
 
 export function addPlan(t: Omit<Trip, "id" | "created_at" | "status">, id?: string): Trip {
-  const full: Trip = { ...t, id: id ?? crypto.randomUUID(), status: "planned", created_at: new Date().toISOString() };
+  const now = new Date().toISOString();
+  const full: Trip = { ...t, id: id ?? crypto.randomUUID(), status: "planned", created_at: now, updated_at: now };
   const all = loadPlans();
   all.push(full);
   savePlans(all);
@@ -149,7 +209,7 @@ export function updatePlan(id: string, patch: Partial<Omit<Trip, "id" | "created
   const all = loadPlans();
   const idx = all.findIndex((t) => t.id === id);
   if (idx === -1) return null;
-  const updated = { ...all[idx], ...patch };
+  const updated = { ...all[idx], ...patch, updated_at: new Date().toISOString() };
   all[idx] = updated;
   savePlans(all);
   return updated;
@@ -157,6 +217,7 @@ export function updatePlan(id: string, patch: Partial<Omit<Trip, "id" | "created
 
 export function deletePlan(id: string): void {
   savePlans(loadPlans().filter((t) => t.id !== id));
+  recordTombstone("plans", id);
 }
 
 /**
@@ -169,7 +230,11 @@ export function promotePlanToTrip(id: string): Trip | null {
   const plan = plans.find((t) => t.id === id);
   if (!plan) return null;
   savePlans(plans.filter((t) => t.id !== id));
-  const done: Trip = { ...plan, status: "done" };
+  // Tombstone nel bucket PIANI: il piano deve sparire anche sugli altri
+  // dispositivi. È per bucket, quindi non tocca il viaggio con lo stesso id che
+  // stiamo creando qui nel diario.
+  recordTombstone("plans", id);
+  const done: Trip = { ...plan, status: "done", updated_at: new Date().toISOString() };
   const trips = loadTrips();
   trips.unshift(done);
   saveTrips(trips);

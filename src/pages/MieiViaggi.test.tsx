@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import MieiViaggi from "./MieiViaggi";
 import { SettingsProvider } from "@/lib/settings";
-import { addTrip, loadTrips } from "@/lib/storage";
+import { addTrip, loadTrips, loadTombstones } from "@/lib/storage";
 import type { Trip } from "@/lib/storage";
 import React from "react";
 
@@ -394,16 +394,21 @@ describe("MieiViaggi — eliminazione con Annulla", () => {
     expect(screen.getAllByTestId("trip-card")).toHaveLength(1);
     act(() => { vi.advanceTimersByTime(5000); }); // scade la finestra: non deve eliminare nulla
     expect(loadTrips()).toHaveLength(1);
+    // …e NESSUN tombstone: altrimenti alla prossima sincronizzazione il backup
+    // ucciderebbe un viaggio che l'utente ha appena recuperato con "Annulla".
+    expect(loadTombstones("trips")).toHaveLength(0);
   });
 
   it("senza Annulla, allo scadere della finestra il viaggio viene eliminato per davvero", () => {
-    addTrip(baseTrip({ city: "Roma" }));
+    const t = addTrip(baseTrip({ city: "Roma" }));
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: "Elimina Roma" }));
 
     act(() => { vi.advanceTimersByTime(5000); }); // UNDO_GRACE_MS
     expect(loadTrips()).toHaveLength(0);
     expect(mockDeletePhotosForTrip).toHaveBeenCalledTimes(1);
+    // tombstone registrato: la cancellazione deve propagarsi agli altri dispositivi
+    expect(loadTombstones("trips").map(d => d.id)).toEqual([t.id]);
   });
 
   it("Annulla immediato (prima della fine dell'animazione) non fa sparire la card", () => {

@@ -1,4 +1,4 @@
-import { Trip } from "@/lib/storage";
+import { Trip, Tombstone } from "@/lib/storage";
 
 /**
  * Integrazione Google Drive (client-only, app statica su GitHub Pages).
@@ -27,6 +27,10 @@ export interface DriveBackup {
   /** Viaggi "in programma" (bucket separato). Opzionale per retro-compatibilità
    *  con backup più vecchi che non lo avevano. */
   plans?: Trip[];
+  /** Cancellazioni da propagare, per bucket (vedi Tombstone in storage.ts).
+   *  Opzionali: i backup scritti prima di questa versione non le hanno. */
+  deletedTrips?: Tombstone[];
+  deletedPlans?: Tombstone[];
 }
 
 // ---- Caricamento dello script Google Identity Services (una volta sola) ------
@@ -191,18 +195,53 @@ export async function writeBackup(token: string, data: DriveBackup): Promise<voi
 
 /**
  * Unione dei viaggi locali e remoti (nessuna perdita di dati).
- * - `localTs`/`remoteTs`: quando è stato modificato ciascun lato (ms). Il lato
- *   più recente è "autoritativo" sui viaggi con lo STESSO id (last-write-wins);
- * - i viaggi presenti da un solo lato vengono comunque aggiunti (union).
- * Così: nuovo dispositivo → scarica tutto; viaggio aggiunto offline → non si
- * perde; viaggio modificato sul dispositivo più recente → vince la sua versione.
+ *
+ * Il confronto è PER VIAGGIO, non per collezione: ogni viaggio porta il proprio
+ * `updated_at` e vince la versione modificata più di recente. Prima si decideva
+ * un lato "autoritativo" guardando solo i timestamp di collezione, e il
+ * dispositivo col timestamp più vecchio perdeva le proprie modifiche anche sui
+ * viaggi che l'altro non aveva mai toccato.
+ * Sui viaggi vecchi (senza `updated_at`) si ricade sul timestamp di collezione,
+ * cioè esattamente il comportamento precedente → nessuna regressione.
+ *
+ * `tombstones` (unione dei due lati) propaga le CANCELLAZIONI: senza, l'union
+ * faceva resuscitare un viaggio cancellato altrove. Una cancellazione più
+ * recente della versione sopravvissuta vince; una modifica successiva alla
+ * cancellazione invece la batte (last-write-wins coerente).
  */
-export function mergeTrips(local: Trip[], localTs: number, remote: Trip[], remoteTs: number): Trip[] {
-  const remoteNewer = remoteTs > localTs;
-  const base = remoteNewer ? remote : local;
-  const other = remoteNewer ? local : remote;
-  const byId = new Map<string, Trip>();
-  for (const t of base) byId.set(t.id, t);
-  for (const t of other) if (!byId.has(t.id)) byId.set(t.id, t);
-  return [...byId.values()];
+export function mergeTrips(
+  local: Trip[], localTs: number,
+  remote: Trip[], remoteTs: number,
+  tombstones: Tombstone[] = [],
+): Trip[] {
+  const stampOf = (t: Trip, fallback: number): number => {
+    const parsed = t.updated_at ? Date.parse(t.updated_at) : NaN;
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const byId = new Map<string, { trip: Trip; ts: number }>();
+  const consider = (t: Trip, fallback: number) => {
+    if (!t || typeof t.id !== "string") return;
+    const ts = stampOf(t, fallback);
+    const cur = byId.get(t.id);
+    // `>` e non `>=`: a parità vince chi è entrato prima, cioè il locale —
+    // come faceva il vecchio `remoteTs > localTs`.
+    if (!cur || ts > cur.ts) byId.set(t.id, { trip: t, ts });
+  };
+  for (const t of local) consider(t, localTs);
+  for (const t of remote) consider(t, remoteTs);
+
+  const deletedAt = new Map<string, number>();
+  for (const d of tombstones ?? []) {
+    if (!d || typeof d.id !== "string" || !Number.isFinite(d.at)) continue;
+    const cur = deletedAt.get(d.id);
+    if (cur == null || d.at > cur) deletedAt.set(d.id, d.at);
+  }
+
+  const out: Trip[] = [];
+  for (const [id, v] of byId) {
+    const at = deletedAt.get(id);
+    if (at != null && at >= v.ts) continue; // cancellato dopo l'ultima modifica
+    out.push(v.trip);
+  }
+  return out;
 }

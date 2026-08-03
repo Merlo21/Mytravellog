@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
-import { loadTrips, saveTrips, loadPlans, savePlans } from "@/lib/storage";
+import { loadTrips, saveTrips, loadPlans, savePlans, loadTombstones, saveTombstones, mergeTombstones } from "@/lib/storage";
 import {
   BACKUP_VERSION, requestAccessToken, revokeAccessToken, fetchUserEmail,
   readBackup, writeBackup, mergeTrips, clearDriveCache,
@@ -73,7 +73,12 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     const plans = loadPlans();
     const now = Date.now();
     try {
-      await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips, plans });
+      // Le cancellazioni viaggiano col backup: senza, l'altro dispositivo
+      // ri-aggiungerebbe (e ri-pubblicherebbe) i viaggi che qui sono stati eliminati.
+      await writeBackup(token, {
+        version: BACKUP_VERSION, updatedAt: now, trips, plans,
+        deletedTrips: loadTombstones("trips"), deletedPlans: loadTombstones("plans"),
+      });
       setLocalTs(now);
       syncedHashRef.current = localSnapshot();
       if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
@@ -94,15 +99,24 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
       const local = loadTrips();
       const localPlans = loadPlans();
       const now = Date.now();
+      // Cancellazioni: unione dei due lati (per ogni id vince la più recente),
+      // così valgono in entrambe le direzioni e nessun viaggio resuscita.
+      const delTrips = mergeTombstones(loadTombstones("trips"), remote?.deletedTrips ?? []);
+      const delPlans = mergeTombstones(loadTombstones("plans"), remote?.deletedPlans ?? []);
       const merged = remote && Array.isArray(remote.trips)
-        ? mergeTrips(local, getLocalTs(), remote.trips, remote.updatedAt || 0)
+        ? mergeTrips(local, getLocalTs(), remote.trips, remote.updatedAt || 0, delTrips)
         : local;
       const mergedPlans = remote && Array.isArray(remote.plans)
-        ? mergeTrips(localPlans, getLocalTs(), remote.plans, remote.updatedAt || 0)
+        ? mergeTrips(localPlans, getLocalTs(), remote.plans, remote.updatedAt || 0, delPlans)
         : localPlans;
       saveTrips(merged);
       savePlans(mergedPlans);
-      await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips: merged, plans: mergedPlans });
+      saveTombstones("trips", delTrips);
+      saveTombstones("plans", delPlans);
+      await writeBackup(token, {
+        version: BACKUP_VERSION, updatedAt: now, trips: merged, plans: mergedPlans,
+        deletedTrips: delTrips, deletedPlans: delPlans,
+      });
       setLocalTs(now);
       syncedHashRef.current = localSnapshot();
       if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
