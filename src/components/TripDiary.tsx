@@ -245,9 +245,9 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
             {mode === "read" ? "Il tuo racconto, giorno per giorno" : "Scrivi il racconto giorno per giorno · si salva da solo"}
           </div>
         </div>
-        <div role="tablist" aria-label="Leggi o scrivi" style={{ flexShrink: 0, display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 2 }}>
+        <div role="group" aria-label="Leggi o scrivi il diario" style={{ flexShrink: 0, display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 2 }}>
           {(["read", "write"] as const).map(m => (
-            <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
+            <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}
               style={{
                 fontFamily: MONO, fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer",
                 background: mode === m ? "rgba(96,165,250,0.22)" : "transparent",
