@@ -525,7 +525,9 @@ export function WorldMap({
     ];
     ensureTransportIcons(map);
     ordered.forEach((t) => {
-      if (!t.home_latitude || !t.home_longitude || !t.latitude || !t.longitude) return;
+      // hasCoords, non check falsy: la forma negata (!lat || !lon) scartava lo
+      // zero — casa a Greenwich o destinazione sull'equatore = rotta mai disegnata.
+      if (!hasCoords(t.home_latitude, t.home_longitude) || !hasCoords(t.latitude, t.longitude)) return;
       const hasWp = t.waypoints && t.waypoints.length > 0;
       const sel = t.id === selectedId;
       const lineId = "route-" + t.id;

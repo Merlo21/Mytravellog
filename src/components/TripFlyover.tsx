@@ -882,7 +882,9 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
           addOverlayLayers(map, lifeMap ? "constellation" : "satellite");
 
           setPhase("ready");
-          setTimeout(() => { map.resize(); }, 100);
+          // guardato da `cancelled`: smontando entro 100ms dal load il timer
+          // chiamerebbe resize() su una mappa già rimossa (TypeError).
+          setTimeout(() => { if (!cancelled && mapRef.current) mapRef.current.resize(); }, 100);
 
           // Nessuna animazione di volo: inquadra subito il poster sull'intero
           // percorso, poi mostra gli overlay. Costellazione (Mappa della vita)
