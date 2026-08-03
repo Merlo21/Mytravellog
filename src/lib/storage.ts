@@ -46,7 +46,10 @@ export function loadTrips(): Trip[] {
     const raw = localStorage.getItem(KEY);
     if (!raw) return [];
     const arr = JSON.parse(raw) as Trip[];
-    return arr.sort((a, b) => b.trip_date.localeCompare(a.trip_date));
+    // Sort difensivo: un solo record con trip_date mancante faceva lanciare
+    // localeCompare -> il catch restituiva [] NASCONDENDO TUTTI i viaggi, e la
+    // successiva addTrip salvava sopra un array vuoto (perdita totale).
+    return arr.sort((a, b) => (b.trip_date || "").localeCompare(a.trip_date || ""));
   } catch {
     return [];
   }
@@ -98,7 +101,7 @@ export function loadPlans(): Trip[] {
     const raw = localStorage.getItem(KEY_PLANS);
     if (!raw) return [];
     const arr = JSON.parse(raw) as Trip[];
-    return arr.sort((a, b) => a.trip_date.localeCompare(b.trip_date)); // i più imminenti prima
+    return arr.sort((a, b) => (a.trip_date || "").localeCompare(b.trip_date || "")); // i più imminenti prima
   } catch {
     return [];
   }

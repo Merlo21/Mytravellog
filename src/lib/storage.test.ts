@@ -58,6 +58,18 @@ describe("loadTrips", () => {
     expect(loadTrips()).toEqual([]);
   });
 
+  it("non collassa a [] se un record ha trip_date mancante (no wipe)", () => {
+    // Regressione: prima b.trip_date.localeCompare lanciava sul record rotto,
+    // il catch restituiva [] nascondendo TUTTI i viaggi (e la prossima addTrip
+    // avrebbe salvato sopra un array vuoto).
+    const good = { id: "g", trip_date: "2024-06-01", title: "Ok" };
+    const bad = { id: "b", title: "Senza data" }; // trip_date undefined
+    localStorage.setItem("atlas.trips.v1", JSON.stringify([good, bad]));
+    const trips = loadTrips();
+    expect(trips).toHaveLength(2);
+    expect(trips.map(t => t.id).sort()).toEqual(["b", "g"]);
+  });
+
   it("ordina i viaggi dal più recente al meno recente", () => {
     addTrip(makeTrip({ trip_date: "2023-01-01" }));
     addTrip(makeTrip({ trip_date: "2024-06-15" }));
