@@ -288,8 +288,11 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
 
   const tripsCount = trips.length;
   const legs = legsRef.current;
+  // date_end può essere null (viaggio di un giorno): senza il check esplicito
+  // il confronto era falso e si finiva in formatTripDate(null) → la didascalia
+  // diceva "12 lug 2026 → Invalid Date" su card, JPEG e SVG.
   const dateRangeLabel = tripsCount === 1
-    ? (trips[0].trip_date === trips[0].date_end
+    ? (trips[0].date_end == null || trips[0].trip_date === trips[0].date_end
       ? formatTripDate(trips[0].trip_date)
       : `${formatTripDate(trips[0].trip_date)} → ${formatTripDate(trips[0].date_end)}`)
     : null;
