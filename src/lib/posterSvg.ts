@@ -105,14 +105,34 @@ const escapeXml = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<"
  *  con `xlink:href` (compatibile con browser, Illustrator e stampanti); i root
  *  SVG che la usano dichiarano perciò anche xmlns:xlink. `bottomY` = Y del
  *  bordo inferiore della firma (per stare sopra la didascalia dove c'è). */
-function brandSignatureSvg(W: number, bottomY: number): string {
+/** Luminanza relativa di un colore #RRGGBB (0 scuro … 1 chiaro). */
+function isLightColor(hex: string): boolean {
+  const h = hex.replace("#", "");
+  if (h.length < 6) return false;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.6;
+}
+
+/**
+ * Firma "By 🐻". `opts.ink` = colore del testo (default bianco); `opts.invertLogo`
+ * inverte il logo (bianco → scuro) via filtro SVG, per i fondi CHIARI dove la
+ * versione bianca sparirebbe. Senza opts, resta la firma bianca originale.
+ */
+function brandSignatureSvg(W: number, bottomY: number, opts?: { ink?: string; invertLogo?: boolean }): string {
   const size = 42, pad = 26, gap = 10;
   const top = bottomY - size;
   const logoX = W - pad - size;
   const r = (v: number) => (Math.round(v * 10) / 10).toString();
+  const ink = opts?.ink ?? "#ffffff";
+  const invert = opts?.invertLogo ?? false;
+  const filterDef = invert
+    ? `<defs><filter id="brandInk"><feColorMatrix type="matrix" values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0"/></filter></defs>`
+    : "";
+  const imgFilter = invert ? ` filter="url(#brandInk)"` : "";
   return `<g id="firma" opacity="0.72">`
-    + `<text x="${r(logoX - gap)}" y="${r(top + size * 0.7)}" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="24" fill="#ffffff">By</text>`
-    + `<image x="${r(logoX)}" y="${r(top)}" width="${size}" height="${size}" xlink:href="${LOGO_DATA_URI}"/>`
+    + filterDef
+    + `<text x="${r(logoX - gap)}" y="${r(top + size * 0.7)}" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="24" fill="${ink}">By</text>`
+    + `<image x="${r(logoX)}" y="${r(top)}" width="${size}" height="${size}"${imgFilter} xlink:href="${LOGO_DATA_URI}"/>`
     + `</g>`;
 }
 
@@ -386,7 +406,8 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
     `<g id="tratte" fill="none" stroke="${ink}" stroke-width="2.2" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round">${lineEls}</g>`,
     `<g id="stelle">${starEls}</g>`,
     close,
-    brandSignatureSvg(outW, outH - 10),
+    // Su palette a fondo CHIARO la firma bianca sparirebbe: testo scuro + logo invertito.
+    brandSignatureSvg(outW, outH - 10, palette && isLightColor(palette.bg) ? { ink: palette.ink, invertLogo: true } : undefined),
     `</svg>`,
   ].join("");
 }

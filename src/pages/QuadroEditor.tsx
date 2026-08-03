@@ -45,13 +45,14 @@ const PRINT_FORMATS = [
   { id: "land", label: "Orizzontale",  w: 3508, h: 2480 },
 ];
 
-// Palette di stampa (fondo scuro: la firma "By" bianca resta leggibile). bg =
-// fondo pagina/tele, ink = terre/confini/linee/stelle. "Carta" (fondo chiaro)
-// non c'è ancora: servirebbe un logo scuro per la firma.
+// Palette di stampa. bg = fondo pagina/tele, ink = terre/confini/linee/stelle.
+// "Carta" ha fondo chiaro: in export la firma "By" diventa scura + logo invertito
+// (gestito in posterSvg via isLightColor).
 const PALETTES = [
   { id: "notte", label: "Notte", bg: "#05080f", ink: "#ffffff" },
   { id: "oro",   label: "Oro",   bg: "#0a0700", ink: "#fbbf24" },
   { id: "blu",   label: "Blu",   bg: "#02122a", ink: "#7dd3fc" },
+  { id: "carta", label: "Carta", bg: "#faf7f0", ink: "#1a1a1a" },
 ];
 
 /** Rasterizza una stringa SVG in un PNG (Blob) alle dimensioni date. L'SVG è

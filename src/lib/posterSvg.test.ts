@@ -161,6 +161,20 @@ describe("buildEditorQuadroSvg — quadro dall'editor (pannelli a mano)", () => 
     expect(p).toContain('stop-color="#fbbf24"');     // glow delle stelle
     expect(p).toContain('data-led="1" cx="'); // stella presente
     expect(p).not.toContain('fill="#050505"');       // niente tele near-black legacy con palette
+    expect(p).not.toContain('id="brandInk"');        // palette scura: firma bianca, niente invert
+  });
+
+  it("palette a fondo CHIARO (Carta): fondo chiaro + firma scura con logo invertito", () => {
+    const p = buildEditorQuadroSvg({
+      panels, borders: [[[0, 40], [20, 40], [20, 55], [0, 55], [0, 40]]],
+      links: [], stops: [{ lon: 9, lat: 45 }],
+      width: 1600, height: 980, page: { width: 2000, height: 2000 },
+      palette: { bg: "#faf7f0", ink: "#1a1a1a" },
+    });
+    expect(p).toContain('fill="#faf7f0"');           // fondo pagina chiaro
+    expect(p).toContain('id="brandInk"');            // filtro invert del logo
+    expect(p).toContain('filter="url(#brandInk)"');  // applicato all'immagine
+    expect(p).toContain('fill="#1a1a1a">By<');       // testo firma scuro
   });
 });
 
