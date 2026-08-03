@@ -123,7 +123,7 @@ function isPanel(v: unknown): v is EditorPanel {
  *  traslata con `transform`: così SPOSTARE il pannello non ricostruisce la
  *  stringa del path (fino a ~90k comandi per una tela-mondo) a ogni frame —
  *  si ricalcola solo per pan/zoom/resize, dove la geometria cambia davvero. */
-const PanelTile = memo(function PanelTile({ p, borders }: { p: EditorPanel; borders: [number, number][][] }) {
+const PanelTile = memo(function PanelTile({ p, borders, ink, tile }: { p: EditorPanel; borders: [number, number][][]; ink: string; tile: string }) {
   const d = useMemo(
     () => panelBorderPath({ ...p, x: 0, y: 0 }, borders),
     // deliberatamente SENZA p.x/p.y: il path locale non dipende dalla posizione
@@ -134,12 +134,12 @@ const PanelTile = memo(function PanelTile({ p, borders }: { p: EditorPanel; bord
     <g transform={`translate(${p.x} ${p.y})`}>
       <rect x={6} y={12} width={p.w} height={p.h} rx={6} fill="rgba(0,0,0,0.55)" />
       <clipPath id={`clip-${p.id}`}><rect x={0} y={0} width={p.w} height={p.h} rx={6} /></clipPath>
-      <rect x={0} y={0} width={p.w} height={p.h} rx={6} fill="#050505" stroke="#ffffff" strokeOpacity={0.12} strokeWidth={1} />
+      <rect x={0} y={0} width={p.w} height={p.h} rx={6} fill={tile} stroke={ink} strokeOpacity={0.12} strokeWidth={1} />
       {/* Resa "D — corpo + gerarchia": terre riempite (evenodd) + confini al 50%,
           identica all'export (buildEditorQuadroSvg). Un solo path fill+stroke. */}
       <g clipPath={`url(#clip-${p.id})`}>
-        <path d={d} fill="#ffffff" fillOpacity={0.055} fillRule="evenodd"
-          stroke="#ffffff" strokeOpacity={0.5} strokeWidth={0.75} strokeLinejoin="round" />
+        <path d={d} fill={ink} fillOpacity={0.055} fillRule="evenodd"
+          stroke={ink} strokeOpacity={0.5} strokeWidth={0.75} strokeLinejoin="round" />
       </g>
     </g>
   );
@@ -765,23 +765,26 @@ export default function QuadroEditor() {
           >
             <defs>
               <radialGradient id="cGlow">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity={0.95} />
-                <stop offset="40%" stopColor="#ffffff" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+                <stop offset="0%" stopColor={pal.ink} stopOpacity={0.95} />
+                <stop offset="40%" stopColor={pal.ink} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={pal.ink} stopOpacity={0} />
               </radialGradient>
               <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation={4} />
               </filter>
             </defs>
 
+            {/* Fondo pagina = palette scelta (anteprima "quello che vedi è quello che stampi") */}
+            <rect x={0} y={0} width={VBW} height={VBH} fill={pal.bg} />
+
             {/* Tele + confini */}
-            {panels.map(p => <PanelTile key={p.id} p={p} borders={borders} />)}
+            {panels.map(p => <PanelTile key={p.id} p={p} borders={borders} ink={pal.ink} tile={pal.bg} />)}
 
             {/* Linee dei viaggi: bagliore + linea nitida (sempre continue) */}
-            <g fill="none" stroke="#ffffff" strokeWidth={6} strokeOpacity={0.4} strokeLinecap="round" strokeLinejoin="round" filter="url(#lineGlow)">
+            <g fill="none" stroke={pal.ink} strokeWidth={6} strokeOpacity={0.4} strokeLinecap="round" strokeLinejoin="round" filter="url(#lineGlow)">
               {overlay.lines.map((d, i) => <path key={i} d={d} />)}
             </g>
-            <g fill="none" stroke="#ffffff" strokeWidth={2.2} strokeOpacity={0.95} strokeLinecap="round" strokeLinejoin="round">
+            <g fill="none" stroke={pal.ink} strokeWidth={2.2} strokeOpacity={0.95} strokeLinecap="round" strokeLinejoin="round">
               {overlay.lines.map((d, i) => <path key={i} d={d} />)}
             </g>
 
@@ -790,7 +793,7 @@ export default function QuadroEditor() {
               {overlay.stars.map((s, i) => (
                 <g key={i}>
                   <circle cx={s[0]} cy={s[1]} r={20} fill="url(#cGlow)" />
-                  <circle cx={s[0]} cy={s[1]} r={5.5} fill="#ffffff" />
+                  <circle cx={s[0]} cy={s[1]} r={5.5} fill={pal.ink} />
                 </g>
               ))}
             </g>
