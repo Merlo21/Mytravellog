@@ -375,9 +375,13 @@ export function WorldMap({
         // Se il click ha colpito un pallino viaggio, la mini-card è già stata
         // aperta dal suo handler: senza questo controllo, dopo ~1s arriverebbe
         // anche il popup città "Aggiungi come viaggio" a coprirla.
-        const tripLayers = ["trips-single", "trips-single-icons", "trips-multi", "trips-multi-icons"]
+        // Bailla se il click ha colpito un pallino viaggio O una città cliccabile:
+        // quei layer hanno già il proprio handler (che apre la card con dati
+        // puliti). Senza le città nella guardia, il tap su una città lanciava
+        // ANCHE questo reverse-geocode che ~1s dopo sovrascriveva la selezione.
+        const handledLayers = ["trips-single", "trips-single-icons", "trips-multi", "trips-multi-icons", "cities-t1", "cities-t2", "cities-t3"]
           .filter(id => map.getLayer(id));
-        if (tripLayers.length > 0 && map.queryRenderedFeatures(e.point, { layers: tripLayers }).length > 0) return;
+        if (handledLayers.length > 0 && map.queryRenderedFeatures(e.point, { layers: handledLayers }).length > 0) return;
         const { lng, lat } = e.lngLat;
         try {
           const res = await fetch(

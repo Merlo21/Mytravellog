@@ -132,7 +132,11 @@ const NuovoViaggio = () => {
     try {
     const dest = waypoints[waypoints.length - 1];
     const settHome = s.homeCity;
-    const distHome = settHome ?? home;
+    // La casa dell'ITINERARIO vince su quella delle Impostazioni: è quella che
+    // viene salvata (home_latitude) e da cui partono le rotte, quindi distanze
+    // e origine del percorso devono usare la stessa. (Prima `settHome ?? home`
+    // ignorava una casa cambiata nel form.)
+    const distHome = home ?? settHome;
     // Sum all segments: home → waypoint1 → waypoint2 → ... → destination
     let dist: number | null = null;
     if (distHome) {
