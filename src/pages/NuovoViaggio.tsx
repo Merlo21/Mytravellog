@@ -26,12 +26,17 @@ const NuovoViaggio = () => {
   const [rating, setRating] = useState(0);
   const [purpose, setPurpose] = useState<string | null>(null);
   const [companions, setCompanions] = useState<string[]>([]);
+  // Prefill da un clic su una città della Home. L'initializer SOLO LEGGE: prima
+  // faceva anche removeItem, ed era impuro — in StrictMode React invoca gli
+  // initializer due volte, la prima (scartata) cancellava la chiave e la seconda
+  // trovava null → prefill perso. La rimozione sta nell'effect qui sotto.
+  // Tenuto qui (e non tutto in un effect) perché impostare i waypoint dopo il
+  // mount farebbe scattare subito la guardia "modifiche non salvate".
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
     try {
       const raw = sessionStorage.getItem("navta.prefill.city");
       if (!raw) return [];
       const city = JSON.parse(raw);
-      sessionStorage.removeItem("navta.prefill.city");
       return [{
         id: crypto.randomUUID(),
         city: city.name,
@@ -43,6 +48,9 @@ const NuovoViaggio = () => {
       }];
     } catch { return []; }
   });
+  // Consuma il prefill: una volta montato il form, la città non deve ricomparire
+  // al prossimo ingresso. Idempotente (StrictMode rimonta gli effect).
+  useEffect(() => { try { sessionStorage.removeItem("navta.prefill.city"); } catch { /* storage negato */ } }, []);
   const [wpQuery, setWpQuery] = useState("");
   const [wpResults, setWpResults] = useState<GeoResult[]>([]);
   const [wpLoading, setWpLoading] = useState(false);
