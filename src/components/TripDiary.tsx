@@ -39,6 +39,28 @@ function dayLabel(iso: string): { day: string; wd: string; mon: string } {
   };
 }
 
+/** Timbro-data della modalità lettura: "GIO · 04 APR". */
+function stampLabel(iso: string): string {
+  const d = parseLocalDate(iso);
+  const wd = d.toLocaleDateString("it-IT", { weekday: "short" }).replace(".", "");
+  const mon = d.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
+  return `${wd.toUpperCase()} · ${String(d.getDate()).padStart(2, "0")} ${mon.toUpperCase()}`;
+}
+
+/** Intervallo di copertina compatto: "3–10 apr 2024" / "4 apr 2024". */
+function coverRange(trip: Trip): string {
+  const s = parseLocalDate(trip.trip_date);
+  const e = trip.date_end ? parseLocalDate(trip.date_end) : s;
+  const mon = (d: Date) => d.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
+  const y = e.getFullYear();
+  if (s.getTime() === e.getTime()) return `${s.getDate()} ${mon(s)} ${y}`;
+  if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) return `${s.getDate()}–${e.getDate()} ${mon(e)} ${y}`;
+  return `${s.getDate()} ${mon(s)} – ${e.getDate()} ${mon(e)} ${y}`;
+}
+
+const MONO = '"JetBrains Mono", monospace';
+const BRAND = '"Space Grotesk", system-ui, sans-serif';
+
 /**
  * Diario giorno-per-giorno di un viaggio, in un pannello a schermo intero
  * (portal su body). Un riquadro per ogni giorno del range; si salva alla
@@ -69,6 +91,20 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
     for (const e of entries) m[e.date] = e.text;
     return m;
   });
+
+  // Leggi (rileggi il racconto) vs Scrivi (editor). Si apre in lettura se c'è
+  // già del testo; se il diario è vuoto parte in scrittura.
+  const [mode, setMode] = useState<"read" | "write">(() => entries.some(e => e.text.trim().length > 0) ? "read" : "write");
+
+  // Voci scritte (dallo stato `texts`, così la lettura riflette anche ciò che
+  // hai appena battuto): solo giorni con testo, in ordine cronologico.
+  const readEntries = useMemo(
+    () => Object.entries(texts)
+      .map(([date, text]) => ({ date, text: text.trim() }))
+      .filter(e => e.text.length > 0)
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    [texts],
+  );
 
   // Voci "orfane": date con testo che NON sono nel range attuale (es. il viaggio
   // è stato accorciato dopo). Le mostriamo in fondo così non spariscono.
@@ -150,6 +186,46 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
     );
   };
 
+  // Modalità LETTURA — "diario di bordo": copertina + colonna delle tappe
+  // (un LED blu per giorno scritto) con timbro-data e testo in monospace.
+  const renderRead = () => {
+    if (readEntries.length === 0) {
+      return (
+        <div style={{ textAlign: "center", padding: "56px 16px", color: "rgba(255,255,255,0.55)" }}>
+          <div style={{ fontFamily: MONO, fontSize: 13, lineHeight: 1.7 }}>Il diario di bordo è ancora vuoto.</div>
+          <button type="button" onClick={() => setMode("write")}
+            style={{ marginTop: 16, padding: "9px 18px", borderRadius: 999, background: "rgba(96,165,250,0.15)", border: "0.5px solid rgba(96,165,250,0.4)", color: "#93c5fd", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Inizia a scrivere
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "4px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>diario di bordo</div>
+        <div style={{ color: "#f0f4ff", fontFamily: BRAND, fontSize: 26, fontWeight: 700, lineHeight: 1.1, margin: "9px 0 5px" }}>{trip.title || trip.city}</div>
+        <div style={{ fontFamily: MONO, fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 22 }}>
+          {coverRange(trip)} · {readEntries.length} {readEntries.length === 1 ? "giorno scritto" : "giorni scritti"}
+        </div>
+        <div style={{ position: "relative", paddingLeft: 26, borderLeft: "1px solid rgba(96,165,250,0.22)", marginLeft: 5 }}>
+          {readEntries.map((e, i) => {
+            const last = i === readEntries.length - 1;
+            return (
+              <div key={e.date} style={{ position: "relative", paddingBottom: last ? 0 : 24 }}>
+                <div style={{ position: "absolute", left: -31, top: 2, width: 11, height: 11, borderRadius: "50%", background: "#60a5fa", boxShadow: "0 0 8px 1px rgba(96,165,250,0.6)", border: "2px solid #060e1e" }} />
+                <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 500, letterSpacing: "1px", color: "#fbbf24" }}>{stampLabel(e.date)}</div>
+                <div style={{ fontFamily: MONO, fontSize: 13, lineHeight: 1.75, color: "#e6e0d2", marginTop: 7, letterSpacing: ".1px", whiteSpace: "pre-wrap" }}>
+                  {e.text}
+                  {last && <span style={{ display: "inline-block", width: 8, height: 16, background: "#fbbf24", opacity: 0.7, verticalAlign: -3, marginLeft: 3 }} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={`Diario — ${trip.title || trip.city}`}
       style={{
@@ -166,8 +242,21 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
             📖 Diario — {trip.title || trip.city}
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-            Scrivi il racconto giorno per giorno · si salva da solo
+            {mode === "read" ? "Il tuo racconto, giorno per giorno" : "Scrivi il racconto giorno per giorno · si salva da solo"}
           </div>
+        </div>
+        <div role="tablist" aria-label="Leggi o scrivi" style={{ flexShrink: 0, display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: 2 }}>
+          {(["read", "write"] as const).map(m => (
+            <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
+              style={{
+                fontFamily: MONO, fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                background: mode === m ? "rgba(96,165,250,0.22)" : "transparent",
+                color: mode === m ? "#93c5fd" : "rgba(255,255,255,0.5)",
+                fontWeight: mode === m ? 500 : 400,
+              }}>
+              {m === "read" ? "Leggi" : "Scrivi"}
+            </button>
+          ))}
         </div>
         <button type="button" onClick={close} aria-label="Chiudi il diario"
           style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.8)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -177,6 +266,7 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
 
       {/* Giorni */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: 16 }}>
+        {mode === "read" ? renderRead() : (
         <div style={{ maxWidth: 640, margin: "0 auto" }}>
           {days.map(renderDay)}
           {truncated && (
@@ -193,6 +283,7 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
             </>
           )}
         </div>
+        )}
       </div>
     </div>,
     document.body,
