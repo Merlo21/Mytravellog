@@ -179,9 +179,13 @@ const Recap = () => {
     setFlag(null);
     const code = recap.topCountry?.code?.toLowerCase();
     if (!code) return;
+    // guardia: al cambio rapido di anno una bandiera lenta poteva risolversi
+    // dopo e sovrascrivere quella corrente (o fare setState su smontato).
+    let cancelled = false;
     const img = new Image(); img.crossOrigin = "anonymous";
-    img.onload = () => setFlag(img);
+    img.onload = () => { if (!cancelled) setFlag(img); };
     img.src = `https://flagcdn.com/w160/${code}.png`;
+    return () => { cancelled = true; };
   }, [recap.topCountry?.code]);
 
   // Disegno (attende i font di marca, come il poster).
@@ -199,16 +203,21 @@ const Recap = () => {
 
   const share = async () => {
     const c = canvasRef.current; if (!c) return;
-    const blob: Blob | null = await new Promise(res => c.toBlob(res, "image/png"));
-    if (!blob) return;
-    const file = new File([blob], `recap-${year}.png`, { type: "image/png" });
-    if (canShareFile(file)) {
-      try { await navigator.share({ files: [file], title: `Il mio ${year} di viaggi` }); } catch { /* annullato */ }
-    } else {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = file.name; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    }
+    try {
+      // toBlob può lanciare SecurityError se il canvas fosse "taint" (bandiera
+      // senza CORS): raro (flagcdn manda ACAO:*), ma senza try/catch sarebbe una
+      // rejection non gestita e condivisione fallita in silenzio.
+      const blob: Blob | null = await new Promise(res => c.toBlob(res, "image/png"));
+      if (!blob) return;
+      const file = new File([blob], `recap-${year}.png`, { type: "image/png" });
+      if (canShareFile(file)) {
+        try { await navigator.share({ files: [file], title: `Il mio ${year} di viaggi` }); } catch { /* annullato */ }
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = file.name; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
+    } catch { /* canvas non esportabile: niente crash */ }
   };
 
   return (

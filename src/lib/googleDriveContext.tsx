@@ -84,23 +84,31 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
   };
 
   const initialSync = async (token: string) => {
-    if (mountedRef.current) setStatus("syncing");
-    const remote = await readBackup(token); // può lanciare "unauthorized"
-    const local = loadTrips();
-    const localPlans = loadPlans();
-    const now = Date.now();
-    const merged = remote && Array.isArray(remote.trips)
-      ? mergeTrips(local, getLocalTs(), remote.trips, remote.updatedAt || 0)
-      : local;
-    const mergedPlans = remote && Array.isArray(remote.plans)
-      ? mergeTrips(localPlans, getLocalTs(), remote.plans, remote.updatedAt || 0)
-      : localPlans;
-    saveTrips(merged);
-    savePlans(mergedPlans);
-    await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips: merged, plans: mergedPlans });
-    setLocalTs(now);
-    syncedHashRef.current = localSnapshot();
-    if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
+    // Occupa il lock per tutta la durata del read-modify-write: senza,
+    // un visibilitychange (o il watcher) poteva lanciare un pushLocal
+    // concorrente e scrivere il locale NON ancora unito sopra il remoto.
+    busyRef.current = true;
+    try {
+      if (mountedRef.current) setStatus("syncing");
+      const remote = await readBackup(token); // può lanciare "unauthorized"
+      const local = loadTrips();
+      const localPlans = loadPlans();
+      const now = Date.now();
+      const merged = remote && Array.isArray(remote.trips)
+        ? mergeTrips(local, getLocalTs(), remote.trips, remote.updatedAt || 0)
+        : local;
+      const mergedPlans = remote && Array.isArray(remote.plans)
+        ? mergeTrips(localPlans, getLocalTs(), remote.plans, remote.updatedAt || 0)
+        : localPlans;
+      saveTrips(merged);
+      savePlans(mergedPlans);
+      await writeBackup(token, { version: BACKUP_VERSION, updatedAt: now, trips: merged, plans: mergedPlans });
+      setLocalTs(now);
+      syncedHashRef.current = localSnapshot();
+      if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
+    } finally {
+      busyRef.current = false;
+    }
   };
 
   const stopWatcher = () => {

@@ -390,6 +390,7 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
   }, [onClose]);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
         let features = geoCache[countryCode];
@@ -399,10 +400,12 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         }
         if (!features) {
           features = await fetchCountryRegions(countryCode);
+          if (cancelled) return; // modal chiuso o paese cambiato durante il fetch
           if (!features) throw new Error("Nessuna suddivisione disponibile");
           geoCache[countryCode] = features;
           writePersistedFeatures(countryCode, features);
         }
+        if (cancelled) return;
 
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -434,11 +437,13 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         setTotalRegions(features.length);
         setLoading(false);
       } catch {
+        if (cancelled) return;
         setLoading(false);
         setError(true);
       }
     };
     load();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countryCode]);
 
