@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPosterSvg, buildEditorQuadroSvg, panelGeoBounds, pickPanelIndex, routeBounds, unwrapNear, unwrapPath, unwrapSegments, mercY, type EditorPanel } from "./posterSvg";
+import { buildPosterSvg, buildEditorQuadroSvg, panelGeoBounds, panelBorderPath, pickPanelIndex, routeBounds, unwrapNear, unwrapPath, unwrapSegments, mercY, type EditorPanel } from "./posterSvg";
 
 const INPUT = {
   routeCoords: [[9.19, 45.46], [11.39, 47.27], [13.78, 45.65]] as [number, number][],
@@ -195,6 +195,39 @@ describe("buildEditorQuadroSvg — quadro dall'editor (pannelli a mano)", () => 
     expect(p).toContain('id="brandInk"');            // filtro invert del logo
     expect(p).toContain('filter="url(#brandInk)"');  // applicato all'immagine
     expect(p).toContain('fill="#1a1a1a">By<');       // testo firma scuro
+  });
+});
+
+describe("editor quadro — pannelli oltre l'antimeridiano", () => {
+  // Tela pannata sul Pacifico: inquadra lon 170..200 (refLon oltre +180 è
+  // legittimo: il pan dell'editor non ha clamp).
+  const pacificPanel: EditorPanel = { id: "p", x: 0, y: 0, w: 300, h: 200, refLon: 170, refLat: 20, scale: 10 };
+
+  it("pickPanelIndex: una città a lon -170 È dentro la tela che inquadra 170..200", () => {
+    expect(pickPanelIndex([pacificPanel], -170, 0)).toBe(0);
+  });
+
+  it("le stelle oltre il cambio data cadono DENTRO la tela, non un giro a ovest", () => {
+    const svg = buildEditorQuadroSvg({
+      panels: [pacificPanel],
+      borders: [],
+      links: [[[175, 5], [-170, 0]]], // tratta che scavalca il cambio data
+      stops: [{ lon: 175, lat: 5 }, { lon: -170, lat: 0 }],
+      width: 400, height: 300,
+    });
+    const xs = Array.from(svg.matchAll(/data-led="1" cx="([-\d.]+)"/g)).map(m => parseFloat(m[1]));
+    expect(xs).toHaveLength(2);
+    for (const x of xs) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(300); }
+  });
+
+  it("i confini ammessi con offset ±360 vengono disegnati nella finestra della tela", () => {
+    // anello "Fiji occidentali" a lon -180..-175: per la tela 170..200 entra
+    // via bboxIntersects(+360) e deve essere PROIETTATO a 180..185, dentro.
+    const ring: [number, number][] = [[-180, 15], [-175, 15], [-175, 25], [-180, 25], [-180, 15]];
+    const d = panelBorderPath(pacificPanel, [ring]);
+    expect(d).not.toBe("");
+    const xs = Array.from(d.matchAll(/([-\d.]+),[-\d.]+/g)).map(m => parseFloat(m[1]));
+    for (const x of xs) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(300); }
   });
 });
 

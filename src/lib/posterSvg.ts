@@ -313,6 +313,22 @@ export function projectInPanel(p: EditorPanel, lon: number, lat: number): [numbe
   ];
 }
 
+/** Centro orizzontale (lon) della finestra inquadrata dal pannello. */
+const panelCenterLon = (p: EditorPanel) => p.refLon + (p.w / 2) / p.scale;
+
+/**
+ * Proietta un PUNTO ISOLATO (stella, capo di una tratta) nel pannello,
+ * riportando prima la longitudine nella finestra del pannello: l'editor lascia
+ * driftare `refLon` oltre ±180 (pan libero), e una città a lon −170 su una
+ * tela che inquadra 170..200 veniva proiettata un giro a ovest, fuori canvas
+ * (linee spurie che tagliavano il quadro). SOLO per punti: sugli anelli di
+ * confine il wrap va fatto per-anello (vedi panelBorderPath), mai per-punto,
+ * o un anello a cavallo del bordo-finestra verrebbe strappato in due.
+ */
+export function projectStopInPanel(p: EditorPanel, lon: number, lat: number): [number, number] {
+  return projectInPanel(p, unwrapNear(lon, panelCenterLon(p)), lat);
+}
+
 /** Riquadro geografico (lon/lat) inquadrato dal pannello. */
 export function panelGeoBounds(p: EditorPanel): { lonMin: number; lonMax: number; latMin: number; latMax: number } {
   return {
@@ -333,7 +349,11 @@ export function pickPanelIndex(panels: EditorPanel[], lon: number, lat: number):
   let best = -1, bestArea = Infinity;
   panels.forEach((p, i) => {
     const b = panelGeoBounds(p);
-    if (lon >= b.lonMin && lon <= b.lonMax && lat >= b.latMin && lat <= b.latMax) {
+    // Contenimento a prova di antimeridiano: la lon si porta nella finestra
+    // del pannello prima del confronto (una città a -170 È dentro una tela
+    // che inquadra 170..200).
+    const lonU = unwrapNear(lon, (b.lonMin + b.lonMax) / 2);
+    if (lonU >= b.lonMin && lonU <= b.lonMax && lat >= b.latMin && lat <= b.latMax) {
       const area = (b.lonMax - b.lonMin) * (mercY(b.latMax) - mercY(b.latMin));
       if (area < bestArea) { bestArea = area; best = i; }
     }
@@ -343,7 +363,7 @@ export function pickPanelIndex(panels: EditorPanel[], lon: number, lat: number):
   panels.forEach((p, i) => {
     const b = panelGeoBounds(p);
     const cLon = (b.lonMin + b.lonMax) / 2, cMercY = (mercY(b.latMin) + mercY(b.latMax)) / 2;
-    const dx = mercX(lon) - cLon, dy = mercY(lat) - cMercY;
+    const dx = mercX(unwrapNear(lon, cLon)) - cLon, dy = mercY(lat) - cMercY;
     const d = dx * dx + dy * dy;
     if (d < nd) { nd = d; nb = i; }
   });
@@ -356,9 +376,18 @@ const round1 = (v: number) => (Math.round(v * 10) / 10).toString();
  *  Riusato sia dal render interattivo (React) sia dall'export, così sono identici. */
 export function panelBorderPath(p: EditorPanel, borders: [number, number][][]): string {
   const b = panelGeoBounds(p);
+  const cLon = (b.lonMin + b.lonMax) / 2;
   return borders
     .filter(ring => bboxIntersects(ring, b))
-    .map(ring => "M" + ring.map(([lon, lat]) => { const [X, Y] = projectInPanel(p, lon, lat); return `${round1(X)},${round1(Y)}`; }).join("L"))
+    .map(ring => {
+      // Traslazione per-ANELLO nella finestra del pannello: bboxIntersects
+      // ammette gli anelli anche con offset ±360, ma proiettandoli alle lon
+      // raw finivano un giro più a ovest, fuori clip (tela vuota sul
+      // Pacifico). Offset unico dal primo vertice: l'anello non si spezza mai
+      // (i ring del world-atlas non attraversano ±180).
+      const off = ring.length ? unwrapNear(ring[0][0], cLon) - ring[0][0] : 0;
+      return "M" + ring.map(([lon, lat]) => { const [X, Y] = projectInPanel(p, lon + off, lat); return `${round1(X)},${round1(Y)}`; }).join("L");
+    })
     .join("");
 }
 
@@ -421,7 +450,9 @@ export function buildEditorQuadroSvg(input: EditorQuadroInput): string {
   const screen = (lon: number, lat: number): [number, number] | null => {
     if (!panels.length) return null;
     const i = pickPanelIndex(panels, lon, lat);
-    return i >= 0 ? projectInPanel(panels[i], lon, lat) : null;
+    // projectStopInPanel (non projectInPanel): la lon va portata nella
+    // finestra del pannello scelto, o il punto finisce un giro fuori canvas.
+    return i >= 0 ? projectStopInPanel(panels[i], lon, lat) : null;
   };
   const lineEls = links.map(seg => {
     const pts = seg.map(([lon, lat]) => screen(lon, lat)).filter((pt): pt is [number, number] => !!pt);

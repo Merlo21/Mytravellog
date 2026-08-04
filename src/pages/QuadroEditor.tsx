@@ -4,7 +4,7 @@ import { ArrowLeft, Plus, Trash2, ZoomIn, ZoomOut, Download, Hand, Move, RotateC
 import { loadTrips } from "@/lib/storage";
 import { buildFlightPath } from "@/lib/flyover";
 import {
-  EditorPanel, projectInPanel, panelGeoBounds, pickPanelIndex, panelBorderPath,
+  EditorPanel, projectStopInPanel, panelGeoBounds, pickPanelIndex, panelBorderPath,
   buildEditorQuadroSvg, loadCountryRings, mercY, latFromMercY,
 } from "@/lib/posterSvg";
 
@@ -312,7 +312,9 @@ export default function QuadroEditor() {
     const screen = (lon: number, lat: number): [number, number] | null => {
       if (!panels.length) return null;
       const i = pickPanelIndex(panels, lon, lat);
-      return i >= 0 ? projectInPanel(panels[i], lon, lat) : null;
+      // projectStopInPanel: stessa proiezione dell'export (WYSIWYG), con la lon
+      // portata nella finestra del pannello (antimeridiano).
+      return i >= 0 ? projectStopInPanel(panels[i], lon, lat) : null;
     };
     const lines = links
       .map(seg => seg.map(([lo, la]) => screen(lo, la)).filter((pt): pt is [number, number] => !!pt))
