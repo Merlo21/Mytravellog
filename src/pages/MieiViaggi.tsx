@@ -32,20 +32,28 @@ export default function MieiViaggi() {
   }>>(new Map());
 
   useEffect(() => { setTrips(loadTrips()); setPlans(loadPlans()); }, []);
-  useEffect(() => () => {
-    // Alla chiusura della pagina, le cancellazioni ancora "in sospeso" (in
-    // attesa che scada la finestra per l'Annulla) vengono eseguite subito
-    // invece di restare bloccate a metà — e il loro toast viene chiuso,
-    // perché il Toaster è globale e un "Annulla" rimasto visibile sarebbe
-    // ormai un no-op ingannevole.
-    pendingDeletesRef.current.forEach(({ animTimer, commitTimer, toastId, trip }) => {
-      clearTimeout(animTimer);
-      clearTimeout(commitTimer);
-      toast.dismiss(toastId);
-      deleteTrip(trip.id);
-      deletePhotosForTrip(trip);
-    });
-    pendingDeletesRef.current.clear();
+  useEffect(() => {
+    // Le cancellazioni "in sospeso" (in attesa che scada la finestra per
+    // l'Annulla) vanno eseguite subito quando la pagina se ne va, in ENTRAMBI
+    // i modi possibili: navigazione SPA (cleanup di smontaggio) E chiusura
+    // tab / refresh (pagehide — React NON esegue i cleanup su unload, quindi
+    // senza questo listener un viaggio "eliminato" con conferma risorgeva al
+    // prossimo avvio se si chiudeva il tab entro i 5 secondi).
+    const flushPending = () => {
+      pendingDeletesRef.current.forEach(({ animTimer, commitTimer, toastId, trip }) => {
+        clearTimeout(animTimer);
+        clearTimeout(commitTimer);
+        toast.dismiss(toastId);
+        deleteTrip(trip.id);
+        deletePhotosForTrip(trip);
+      });
+      pendingDeletesRef.current.clear();
+    };
+    window.addEventListener("pagehide", flushPending);
+    return () => {
+      window.removeEventListener("pagehide", flushPending);
+      flushPending();
+    };
   }, []);
 
   const commitDelete = (trip: Trip) => {
