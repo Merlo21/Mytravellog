@@ -55,6 +55,9 @@ function coverRange(trip: Trip): string {
   const y = e.getFullYear();
   if (s.getTime() === e.getTime()) return `${s.getDate()} ${mon(s)} ${y}`;
   if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) return `${s.getDate()}–${e.getDate()} ${mon(e)} ${y}`;
+  // A cavallo d'anno serve ANCHE l'anno di partenza: "28 dic – 3 gen 2025"
+  // faceva sembrare la partenza del 2025.
+  if (s.getFullYear() !== e.getFullYear()) return `${s.getDate()} ${mon(s)} ${s.getFullYear()} – ${e.getDate()} ${mon(e)} ${y}`;
   return `${s.getDate()} ${mon(s)} – ${e.getDate()} ${mon(e)} ${y}`;
 }
 
@@ -106,12 +109,19 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
     [texts],
   );
 
-  // Voci "orfane": date con testo che NON sono nel range attuale (es. il viaggio
-  // è stato accorciato dopo). Le mostriamo in fondo così non spariscono.
-  const orphanDates = useMemo(
-    () => entries.map(e => e.date).filter(d => !days.includes(d)).sort(),
-    [entries, days],
-  );
+  // Voci con testo che NON stanno nei riquadri mostrati, divise in due nature
+  // diverse: "oltre il giorno 120" (dentro le date del viaggio, solo tagliate
+  // dal salvagente MAX_DAYS — prima finivano sotto l'etichetta sbagliata
+  // "fuori dalle date") e le vere orfane (fuori dal range, es. viaggio
+  // accorciato dopo). Entrambe restano visibili così non si perde nulla.
+  const { beyondCapDates, orphanDates } = useMemo(() => {
+    const end = trip.date_end ?? trip.trip_date;
+    const missing = entries.map(e => e.date).filter(d => !days.includes(d)).sort();
+    return {
+      beyondCapDates: missing.filter(d => d >= trip.trip_date && d <= end),
+      orphanDates: missing.filter(d => d < trip.trip_date || d > end),
+    };
+  }, [entries, days, trip]);
 
   // Blocco scroll pagina sotto (iOS-proof): body fixed + posizione ripristinata.
   useEffect(() => {
@@ -273,6 +283,14 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: "2px 0 14px" }}>
               Mostro i primi {MAX_DAYS} giorni — il viaggio ne ha {totalDays}.
             </div>
+          )}
+          {beyondCapDates.length > 0 && (
+            <>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase", margin: "18px 0 10px" }}>
+                Giorni scritti oltre il {MAX_DAYS}° (dentro le date del viaggio)
+              </div>
+              {beyondCapDates.map(renderDay)}
+            </>
           )}
           {orphanDates.length > 0 && (
             <>

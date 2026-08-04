@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCardTicket } from "@/components/TripCardTicket";
 import { TripFlyover } from "@/components/TripFlyover";
-import { loadTrips, loadPlans, deleteTrip, Trip } from "@/lib/storage";
+import { loadTrips, loadPlans, deleteTrip, parseLocalDate, Trip } from "@/lib/storage";
 import { planCountdown } from "@/lib/plans";
 import { deletePhotosForTrip } from "@/lib/photoStorage";
 import { Search, X, Video, Plane, Plus, Sparkles, Globe2, CalendarClock, ArrowRight } from "lucide-react";
@@ -100,7 +100,9 @@ export default function MieiViaggi() {
     pendingDeletesRef.current.set(trip.id, { animTimer, commitTimer, toastId, trip });
   };
 
-  const tripYear = (t: Trip) => t.trip_date ? new Date(t.trip_date).getFullYear().toString() : "—";
+  // parseLocalDate, non new Date(iso): la stringa date-only è parsata in UTC e
+  // nei fusi negativi (Americhe) un viaggio del 1° gennaio finiva nell'anno prima.
+  const tripYear = (t: Trip) => t.trip_date ? parseLocalDate(t.trip_date).getFullYear().toString() : "—";
 
   // Anni disponibili calcolati su tutti i viaggi (non sui filtrati): i chip
   // restano stabili mentre si scrive nella ricerca, invece di sparire.

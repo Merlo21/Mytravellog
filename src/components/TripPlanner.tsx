@@ -170,6 +170,11 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
       }));
       patch.city = dest.city; patch.country = dest.country; patch.country_code = dest.country_code;
       patch.latitude = dest.lat; patch.longitude = dest.lon; patch.transport_mode = dest.transport_mode;
+    } else {
+      // Tutte le tappe rimosse: la destinazione resta (un Trip senza città non
+      // è rappresentabile), ma le INTERMEDIE vanno svuotate — senza questo
+      // ramo alla riapertura risorgevano tutte.
+      patch.waypoints = [];
     }
     patch.home_latitude = home?.lat ?? null;
     patch.home_longitude = home?.lon ?? null;

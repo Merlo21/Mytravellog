@@ -190,7 +190,10 @@ const NuovoViaggio = () => {
     // invece della linea retta. waypoints[i] rappresenta "come sono arrivato qui",
     // quindi il percorso va da prevPt (la tappa precedente, o casa per la prima) a
     // waypoints[i]. Ricade su null (linea retta) se manca casa o la chiamata fallisce.
-    let prevPt: { lat: number; lon: number } | null = home ? { lat: home.lat, lon: home.lon } : null;
+    // distHome (itinerario ?? Impostazioni), come ModificaViaggio: con `home`
+    // nudo, se la casa arrivava solo dai settings le distanze c'erano ma le
+    // route stradali no — record incoerente tra i due form gemelli.
+    let prevPt: { lat: number; lon: number } | null = distHome ? { lat: distHome.lat, lon: distHome.lon } : null;
     const routePromises = waypoints.map((wp) => {
       const p = prevPt;
       prevPt = hasCoords(wp.lat, wp.lon) ? { lat: wp.lat, lon: wp.lon } : prevPt;

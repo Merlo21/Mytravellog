@@ -565,6 +565,11 @@ export default function QuadroEditor() {
 
   const deleteSelected = () => {
     if (!selectedId) return;
+    // Mai sotto una tela: la persistenza salta volutamente l'array vuoto
+    // (al mount panels parte da [] e salvarlo azzererebbe il layout), quindi
+    // un layout svuotato del tutto sarebbe risorto al reload — incoerente con
+    // ciò che l'utente vede. Il bottone è comunque disabilitato con 1 tela.
+    if (panelsRef.current.length <= 1) return;
     pushHistory();
     setPanels(ps => ps.filter(p => p.id !== selectedId));
     setSelectedId(null);
@@ -652,8 +657,9 @@ export default function QuadroEditor() {
         <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.12)", margin: "0 2px" }} />
 
         <button type="button" onClick={addPanel} style={btn()} title="Aggiungi una tela"><Plus style={{ width: 15, height: 15 }} /> Tela</button>
-        <button type="button" onClick={deleteSelected} disabled={!selectedId}
-          style={btn(!selectedId ? { opacity: 0.4, cursor: "default" } : undefined)} title="Elimina la tela selezionata">
+        <button type="button" onClick={deleteSelected} disabled={!selectedId || panels.length <= 1}
+          style={btn(!selectedId || panels.length <= 1 ? { opacity: 0.4, cursor: "default" } : undefined)}
+          title={panels.length <= 1 ? "L'ultima tela non si può eliminare" : "Elimina la tela selezionata"}>
           <Trash2 style={{ width: 15, height: 15 }} />
         </button>
         <button type="button" onClick={undo} disabled={!canUndo}
