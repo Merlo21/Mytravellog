@@ -89,6 +89,10 @@ export function WelcomeGate() {
   const dismiss = () => {
     try { localStorage.setItem(DISMISS_KEY, "1"); } catch { /* pazienza */ }
     setVisible(false);
+    // Avvisa chi aspetta la fine della welcome (AppTour): il suo effect è già
+    // girato al mount e senza questo segnale il tour della prima sessione non
+    // comparirebbe mai (ricontrollava solo al cambio rotta).
+    window.dispatchEvent(new Event("navta:welcome-dismissed"));
   };
 
   const handleGoogle = async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
+import { shouldShowWelcome } from "@/components/WelcomeGate";
 import {
   Compass, Hand, Plane, BookOpen, Globe2, CalendarClock, Wallet,
   PieChart, Share2, X, ArrowRight,
@@ -60,17 +61,29 @@ export function AppTour() {
   const [active, setActive] = useState<Section | null>(null);
   const [i, setI] = useState(0);
 
-  // Quale sezione mostrare, in base alla rotta. Nessun tour finché il benvenuto
-  // non è archiviato (altrimenti la scheda finirebbe sotto il WelcomeGate).
+  // Il tour aspetta solo che la welcome NON sia visibile ORA. Il vecchio gate
+  // (`navta.welcome.dismissed === "1"`) era rotto in entrambe le direzioni:
+  // il flag viene scritto SOLO se la welcome è apparsa, quindi chi aveva già
+  // viaggi o Drive collegato non avrebbe mai visto NESSUN tour; e l'utente
+  // nuovo che la archiviava non vedeva il tour della Home nella prima
+  // sessione (l'effect era già girato e non ri-scattava).
+  const [welcomeGone, setWelcomeGone] = useState(() => !shouldShowWelcome());
   useEffect(() => {
-    if (localStorage.getItem("navta.welcome.dismissed") !== "1") return;
+    const onDismiss = () => setWelcomeGone(true);
+    window.addEventListener("navta:welcome-dismissed", onDismiss);
+    return () => window.removeEventListener("navta:welcome-dismissed", onDismiss);
+  }, []);
+
+  // Quale sezione mostrare, in base alla rotta (e appena la welcome se ne va).
+  useEffect(() => {
+    if (!welcomeGone) return;
     const key = PATH_TO_SECTION[location.pathname];
     const section = key ? SECTIONS[key] : undefined;
     if (!section) return;
     if (localStorage.getItem(flagKey(section)) === "1") return;
     setActive(section);
     setI(0);
-  }, [location.pathname]);
+  }, [location.pathname, welcomeGone]);
 
   // Scroll-lock iOS-proof mentre la scheda è aperta (stesso pattern di diario/
   // pianifica): body fixed + posizione ripristinata alla chiusura.
