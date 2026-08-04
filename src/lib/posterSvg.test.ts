@@ -80,6 +80,26 @@ describe("buildPosterSvg — master di stampa SVG", () => {
     expect((s.match(/data-led="1"/g) ?? []).length).toBe(INPUT.stops.length);
   });
 
+  it("la casa ripetuta (Mappa della vita) produce UNA sola stella-LED", () => {
+    // buildFlightPath reinserisce la casa per ogni viaggio: senza dedup l'hub
+    // aveva N aloni sovrapposti e N marcatori data-led identici nel master.
+    const s = buildPosterSvg({
+      routeSegments: [
+        [[9.19, 45.46], [2.35, 48.86]],
+        [[9.19, 45.46], [12.5, 41.9]],
+      ],
+      stops: [
+        { lon: 9.19, lat: 45.46, label: "Milano" },
+        { lon: 2.35, lat: 48.86, label: "Parigi" },
+        { lon: 9.19, lat: 45.46, label: "Milano" }, // casa ripetuta dal 2° viaggio
+        { lon: 12.5, lat: 41.9, label: "Roma" },
+      ],
+      title: "Vita",
+      hideLabels: true,
+    });
+    expect((s.match(/data-led="1"/g) ?? []).length).toBe(3); // Milano UNA volta
+  });
+
   it("con routeSegments disegna un path per viaggio (Mappa della vita)", () => {
     const s = buildPosterSvg({
       routeSegments: [

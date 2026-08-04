@@ -180,6 +180,17 @@ export function buildPosterSvg(input: PosterSvgInput): string {
   // catena produce la stessa finestra.
   const uLons = unwrapPath(stops.map(s => [s.lon, s.lat] as [number, number]));
   const uStops = stops.map((s, i) => ({ ...s, lon: uLons[i][0] }));
+  // Stelle/etichette deduplicate per coordinata FISICA (lon mod 360): nella
+  // Mappa della vita buildFlightPath reinserisce la casa per OGNI viaggio
+  // (dedup solo sui consecutivi) → l'hub accumulava N aloni sovrapposti (glow
+  // sparato) e il master LED per il fornitore aveva N marcatori identici.
+  const seenStar = new Set<string>();
+  const drawStops = uStops.filter(s => {
+    const key = `${(((s.lon % 360) + 360) % 360).toFixed(4)},${s.lat.toFixed(4)}`;
+    if (seenStar.has(key)) return false;
+    seenStar.add(key);
+    return true;
+  });
 
   // Fascia inferiore RISERVATA alla didascalia (titolo/date/stats): la mappa
   // disegna solo SOPRA, così le scritte non si sovrappongono mai al tracciato
@@ -234,12 +245,12 @@ export function buildPosterSvg(input: PosterSvgInput): string {
     .filter(seg => seg.length > 1)
     .map(seg => "M" + seg.map(([lon, lat]) => { const [x, y] = project(lon, lat); return `${n(x)},${n(y)}`; }).join("L"));
 
-  const starEls = uStops.map(s => {
+  const starEls = drawStops.map(s => {
     const [x, y] = project(s.lon, s.lat);
     return `<circle cx="${n(x)}" cy="${n(y)}" r="16" fill="url(#starGlow)"/><circle data-led="1" cx="${n(x)}" cy="${n(y)}" r="5" fill="#ffffff"/>`;
   }).join("");
 
-  const labelEls = hideLabels ? "" : uStops.map(s => {
+  const labelEls = hideLabels ? "" : drawStops.map(s => {
     const [x, y] = project(s.lon, s.lat);
     return `<text x="${n(x)}" y="${n(y - 14)}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#ffffff">${escapeXml(s.label)}</text>`;
   }).join("");
