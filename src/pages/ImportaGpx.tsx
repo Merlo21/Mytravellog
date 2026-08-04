@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, Loader2, MapPin } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
@@ -36,12 +36,24 @@ const ImportaGpx = () => {
   const [lengthKm, setLengthKm] = useState(0);
   const [maxEle, setMaxEle] = useState<number | null>(null);
   const [endEle, setEndEle] = useState<number | null>(null);
+  const genRef = useRef(0); // generazione del file corrente (invalida le catene vecchie)
 
   const handleFile = async (file: File) => {
+    // Token di generazione: la catena di geocoding dura >1s (policy Nominatim);
+    // cambiando file a metà, quella VECCHIA risolveva dopo e sovrascriveva
+    // città/titolo del file nuovo.
+    const gen = ++genRef.current;
     setError(null); setParsing(true); setCoords([]);
+    // Reset dei campi geografici del file precedente: senza, con Nominatim giù
+    // il catch era silenzioso e il form mostrava ancora "Roma→Napoli" sulla
+    // traccia nuova — e canCreate era vero, si salvava coi luoghi sbagliati.
+    setStartCity(""); setStartCountry(""); setStartCode("");
+    setEndCity(""); setEndCountry(""); setEndCode("");
+    setTitle("");
     try {
       const text = await file.text();
       const data = parseGpx(text);
+      if (gen !== genRef.current) return; // è già stato caricato un altro file
       if (data.coords.length < 2) { setError("Il GPX non contiene un percorso (servono almeno 2 punti)."); setParsing(false); return; }
       const s = summarizeGpx(data);
       const geo = downsample(data.coords);
@@ -57,14 +69,17 @@ const ImportaGpx = () => {
       setGeocoding(true);
       try {
         const a = await reverseGeocode(s.start[1], s.start[0]);
+        if (gen !== genRef.current) return;
         setStartCity(a.city); setStartCountry(a.country); setStartCode(a.country_code);
         await new Promise(r => setTimeout(r, 1100));
         const b = await reverseGeocode(s.end[1], s.end[0]);
+        if (gen !== genRef.current) return;
         setEndCity(b.city); setEndCountry(b.country); setEndCode(b.country_code);
         setTitle(b.city ? (a.city && a.city !== b.city ? `${a.city} → ${b.city}` : b.city) : "");
       } catch { /* rete/geocoding ko: l'utente compila a mano */ }
-      finally { setGeocoding(false); }
+      finally { if (gen === genRef.current) setGeocoding(false); }
     } catch (e) {
+      if (gen !== genRef.current) return;
       setError(e instanceof Error ? e.message : "Impossibile leggere il GPX.");
       setParsing(false);
     }
