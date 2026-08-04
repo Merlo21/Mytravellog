@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
-import { loadTrips, saveTrips, loadPlans, savePlans, loadTombstones, saveTombstones, mergeTombstones } from "@/lib/storage";
+import { loadTrips, saveTrips, loadPlans, savePlans, loadTombstones, saveTombstones, mergeTombstones, Trip } from "@/lib/storage";
+import { deletePhotosForTrip } from "@/lib/photoStorage";
 import {
   BACKUP_VERSION, requestAccessToken, revokeAccessToken, fetchUserEmail,
   readBackup, writeBackup, mergeTrips, clearDriveCache,
@@ -10,6 +11,15 @@ export type DriveStatus = "guest" | "connecting" | "connected" | "syncing" | "ex
 // Impronta locale per il rilevamento delle modifiche: include SIA i viaggi SIA
 // i piani, così anche una modifica ai piani in programma fa scattare un push.
 const localSnapshot = () => JSON.stringify({ t: loadTrips(), p: loadPlans() });
+
+// La STESSA impronta, ma calcolata dai dati appena sincronizzati invece che
+// rileggendo localStorage: una modifica fatta DURANTE l'upload entrava
+// nell'hash post-write e il watcher la considerava già sincronizzata (non la
+// pushava mai più). Replica l'ordinamento di loadTrips (desc) / loadPlans (asc).
+const snapshotOf = (trips: Trip[], plans: Trip[]) => JSON.stringify({
+  t: [...trips].sort((a, b) => (b.trip_date || "").localeCompare(a.trip_date || "")),
+  p: [...plans].sort((a, b) => (a.trip_date || "").localeCompare(b.trip_date || "")),
+});
 
 interface DriveContextValue {
   status: DriveStatus;
@@ -66,22 +76,60 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     if (mountedRef.current) setStatus("expired");
   };
 
+  /**
+   * L'UNICO giro di sincronizzazione: legge il remoto, fonde (viaggi, piani,
+   * cancellazioni), salva in locale e riscrive il backup. Usato sia all'avvio
+   * (initialSync) sia dal watcher/visibilitychange (pushLocal): prima il push
+   * era un OVERWRITE cieco del file remoto — con due dispositivi attivi in
+   * parallelo l'ultimo push cancellava dal backup modifiche e tombstone
+   * dell'altro (il merge esisteva solo all'avvio).
+   */
+  const doSync = async (token: string) => {
+    const remote = await readBackup(token); // può lanciare "unauthorized"
+    const local = loadTrips();
+    const localPlans = loadPlans();
+    const now = Date.now();
+    // Cancellazioni: unione dei due lati (per ogni id vince la più recente),
+    // così valgono in entrambe le direzioni e nessun viaggio resuscita.
+    const delTrips = mergeTombstones(loadTombstones("trips"), remote?.deletedTrips ?? []);
+    const delPlans = mergeTombstones(loadTombstones("plans"), remote?.deletedPlans ?? []);
+    const merged = remote && Array.isArray(remote.trips)
+      ? mergeTrips(local, getLocalTs(), remote.trips, remote.updatedAt || 0, delTrips)
+      : local;
+    const mergedPlans = remote && Array.isArray(remote.plans)
+      ? mergeTrips(localPlans, getLocalTs(), remote.plans, remote.updatedAt || 0, delPlans)
+      : localPlans;
+    const okTrips = saveTrips(merged);
+    const okPlans = savePlans(mergedPlans);
+    saveTombstones("trips", delTrips);
+    saveTombstones("plans", delPlans);
+    // Foto/rilievi dei viaggi uccisi dal merge (cancellati altrove): senza
+    // questa pulizia i blob restavano orfani in IndexedDB per sempre.
+    const mergedIds = new Set(merged.map(t => t.id));
+    for (const t of local) if (!mergedIds.has(t.id)) deletePhotosForTrip(t.id).catch(() => { /* best effort */ });
+    // Il backup remoto si scrive COMUNQUE (protegge i dati anche se il locale
+    // è pieno); ma se il salvataggio locale è fallito per quota, non si dichiara
+    // "sincronizzato": LS_TS e hash non avanzano e lo stato diventa errore.
+    await writeBackup(token, {
+      version: BACKUP_VERSION, updatedAt: now, trips: merged, plans: mergedPlans,
+      deletedTrips: delTrips, deletedPlans: delPlans,
+    });
+    if (!okTrips || !okPlans) {
+      if (mountedRef.current) { setStatus("error"); setErrorMsg("Spazio del browser esaurito: i dati sul dispositivo non sono aggiornati (il backup su Drive sì)."); }
+      return;
+    }
+    setLocalTs(now);
+    // Hash dai dati appena scritti, NON da localStorage: una modifica arrivata
+    // durante l'upload deve risultare "da pushare", non già sincronizzata.
+    syncedHashRef.current = snapshotOf(merged, mergedPlans);
+    if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
+  };
+
   const pushLocal = async () => {
     const token = await ensureToken(false);
     if (!token) { toExpired(); return; }
-    const trips = loadTrips();
-    const plans = loadPlans();
-    const now = Date.now();
     try {
-      // Le cancellazioni viaggiano col backup: senza, l'altro dispositivo
-      // ri-aggiungerebbe (e ri-pubblicherebbe) i viaggi che qui sono stati eliminati.
-      await writeBackup(token, {
-        version: BACKUP_VERSION, updatedAt: now, trips, plans,
-        deletedTrips: loadTombstones("trips"), deletedPlans: loadTombstones("plans"),
-      });
-      setLocalTs(now);
-      syncedHashRef.current = localSnapshot();
-      if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
+      await doSync(token);
     } catch (e: any) {
       if (String(e?.message) === "unauthorized") toExpired();
       else if (mountedRef.current) setStatus("connected"); // errore transitorio: riproverà il watcher
@@ -95,31 +143,7 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     busyRef.current = true;
     try {
       if (mountedRef.current) setStatus("syncing");
-      const remote = await readBackup(token); // può lanciare "unauthorized"
-      const local = loadTrips();
-      const localPlans = loadPlans();
-      const now = Date.now();
-      // Cancellazioni: unione dei due lati (per ogni id vince la più recente),
-      // così valgono in entrambe le direzioni e nessun viaggio resuscita.
-      const delTrips = mergeTombstones(loadTombstones("trips"), remote?.deletedTrips ?? []);
-      const delPlans = mergeTombstones(loadTombstones("plans"), remote?.deletedPlans ?? []);
-      const merged = remote && Array.isArray(remote.trips)
-        ? mergeTrips(local, getLocalTs(), remote.trips, remote.updatedAt || 0, delTrips)
-        : local;
-      const mergedPlans = remote && Array.isArray(remote.plans)
-        ? mergeTrips(localPlans, getLocalTs(), remote.plans, remote.updatedAt || 0, delPlans)
-        : localPlans;
-      saveTrips(merged);
-      savePlans(mergedPlans);
-      saveTombstones("trips", delTrips);
-      saveTombstones("plans", delPlans);
-      await writeBackup(token, {
-        version: BACKUP_VERSION, updatedAt: now, trips: merged, plans: mergedPlans,
-        deletedTrips: delTrips, deletedPlans: delPlans,
-      });
-      setLocalTs(now);
-      syncedHashRef.current = localSnapshot();
-      if (mountedRef.current) { setLastSyncAt(now); setStatus("connected"); }
+      await doSync(token); // può lanciare "unauthorized" (gestito dai chiamanti)
     } finally {
       busyRef.current = false;
     }
@@ -186,6 +210,11 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     // Salvataggio anche quando si lascia la scheda (chiusura app inclusa).
     const onVisibility = () => {
       if (!document.hidden || localStorage.getItem(LS_CONNECTED) !== "1" || busyRef.current) return;
+      // Mai pushare PRIMA che il primo sync sia riuscito (hash ancora vuoto):
+      // durante la riconnessione silenziosa c'è una finestra di secondi in cui
+      // busyRef è ancora false e un cambio scheda avrebbe scritto il locale
+      // non-fuso (magari vuoto, su un dispositivo nuovo) sopra il backup.
+      if (syncedHashRef.current === "") return;
       if (localSnapshot() === syncedHashRef.current) return;
       busyRef.current = true;
       pushLocal().finally(() => { busyRef.current = false; });

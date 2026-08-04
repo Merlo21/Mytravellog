@@ -4,6 +4,8 @@ import { addPlan, promotePlanToTrip, loadTrips, loadTombstones, type Trip } from
 
 const t = (id: string, title: string, updated_at?: string): Trip =>
   ({ id, title, ...(updated_at ? { updated_at } : {}) } as unknown as Trip);
+const legacy = (id: string, title: string, created_at: string): Trip =>
+  ({ id, title, created_at } as unknown as Trip);
 
 describe("mergeTrips — unione senza perdita di dati", () => {
   it("nuovo dispositivo (locale vuoto): scarica tutti i remoti", () => {
@@ -60,6 +62,27 @@ describe("mergeTrips — confronto PER VIAGGIO (updated_at)", () => {
     const out = mergeTrips([t("a", "Locale", "non-una-data")], 5_000, [t("a", "Remoto")], 1_000);
     expect(out).toHaveLength(1);
     expect(out[0].title).toBe("Locale");
+  });
+});
+
+describe("mergeTrips — legacy senza updated_at: fallback su created_at", () => {
+  it("il tombstone vince sui legacy anche se il timestamp di collezione avanza", () => {
+    // Il bug: il fallback era il ts di COLLEZIONE, che avanza ad ogni push →
+    // `at >= ts` non era mai vero e il viaggio cancellato resuscitava per sempre.
+    const trip = legacy("x", "Vecchio", "2024-01-01T00:00:00Z");
+    const cancellatoIl = Date.parse("2024-06-01T00:00:00Z");
+    const collezioneAvanzata = Date.parse("2024-12-01T00:00:00Z"); // > tombstone
+    const out = mergeTrips([], collezioneAvanzata, [trip], collezioneAvanzata, [{ id: "x", at: cancellatoIl }]);
+    expect(out).toHaveLength(0); // created_at (gen) < cancellazione (giu): muore
+  });
+
+  it("LWW sui legacy usa created_at stabile, non il ts di collezione", () => {
+    // Locale legacy mai toccato (created gen) con collezione "fresca"; remoto
+    // MODIFICATO a giugno: deve vincere il remoto, non il ts di collezione alto.
+    const localeLegacy = legacy("y", "Mai toccato", "2024-01-01T00:00:00Z");
+    const remotoModificato = t("y", "Modificato altrove", "2024-06-01T00:00:00Z");
+    const out = mergeTrips([localeLegacy], Date.parse("2024-12-01T00:00:00Z"), [remotoModificato], 1000);
+    expect(out[0].title).toBe("Modificato altrove");
   });
 });
 

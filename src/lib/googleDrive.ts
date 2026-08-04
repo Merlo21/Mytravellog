@@ -57,6 +57,7 @@ let tokenClient: any = null;
 // Richiesta in corso: le chiamate concorrenti si agganciano alla stessa
 // Promise (evita doppi popup e callback che si pestano i piedi sul client unico).
 let pendingToken: Promise<TokenResult> | null = null;
+let pendingInteractive = false;
 
 /**
  * Richiede un access token. `interactive`:
@@ -65,10 +66,34 @@ let pendingToken: Promise<TokenResult> | null = null;
  * Con TIMEOUT di sicurezza (8s silenzioso / 120s interattivo): se GIS non
  * richiama mai né callback né error_callback, la Promise fallisce pulita
  * invece di restare appesa per sempre.
+ *
+ * Se arriva una richiesta INTERATTIVA mentre è in volo una SILENZIOSA, non ci
+ * si aggancia alla silenziosa e basta (fallirebbe senza mai mostrare il popup:
+ * era il caso "Connetti premuto durante la riconnessione d'avvio"): si aspetta
+ * l'esito — un token è un token — e in caso di fallimento si riprova col popup.
  */
 export function requestAccessToken(interactive: boolean): Promise<TokenResult> {
-  if (pendingToken) return pendingToken;
-  const p = loadGis().then(() => new Promise<TokenResult>((resolve, reject) => {
+  if (pendingToken && (pendingInteractive || !interactive)) return pendingToken;
+  if (pendingToken) {
+    const chained = pendingToken.then(tok => tok, () => issueToken(true));
+    pendingToken = chained;
+    pendingInteractive = true;
+    chained.catch(() => { /* gestita dal chiamante */ }).finally(() => {
+      if (pendingToken === chained) { pendingToken = null; pendingInteractive = false; }
+    });
+    return chained;
+  }
+  const p = issueToken(interactive);
+  pendingToken = p;
+  pendingInteractive = interactive;
+  p.catch(() => { /* gestita dal chiamante */ }).finally(() => {
+    if (pendingToken === p) { pendingToken = null; pendingInteractive = false; }
+  });
+  return p;
+}
+
+function issueToken(interactive: boolean): Promise<TokenResult> {
+  return loadGis().then(() => new Promise<TokenResult>((resolve, reject) => {
     const google = (window as any).google;
     if (!tokenClient) {
       tokenClient = google.accounts.oauth2.initTokenClient({
@@ -93,9 +118,6 @@ export function requestAccessToken(interactive: boolean): Promise<TokenResult> {
     try { tokenClient.requestAccessToken({ prompt: interactive ? "" : "none" }); }
     catch (e) { if (!done) { done = true; clearTimeout(timeout); reject(e as Error); } }
   }));
-  pendingToken = p;
-  p.catch(() => { /* gestita dal chiamante */ }).finally(() => { if (pendingToken === p) pendingToken = null; });
-  return p;
 }
 
 /** Revoca il token (al "Disconnetti"): l'app perde l'accesso finché non ri-consenti. */
@@ -129,7 +151,12 @@ export function clearDriveCache(): void { cachedFileId = null; }
 async function findBackupFileId(token: string, force = false): Promise<string | null> {
   if (cachedFileId && !force) return cachedFileId;
   const q = encodeURIComponent(`name='${BACKUP_FILE}'`);
-  const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}`;
+  // orderBy=createdTime: Drive NON ha unicità sul nome, e due dispositivi al
+  // primissimo sync possono creare due backup in gara. Senza un ordine
+  // esplicito ciascuno poteva agganciarsi a un file diverso (l'ordine della
+  // list non è specificato) e i due backup divergevano in silenzio per sempre.
+  // Così tutti scelgono lo STESSO file: il più vecchio.
+  const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&q=${q}&orderBy=createdTime`;
   const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (r.status === 401) throw new Error("unauthorized");
   if (!r.ok) throw new Error("drive_list_failed");
@@ -215,8 +242,15 @@ export function mergeTrips(
   tombstones: Tombstone[] = [],
 ): Trip[] {
   const stampOf = (t: Trip, fallback: number): number => {
-    const parsed = t.updated_at ? Date.parse(t.updated_at) : NaN;
-    return Number.isFinite(parsed) ? parsed : fallback;
+    const upd = t.updated_at ? Date.parse(t.updated_at) : NaN;
+    if (Number.isFinite(upd)) return upd;
+    // Legacy senza updated_at: si usa created_at, che è STABILE. Il timestamp
+    // di collezione (fallback) avanza ad ogni push: un tombstone su un viaggio
+    // legacy non vinceva MAI (`at >= ts` sempre falso) e il viaggio cancellato
+    // resuscitava per sempre. created_at è per forza anteriore alla cancellazione.
+    const cre = t.created_at ? Date.parse(t.created_at) : NaN;
+    if (Number.isFinite(cre)) return cre;
+    return fallback;
   };
   const byId = new Map<string, { trip: Trip; ts: number }>();
   const consider = (t: Trip, fallback: number) => {
