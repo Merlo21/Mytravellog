@@ -81,13 +81,18 @@ function HomeCityPicker({ value, onChange }: { value: HomeCity; onChange: (v: Ho
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // `cancelled`: due fetch sovrapposte facevano flickerare loading e potevano
+    // mostrare i suggerimenti della query vecchia sopra quella nuova.
+    let cancelled = false;
     const t = setTimeout(async () => {
       if (query.length < 2 || query === value?.label) { setResults([]); return; }
       setLoading(true);
-      setResults(await searchPlaces(query));
+      const r = await searchPlaces(query);
+      if (cancelled) return;
+      setResults(r);
       setLoading(false);
     }, 300);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [query]);
 
   return (

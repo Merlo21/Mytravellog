@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes, useParams } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { setStorageErrorHandler } from "./lib/storage";
 import { Loader2 } from "lucide-react";
@@ -55,6 +55,15 @@ function RouteFallback() {
   );
 }
 
+// ModificaViaggio inizializza TUTTO lo stato al mount (dal viaggio :id): senza
+// key, saltando dalla history di /modifica-viaggio/A direttamente a /B il
+// componente restava montato col form di A sotto l'URL di B — e "Salva"
+// sovrascriveva B con i dati di A. La key forza il rimontaggio al cambio id.
+function ModificaViaggioRoute() {
+  const { id } = useParams();
+  return <ModificaViaggio key={id} />;
+}
+
 // Solo in produzione: in dev il service worker intercetterebbe le richieste
 // dei moduli di Vite e romperebbe l'hot reload. Il percorso usa BASE_URL
 // perché in produzione l'app vive sotto /Mytravellog/ (vite.config.ts):
@@ -82,7 +91,7 @@ ReactDOM.createRoot(rootEl).render(
               <Route path="/statistiche" element={<Stats />} />
               <Route path="/impostazioni" element={<SettingsPage />} />
               <Route path="/nuovo-viaggio" element={<NuovoViaggio />} />
-              <Route path="/modifica-viaggio/:id" element={<ModificaViaggio />} />
+              <Route path="/modifica-viaggio/:id" element={<ModificaViaggioRoute />} />
               <Route path="/miei-viaggi" element={<MieiViaggi />} />
               <Route path="/editor-quadro" element={<QuadroEditor />} />
               <Route path="/importa-gpx" element={<ImportaGpx />} />

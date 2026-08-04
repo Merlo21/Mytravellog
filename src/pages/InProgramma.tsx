@@ -78,11 +78,16 @@ const InProgramma = () => {
   }, []);
 
   useEffect(() => {
+    // `cancelled`: il debounce annulla il timer ma non una searchPlaces già in
+    // volo — risposte fuori ordine lasciavano i suggerimenti della query
+    // precedente (stesso fix già applicato ai form dei viaggi).
+    let cancelled = false;
     const t = setTimeout(async () => {
       if (query.length < 2 || dest) { setResults([]); return; }
-      setResults((await searchPlaces(query)).slice(0, 5));
+      const r = await searchPlaces(query);
+      if (!cancelled) setResults(r.slice(0, 5));
     }, 300);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [query, dest]);
 
   const resetForm = () => { setAdding(false); setQuery(""); setResults([]); setDest(null); setTitle(""); setDateStart(""); setDateEnd(""); setPrefillWps([]); setDestMode("plane"); };
