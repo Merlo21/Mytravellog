@@ -182,12 +182,16 @@ function drawRecap(ctx: CanvasRenderingContext2D, r: YearRecap, fmt: Fmt, flag: 
     ctx.fillText(`${r.moment.tripTitle} · ${md.getDate()} ${mon}`, W - P, mTop + 36);
     ctx.textAlign = "left";
     ctx.fillStyle = "#e6e0d2"; ctx.font = 'italic 400 27px "Space Grotesk", sans-serif';
-    const lines = quoteLines(ctx, r.moment.text, W - 2 * P, 2);
+    // maxW al netto delle virgolette: vengono aggiunte DOPO lo spezzamento, e
+    // senza questo sconto la riga poteva sforare il margine destro di ~10px.
+    const lines = quoteLines(ctx, r.moment.text, W - 2 * P - ctx.measureText("«»").width, 2);
     if (lines.length) {
       lines[0] = `«${lines[0]}`;
       lines[lines.length - 1] = `${lines[lines.length - 1]}»`;
     }
-    lines.forEach((l, i) => ctx.fillText(l, P, mTop + 76 + i * 36));
+    // Interlinea 34 e partenza 72: con 76+36 la seconda riga finiva a baseline
+    // 1268, a 24px dal footer (1292) — le discendenti baciavano le maiuscole.
+    lines.forEach((l, i) => ctx.fillText(l, P, mTop + 72 + i * 34));
   }
 
   // Footer

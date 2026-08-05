@@ -246,8 +246,11 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
                     aria-label={marked ? "Rimuovi il momento del viaggio" : "Segna come il momento del viaggio"}
                     title={marked ? "Il momento del viaggio (tocca per rimuovere)" : "Segna come il momento del viaggio"}
                     style={{
-                      background: "none", border: "none", cursor: "pointer", padding: "2px 6px", lineHeight: 1,
-                      fontSize: 13, color: marked ? "#fbbf24" : "rgba(255,255,255,0.3)",
+                      // padding/corpo generosi: è l'interazione primaria della
+                      // feature e su touch 25×17px erano sotto lo standard che
+                      // l'app si è già data altrove (maniglie/tap target larghi).
+                      background: "none", border: "none", cursor: "pointer", padding: "6px 10px", lineHeight: 1,
+                      fontSize: 15, color: marked ? "#fbbf24" : "rgba(255,255,255,0.3)",
                     }}>
                     {marked ? "★" : "☆"}
                   </button>
