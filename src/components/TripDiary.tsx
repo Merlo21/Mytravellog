@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Trip, updateTrip, parseLocalDate } from "@/lib/storage";
 import { X } from "lucide-react";
 
-export interface DiaryEntry { date: string; text: string }
+export interface DiaryEntry { date: string; text: string; highlight?: boolean }
 
 interface Props {
   trip: Trip;
@@ -99,6 +99,14 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
   // già del testo; se il diario è vuoto parte in scrittura.
   const [mode, setMode] = useState<"read" | "write">(() => entries.some(e => e.text.trim().length > 0) ? "read" : "write");
 
+  // IL momento del viaggio: al più UN giorno marcato con la stella. La frase
+  // di quel giorno riemerge nel recap annuale (citazione + slide stories).
+  const [highlightDate, setHighlightDate] = useState<string | null>(() => entries.find(e => e.highlight)?.date ?? null);
+  const toggleHighlight = (date: string) => {
+    dirtyRef.current = true;
+    setHighlightDate(prev => (prev === date ? null : date)); // ri-tocco = smarca; altro giorno = sposta
+  };
+
   // Voci scritte (dallo stato `texts`, così la lettura riflette anche ciò che
   // hai appena battuto): solo giorni con testo, in ordine cronologico.
   const readEntries = useMemo(
@@ -142,6 +150,9 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
     const diary: DiaryEntry[] = Object.entries(texts)
       .map(([date, text]) => ({ date, text: text.trim() }))
       .filter(e => e.text.length > 0)
+      // La stella vive solo su un giorno CON testo: se il giorno marcato è
+      // stato svuotato, il filtro sopra l'ha già tolto e il flag decade con lui.
+      .map(e => (e.date === highlightDate ? { ...e, highlight: true as const } : e))
       .sort((a, b) => a.date.localeCompare(b.date));
     updateTrip(trip.id, { diary: diary.length ? diary : undefined });
     dirtyRef.current = false;
@@ -220,10 +231,28 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
         <div style={{ position: "relative", paddingLeft: 26, borderLeft: "1px solid rgba(96,165,250,0.22)", marginLeft: 5 }}>
           {readEntries.map((e, i) => {
             const last = i === readEntries.length - 1;
+            const marked = e.date === highlightDate;
             return (
               <div key={e.date} style={{ position: "relative", paddingBottom: last ? 0 : 24 }}>
-                <div style={{ position: "absolute", left: -31, top: 2, width: 11, height: 11, borderRadius: "50%", background: "#60a5fa", boxShadow: "0 0 8px 1px rgba(96,165,250,0.6)", border: "2px solid #060e1e" }} />
-                <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 500, letterSpacing: "1px", color: "#fbbf24" }}>{stampLabel(e.date)}</div>
+                <div style={{
+                  position: "absolute", left: -31, top: 2, width: 11, height: 11, borderRadius: "50%",
+                  background: marked ? "#fbbf24" : "#60a5fa",
+                  boxShadow: marked ? "0 0 8px 1px rgba(251,191,36,0.8)" : "0 0 8px 1px rgba(96,165,250,0.6)",
+                  border: "2px solid #060e1e",
+                }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 500, letterSpacing: "1px", color: "#fbbf24" }}>{stampLabel(e.date)}</span>
+                  <button type="button" onClick={() => toggleHighlight(e.date)} aria-pressed={marked}
+                    aria-label={marked ? "Rimuovi il momento del viaggio" : "Segna come il momento del viaggio"}
+                    title={marked ? "Il momento del viaggio (tocca per rimuovere)" : "Segna come il momento del viaggio"}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer", padding: "2px 6px", lineHeight: 1,
+                      fontSize: 13, color: marked ? "#fbbf24" : "rgba(255,255,255,0.3)",
+                    }}>
+                    {marked ? "★" : "☆"}
+                  </button>
+                  {marked && <span style={{ fontFamily: MONO, fontSize: 8, letterSpacing: "1.5px", color: "rgba(251,191,36,0.8)" }}>IL MOMENTO</span>}
+                </div>
                 <div style={{ fontFamily: MONO, fontSize: 13, lineHeight: 1.75, color: "#e6e0d2", marginTop: 7, letterSpacing: ".1px", whiteSpace: "pre-wrap" }}>
                   {e.text}
                   {last && <span style={{ display: "inline-block", width: 8, height: 16, background: "#fbbf24", opacity: 0.7, verticalAlign: -3, marginLeft: 3 }} />}

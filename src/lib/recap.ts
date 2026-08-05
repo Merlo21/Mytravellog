@@ -9,6 +9,10 @@ import { computeKmByTransportMode } from "@/components/TravelHighlights";
  */
 
 export interface YearRecord { value: number; city: string }
+/** IL momento dell'anno: la voce di diario marcata con la stella (highlight)
+ *  più recente tra i viaggi dell'anno — le parole dell'utente, scelte da lui,
+ *  che riemergono su card del recap e stories. */
+export interface YearMoment { text: string; date: string; tripTitle: string; city: string }
 export interface YearRecap {
   year: number;
   trips: number;
@@ -24,6 +28,7 @@ export interface YearRecap {
   highest: YearRecord | null;  // altitudine max
   hottest: YearRecord | null;
   coldest: YearRecord | null;
+  moment: YearMoment | null;   // il giorno-clou marcato nel diario (se c'è)
 }
 
 /** Anni (desc) con almeno un viaggio. */
@@ -92,6 +97,19 @@ export function computeYearRecap(allTrips: Trip[], year: number): YearRecap {
     }
     return rec;
   };
+  // Il momento dell'anno: tra le voci di diario marcate (highlight) con testo,
+  // vince la più recente per data (a parità, la prima incontrata). Un viaggio
+  // può marcarne al più una, ma più viaggi nell'anno possono averne una a testa.
+  let moment: YearMoment | null = null;
+  for (const t of trips) {
+    for (const e of t.diary ?? []) {
+      if (!e.highlight || !e.text?.trim()) continue;
+      if (!moment || e.date.localeCompare(moment.date) > 0) {
+        moment = { text: e.text.trim(), date: e.date, tripTitle: t.title || t.city, city: t.city };
+      }
+    }
+  }
+
   const farthest = best(t => t.max_distance_from_home_km ?? t.distance_from_home_km, t => t.max_distance_city ?? t.city, (a, b) => a > b);
   const highest = best(t => t.max_altitude_m ?? t.altitude_m, t => t.max_altitude_city ?? t.city, (a, b) => a > b);
   const hottest = best(t => t.hottest_temp_c ?? t.temperature_c, t => t.hottest_city ?? t.city, (a, b) => a > b);
@@ -100,6 +118,6 @@ export function computeYearRecap(allTrips: Trip[], year: number): YearRecap {
   return {
     year, trips: trips.length, countries: countryNames.size, cities: cities.size,
     km, days, monthsActive: months.size, byMode, topMode, topCountry,
-    farthest, highest, hottest, coldest,
+    farthest, highest, hottest, coldest, moment,
   };
 }

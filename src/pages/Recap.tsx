@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Share2, Download, Play } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
-import { loadTrips } from "@/lib/storage";
+import { loadTrips, parseLocalDate } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { computeYearRecap, availableYears, YearRecap } from "@/lib/recap";
 import { RecapStories } from "@/components/RecapStories";
@@ -14,6 +14,30 @@ const MODE_COLOR: Record<string, string> = {
 const MODE_LABEL: Record<string, string> = {
   plane: "Aereo", train: "Treno", car: "Auto", ship: "Nave", walk: "A piedi", bici: "Bici", moto: "Moto",
 };
+
+/** Spezza una citazione in ≤ maxLines righe che stanno in maxW; se il testo
+ *  avanza, l'ultima riga viene troncata con l'ellissi (misura reale, non
+ *  conteggio caratteri: coi font proporzionali è l'unico criterio onesto). */
+function quoteLines(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxLines: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let cur = "";
+  let overflow = false;
+  for (const w of words) {
+    const t = cur ? `${cur} ${w}` : w;
+    if (!cur || ctx.measureText(t).width <= maxW) { cur = t; continue; }
+    if (lines.length === maxLines - 1) { overflow = true; break; }
+    lines.push(cur);
+    cur = w;
+  }
+  if (cur) lines.push(cur);
+  if (overflow) {
+    let last = lines[maxLines - 1] ?? "";
+    while (last && ctx.measureText(last + "…").width > maxW) last = last.slice(0, -1).trimEnd();
+    lines[maxLines - 1] = last + "…";
+  }
+  return lines.slice(0, maxLines);
+}
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -102,27 +126,29 @@ function drawRecap(ctx: CanvasRenderingContext2D, r: YearRecap, fmt: Fmt, flag: 
     lx += 32 + ctx.measureText(label).width + 26;
   }
 
-  // Record 2x2 (minimali, valore in ambra)
+  // Record 2x2 (minimali, valore in ambra). Con IL MOMENTO in fondo alla card
+  // le righe si stringono un po' (150→120) per fargli spazio senza sacrifici.
+  const hasMoment = !!r.moment;
   const recs: [string, string, string][] = [
     ["Più lontano", r.farthest ? fmt.dist(r.farthest.value) : "—", r.farthest?.city ?? ""],
     ["Più in alto", r.highest ? fmt.alt(r.highest.value) : "—", r.highest?.city ?? ""],
     ["Più caldo", r.hottest ? fmt.temp(r.hottest.value) : "—", r.hottest?.city ?? ""],
     ["Più freddo", r.coldest ? fmt.temp(r.coldest.value) : "—", r.coldest?.city ?? ""],
   ];
-  const rTop = ly + 44, colRW = (W - 2 * P) / 2, rowH = 150;
+  const rTop = ly + 44, colRW = (W - 2 * P) / 2, rowH = hasMoment ? 120 : 150;
   ctx.textAlign = "left";
   recs.forEach(([lab, val, sub], i) => {
     const x = P + (i % 2) * colRW, y = rTop + Math.floor(i / 2) * rowH;
-    ls("1px"); ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.font = '700 21px "Space Grotesk", sans-serif';
-    ctx.fillText(lab.toUpperCase(), x, y + 30); ls("0px");
-    ctx.fillStyle = "#fbbf24"; ctx.font = '800 44px "JetBrains Mono", monospace';
-    ctx.fillText(val, x, y + 86);
-    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = '400 24px "Space Grotesk", sans-serif';
-    if (sub) ctx.fillText(sub, x, y + 122);
+    ls("1px"); ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.font = hasMoment ? '700 19px "Space Grotesk", sans-serif' : '700 21px "Space Grotesk", sans-serif';
+    ctx.fillText(lab.toUpperCase(), x, y + (hasMoment ? 26 : 30)); ls("0px");
+    ctx.fillStyle = "#fbbf24"; ctx.font = hasMoment ? '800 38px "JetBrains Mono", monospace' : '800 44px "JetBrains Mono", monospace';
+    ctx.fillText(val, x, y + (hasMoment ? 70 : 86));
+    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = hasMoment ? '400 21px "Space Grotesk", sans-serif' : '400 24px "Space Grotesk", sans-serif';
+    if (sub) ctx.fillText(sub, x, y + (hasMoment ? 102 : 122));
   });
 
   // Paese dell'anno
-  const cTop = rTop + 2 * rowH + 30;
+  const cTop = rTop + 2 * rowH + (hasMoment ? 24 : 30);
   if (r.topCountry) {
     let tx = P; const fw = 70, fh = 48;
     if (flag && flag.complete && flag.naturalWidth > 0) {
@@ -135,6 +161,33 @@ function drawRecap(ctx: CanvasRenderingContext2D, r: YearRecap, fmt: Fmt, flag: 
     ctx.fillText(r.topCountry.name, tx, cTop + 30);
     ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = '400 24px "Space Grotesk", sans-serif';
     ctx.fillText("paese dell'anno", tx, cTop + 64);
+  }
+
+  // ★ Il momento dell'anno: la voce di diario marcata dall'utente — le SUE
+  // parole sulla card (e quindi nel PNG condiviso). Senza momento, layout
+  // identico a prima.
+  if (r.moment) {
+    const mTop = cTop + (r.topCountry ? 92 : 16);
+    ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(P, mTop); ctx.lineTo(W - P, mTop); ctx.stroke();
+    ls("2px");
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#fbbf24"; ctx.font = '700 20px "Space Grotesk", sans-serif';
+    ctx.fillText("★ IL MOMENTO DELL'ANNO", P, mTop + 36);
+    ls("0px");
+    const md = parseLocalDate(r.moment.date);
+    const mon = md.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = '400 20px "Space Grotesk", sans-serif';
+    ctx.fillText(`${r.moment.tripTitle} · ${md.getDate()} ${mon}`, W - P, mTop + 36);
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#e6e0d2"; ctx.font = 'italic 400 27px "Space Grotesk", sans-serif';
+    const lines = quoteLines(ctx, r.moment.text, W - 2 * P, 2);
+    if (lines.length) {
+      lines[0] = `«${lines[0]}`;
+      lines[lines.length - 1] = `${lines[lines.length - 1]}»`;
+    }
+    lines.forEach((l, i) => ctx.fillText(l, P, mTop + 76 + i * 36));
   }
 
   // Footer

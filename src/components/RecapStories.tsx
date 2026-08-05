@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { YearRecap } from "@/lib/recap";
+import { parseLocalDate } from "@/lib/storage";
 
 interface Fmt { dist: (km: number) => string; alt: (m: number) => string; temp: (c: number) => string }
 
@@ -97,13 +98,41 @@ export function RecapStories({ recap: r, fmt, flagUrl, onClose }: { recap: YearR
     );
   }
 
+  // La riga di congedo vive sull'ULTIMA slide effettiva: sul momento se c'è
+  // (chiusura calda con le parole dell'utente), altrimenti sul paese dell'anno.
+  const farewell = <div style={{ ...sub, marginTop: 24 }}>Alla prossima avventura ✦</div>;
+
   if (r.topCountry) {
     slides.push(
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%" }}>
         <div style={kicker}>Il tuo paese dell'anno</div>
         {flagUrl && <img src={flagUrl} alt="" width="120" height="80" style={{ borderRadius: 8, objectFit: "cover", border: "2px solid rgba(255,255,255,0.85)", marginTop: 22, marginBottom: 16 }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 800, fontSize: 48, color: "#f0f4ff" }}>{r.topCountry.name}</div>
-        <div style={{ ...sub, marginTop: 24 }}>Alla prossima avventura ✦</div>
+        {!r.moment && farewell}
+      </div>
+    );
+  }
+
+  // ★ Il momento dell'anno: la voce di diario scelta dall'utente — le sue
+  // parole come chiusura delle stories, al posto di un numero.
+  if (r.moment) {
+    const md = parseLocalDate(r.moment.date);
+    const mon = md.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
+    slides.push(
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "100%", textAlign: "center" }}>
+        <div style={{ fontSize: 34, color: "#fbbf24", marginBottom: 14 }}>★</div>
+        <div style={kicker}>Il momento dell'anno</div>
+        <div style={{
+          fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 22, lineHeight: 1.6,
+          color: "#f0f4ff", marginTop: 20, maxWidth: 340,
+          display: "-webkit-box", WebkitLineClamp: 6, WebkitBoxOrient: "vertical", overflow: "hidden",
+        }}>
+          «{r.moment.text}»
+        </div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 16 }}>
+          {r.moment.tripTitle} · {md.getDate()} {mon} {md.getFullYear()}
+        </div>
+        {farewell}
       </div>
     );
   }

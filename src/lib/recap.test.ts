@@ -74,3 +74,41 @@ describe("computeYearRecap", () => {
     expect(r.topCountry).toBeNull();
   });
 });
+
+describe("il momento dell'anno (diario → recap)", () => {
+  it("senza giorni marcati il momento è null (layout del recap invariato)", () => {
+    const r = computeYearRecap([makeTrip({ diary: [{ date: "2026-06-02", text: "Bello." }] })], 2026);
+    expect(r.moment).toBeNull();
+  });
+
+  it("pesca la voce marcata (highlight) col titolo del viaggio", () => {
+    const trips = [makeTrip({
+      title: "Giappone, primavera", city: "Tokyo", trip_date: "2026-04-03",
+      diary: [
+        { date: "2026-04-04", text: "Arrivo col fuso." },
+        { date: "2026-04-06", text: "I ciliegi di Ueno al picco.", highlight: true },
+      ],
+    })];
+    const r = computeYearRecap(trips, 2026);
+    expect(r.moment).toEqual({
+      text: "I ciliegi di Ueno al picco.", date: "2026-04-06",
+      tripTitle: "Giappone, primavera", city: "Tokyo",
+    });
+  });
+
+  it("più viaggi marcati nell'anno: vince il momento più recente", () => {
+    const trips = [
+      makeTrip({ trip_date: "2026-03-01", title: "A", diary: [{ date: "2026-03-02", text: "Primo.", highlight: true }] }),
+      makeTrip({ trip_date: "2026-09-01", title: "B", diary: [{ date: "2026-09-03", text: "Secondo.", highlight: true }] }),
+    ];
+    expect(computeYearRecap(trips, 2026).moment?.text).toBe("Secondo.");
+  });
+
+  it("ignora i marcati senza testo e i viaggi di altri anni", () => {
+    const trips = [
+      makeTrip({ trip_date: "2026-05-01", diary: [{ date: "2026-05-02", text: "   ", highlight: true }] }),
+      makeTrip({ trip_date: "2025-05-01", diary: [{ date: "2025-05-02", text: "Anno sbagliato.", highlight: true }] }),
+    ];
+    expect(computeYearRecap(trips, 2026).moment).toBeNull();
+  });
+});

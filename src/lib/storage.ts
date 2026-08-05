@@ -10,7 +10,7 @@ export type Trip = {
   notes: string | null;
   purpose?: string | null; // motivo del viaggio: "Vacanza" | "Lavoro" (scelta singola, opzionale)
   companions?: string[];   // nomi delle persone con cui hai viaggiato (opzionali; assenti sui viaggi vecchi)
-  diary?: { date: string; text: string }[]; // racconto giorno-per-giorno (date YYYY-MM-DD; solo i giorni scritti)
+  diary?: { date: string; text: string; highlight?: boolean }[]; // racconto giorno-per-giorno (date YYYY-MM-DD; solo i giorni scritti); highlight = IL momento del viaggio (al più uno), riemerge nel recap
   status?: "planned" | "done"; // "planned" = viaggio in programma (vive nel bucket piani, non nel diario); assente/"done" = viaggio del diario
   budget?: { label: string; amount: number; paid?: number }[]; // preventivo per categoria (importo stimato + eventuale già pagato)
   checklist?: { text: string; done: boolean }[];               // "da organizzare" prima di partire
