@@ -9,7 +9,7 @@ import { tripTotalKm } from "@/lib/flyover";
 import { fmtDistance, useSettings } from "@/lib/settings";
 import { Compass, Globe, MapPin, Pencil, Plane, Plus, Video, X, ChevronDown } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
-import { StarField } from "@/components/StarField";
+import { StarField, StarFieldController } from "@/components/StarField";
 import { TripFlyover } from "@/components/TripFlyover";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
@@ -143,8 +143,10 @@ function HomeInner() {
 
 
   const [selectedCity, setSelectedCity] = useState<CityInfo | null>(null);
-  const [starOffset, setStarOffset] = useState({ x: 0, y: 0 });
-  const [starMouse, setStarMouse] = useState<{x:number;y:number}|null>(null);
+  // Interazione stelle via handle imperativo, NON via state: con lo state la
+  // Home si ri-renderizzava per intero ad ogni mousemove sul globo (60-120/s)
+  // — vedi il commento storico su StatCard, che ne curava solo il sintomo.
+  const starCtl = useRef<StarFieldController | null>(null);
   // Ultima posizione del dito per il parallax delle stelle su touch: il globo
   // (MapLibre) ruota col drag anche su mobile, ma onMouseMove non scatta col
   // dito, quindi lo sfondo stellato restava fermo — a differenza del browser
@@ -239,24 +241,25 @@ function HomeInner() {
           {/* Globe */}
           <div style={{ flex:1, position:"relative", overflow:"hidden", transition:"all 0.3s ease" }}
             onMouseMove={(e) => {
-              if (e.buttons===1) setStarOffset(p=>({x:p.x+e.movementX*0.5,y:p.y+e.movementY*0.5}));
-              setStarMouse({x: e.clientX, y: e.clientY});
+              const drag = e.buttons === 1;
+              starCtl.current?.pointerMove(e.clientX, e.clientY,
+                drag ? e.movementX * 0.5 : 0, drag ? e.movementY * 0.5 : 0);
             }}
-            onMouseLeave={() => setStarMouse(null)}
-            onTouchStart={(e) => { const t = e.touches[0]; if (t) { lastTouchRef.current = { x: t.clientX, y: t.clientY }; setStarMouse({ x: t.clientX, y: t.clientY }); } }}
+            onMouseLeave={() => starCtl.current?.pointerLeave()}
+            onTouchStart={(e) => { const t = e.touches[0]; if (t) { lastTouchRef.current = { x: t.clientX, y: t.clientY }; starCtl.current?.pointerMove(t.clientX, t.clientY); } }}
             onTouchMove={(e) => {
               // Stesso parallax del mouse ma col dito: spostamento tra due
               // touchmove (il touch non ha movementX/Y), stesso fattore 0.5.
+              // pointerMove aggiorna anche il NOME della costellazione più
+              // vicina (prima su touch restava fermo → niente nomi).
               const t = e.touches[0]; if (!t) return;
               const last = lastTouchRef.current;
-              if (last) setStarOffset(p => ({ x: p.x + (t.clientX - last.x) * 0.5, y: p.y + (t.clientY - last.y) * 0.5 }));
+              starCtl.current?.pointerMove(t.clientX, t.clientY,
+                last ? (t.clientX - last.x) * 0.5 : 0, last ? (t.clientY - last.y) * 0.5 : 0);
               lastTouchRef.current = { x: t.clientX, y: t.clientY };
-              // Come onMouseMove: aggiorna starMouse così compare il NOME della
-              // costellazione più vicina (prima su touch restava fermo → niente nomi).
-              setStarMouse({ x: t.clientX, y: t.clientY });
             }}
-            onTouchEnd={() => { lastTouchRef.current = null; setStarMouse(null); }}>
-            <StarField offsetX={starOffset.x} offsetY={starOffset.y} mousePos={starMouse} />
+            onTouchEnd={() => { lastTouchRef.current = null; starCtl.current?.pointerLeave(); }}>
+            <StarField controllerRef={starCtl} />
             <WorldMap
               trips={trips}
               selectedId={selectedId}

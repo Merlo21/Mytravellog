@@ -42,23 +42,45 @@ function starToXY(ra: number, dec: number, ox: number, oy: number, W: number, H:
   return [x, y];
 }
 
-interface Props {
-  offsetX: number;
-  offsetY: number;
-  mousePos?: {x:number;y:number} | null;
+/**
+ * Handle imperativo: il genitore (la Home) inoltra qui i pointer event del
+ * globo SENZA passare da stato React. Prima offset e posizione mouse erano
+ * state della Home → ogni mousemove ri-renderizzava l'intera pagina 60-120
+ * volte al secondo, e ogni frame di drag ridisegnava ~1200 primitive canvas
+ * fuori da qualsiasi throttling.
+ */
+export interface StarFieldController {
+  /** dragDX/dragDY: spostamento già scalato del parallax (0 se non si trascina). */
+  pointerMove(clientX: number, clientY: number, dragDX?: number, dragDY?: number): void;
+  pointerLeave(): void;
 }
 
-export function StarField({ offsetX, offsetY, mousePos }: Props) {
+interface Props {
+  /** Ref normale (non forwardRef): il mock dei test resta `() => null`. */
+  controllerRef?: React.MutableRefObject<StarFieldController | null>;
+}
+
+export function StarField({ controllerRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [hoveredConst, setHoveredConst] = useState<string | null>(null);
-  const [labelPos, setLabelPos] = useState<{x:number;y:number}>({x:0,y:0});
+  // Offset del parallax: ref, NON state — il ridisegno passa dal rAF sotto.
+  const offsetRef = useRef({ x: 0, y: 0 });
+  // Unico state: l'etichetta della costellazione. Aggiornato con bail-out
+  // (stesso nome/posizione → stesso oggetto → React non ri-renderizza).
+  const [label, setLabel] = useState<{ name: string; x: number; y: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const needsRedrawRef = useRef(false);
+  // Il draw vive dentro l'effect di mount (chiude su canvas): il tick rAF lo
+  // raggiunge tramite questo ref.
+  const drawRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const draw = () => {
+      const { x: offsetX, y: offsetY } = offsetRef.current;
       const W = canvas.offsetWidth;
       const H = canvas.offsetHeight;
       if (!W || !H) return;
@@ -158,43 +180,29 @@ export function StarField({ offsetX, offsetY, mousePos }: Props) {
     };
 
     draw();
+    drawRef.current = draw;
     const ro = new ResizeObserver(draw);
     ro.observe(canvas);
-    return () => ro.disconnect();
-  }, [offsetX, offsetY]);
+    return () => {
+      ro.disconnect();
+      drawRef.current = null;
+      if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    };
+  // Mount-only: draw legge offsetRef, il re-disegno passa dal tick rAF.
+  }, []);
 
-  useEffect(() => {
-    if (!mousePos || !containerRef.current) { if (!mousePos) setHoveredConst(null); return; }
-    const rect = containerRef.current.getBoundingClientRect();
-    const mx = mousePos.x - rect.left;
-    const my = mousePos.y - rect.top;
-    const W = rect.width, H = rect.height;
-    let closest: string | null = null;
-    let minDist = 80;
-    CONSTELLATIONS.forEach(({ name, stars }) => {
-      const pts = stars.filter(i => i < STARS.length)
-        .map(i => starToXY(STARS[i][0], STARS[i][1], offsetX, offsetY, W, H));
-      if (!pts.length) return;
-      const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-      const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-      const dist = Math.hypot(mx - cx, my - cy);
-      if (dist < minDist) { minDist = dist; closest = name; setLabelPos({ x: cx, y: cy - 18 }); }
-    });
-    setHoveredConst(closest);
-  }, [mousePos, offsetX, offsetY]);
-
-  // Mouse/touch handler — find nearest constellation centroid
-  const handlePointer = (e: React.MouseEvent | React.TouchEvent) => {
+  // Ricalcola l'etichetta della costellazione più vicina al puntatore.
+  // setLabel con bail-out: se nome e posizione non cambiano, React salta il render.
+  const updateLabel = (clientX: number, clientY: number) => {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
     const mx = clientX - rect.left;
     const my = clientY - rect.top;
     const W = rect.width, H = rect.height;
+    const { x: offsetX, y: offsetY } = offsetRef.current;
 
-    let closest: string | null = null;
+    let closest: { name: string; x: number; y: number } | null = null;
     let minDist = 80; // px threshold
 
     CONSTELLATIONS.forEach(({ name, stars }) => {
@@ -207,26 +215,63 @@ export function StarField({ offsetX, offsetY, mousePos }: Props) {
       const dist = Math.hypot(mx - cx, my - cy);
       if (dist < minDist) {
         minDist = dist;
-        closest = name;
-        setLabelPos({ x: cx, y: cy - 18 });
+        closest = { name, x: cx, y: cy - 18 };
       }
     });
 
-    setHoveredConst(closest);
+    const next = closest;
+    setLabel(prev => {
+      if (prev === next) return prev;
+      if (prev && next && prev.name === next.name && prev.x === next.x && prev.y === next.y) return prev;
+      return next;
+    });
   };
 
+  // Un solo lavoro per frame, qualunque sia la raffica di eventi in ingresso.
+  const tick = () => {
+    rafRef.current = null;
+    if (needsRedrawRef.current) {
+      needsRedrawRef.current = false;
+      drawRef.current?.();
+    }
+    const p = pendingPointerRef.current;
+    if (p) {
+      pendingPointerRef.current = null;
+      updateLabel(p.x, p.y);
+    }
+  };
+  const schedule = () => {
+    if (rafRef.current == null) rafRef.current = requestAnimationFrame(tick);
+  };
+
+  useEffect(() => {
+    if (!controllerRef) return;
+    controllerRef.current = {
+      pointerMove(clientX, clientY, dragDX = 0, dragDY = 0) {
+        if (dragDX || dragDY) {
+          offsetRef.current = { x: offsetRef.current.x + dragDX, y: offsetRef.current.y + dragDY };
+          needsRedrawRef.current = true;
+        }
+        pendingPointerRef.current = { x: clientX, y: clientY };
+        schedule();
+      },
+      pointerLeave() {
+        pendingPointerRef.current = null;
+        setLabel(null);
+      },
+    };
+    return () => { controllerRef.current = null; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controllerRef]);
+
   return (
-    <div ref={containerRef} style={{ position:"absolute", inset:0, zIndex:0 }}
-      onMouseMove={handlePointer}
-      onMouseLeave={() => setHoveredConst(null)}
-      onTouchMove={handlePointer}
-      onTouchEnd={() => setHoveredConst(null)}>
+    <div ref={containerRef} style={{ position:"absolute", inset:0, zIndex:0 }}>
       <canvas ref={canvasRef} style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none" }} />
-      {hoveredConst && (
+      {label && (
         <div style={{
           position: "absolute",
-          left: labelPos.x,
-          top: labelPos.y,
+          left: label.x,
+          top: label.y,
           transform: "translate(-50%, -100%)",
           pointerEvents: "none",
           fontFamily: "ui-serif, Georgia, serif",
@@ -240,7 +285,7 @@ export function StarField({ offsetX, offsetY, mousePos }: Props) {
           transition: "opacity 0.3s",
           userSelect: "none",
         }}>
-          {hoveredConst}
+          {label.name}
         </div>
       )}
     </div>
