@@ -1,7 +1,7 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Trip, formatTripDate, parseLocalDate } from "@/lib/storage";
+import { Trip, formatTripDate, parseLocalDate, isValidDateISO } from "@/lib/storage";
 import { fmtDistance, fmtTemp, useSettings } from "@/lib/settings";
 import { Plane, Train, Car, Ship, Footprints, Bike, Pencil, Trash2, Video, X, MoreVertical } from "lucide-react";
 import { Motorcycle } from "@/components/icons/Motorcycle";
@@ -30,7 +30,9 @@ const SEASON_COLOR_BY_MONTH = [
   "#fb923c", "#fb923c", "#c2410c", "#c2410c", "#c2410c", "#60a5fa",
 ];
 export function seasonColor(tripDateISO: string): string {
-  return SEASON_COLOR_BY_MONTH[parseLocalDate(tripDateISO).getMonth()];
+  // Data malformata → getMonth() NaN → indice undefined → color:undefined
+  // sulla riga della data: si ricade sul blu di tema.
+  return SEASON_COLOR_BY_MONTH[parseLocalDate(tripDateISO).getMonth()] ?? "#60a5fa";
 }
 
 function abbr(city: string) {
@@ -110,7 +112,10 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
   // Inclusivo (1-5 giugno = 5 giorni), non per differenza di date: stessa
   // convenzione della heatmap in Statistiche, che prima contava 5 per questo
   // stesso viaggio mentre qui si leggeva "4g" — numeri diversi per lo stesso dato.
-  const days = trip.date_end
+  // Entrambe le date devono essere valide: con una malformata il calcolo dava
+  // NaN, e l'espressione {days && days > 0 && …} sotto renderizzava
+  // letteralmente "NaN" sul biglietto (NaN è falsy ma React lo stampa).
+  const days = trip.date_end && isValidDateISO(trip.date_end) && isValidDateISO(trip.trip_date)
     ? Math.round((parseLocalDate(trip.date_end).getTime() - parseLocalDate(trip.trip_date).getTime()) / 86400000) + 1
     : null;
 

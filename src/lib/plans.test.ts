@@ -33,4 +33,9 @@ describe("planCountdown", () => {
   it("senza data di ritorno, partenza passata → returned", () => {
     expect(planCountdown(plan("2026-07-20"), TODAY).returned).toBe(true);
   });
+
+  it("data malformata → 'data non valida', non 'sei tornato?' né 'tra NaN giorni'", () => {
+    expect(planCountdown(plan("non-una-data"), TODAY)).toEqual({ text: "data non valida", urgent: false, returned: false });
+    expect(planCountdown(plan("2026-09-01", "boh"), TODAY)).toEqual({ text: "data non valida", urgent: false, returned: false });
+  });
 });

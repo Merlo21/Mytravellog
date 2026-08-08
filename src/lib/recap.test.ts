@@ -49,6 +49,15 @@ describe("computeYearRecap", () => {
     expect(r.km).toBeLessThan(345);
   });
 
+  it("una date_end assurda (anno 9999) non gonfia i giorni oltre 366", () => {
+    const trips = [
+      makeTrip({ trip_date: "2026-06-01", date_end: "9999-12-31" }),
+      makeTrip({ trip_date: "2026-07-01", date_end: "2026-07-02" }), // 2 giorni
+    ];
+    const r = computeYearRecap(trips, 2026);
+    expect(r.days).toBe(366 + 2);
+  });
+
   it("individua i record (più lontano/alto/caldo/freddo) e il paese top", () => {
     const trips = [
       makeTrip({ trip_date: "2026-01-01", country: "Italia", country_code: "IT",

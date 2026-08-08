@@ -21,6 +21,12 @@ export function planCountdown(trip: Trip, todayISO: string = todayLocalISO()): P
   const today = parseLocalDate(todayISO).getTime();
   const start = parseLocalDate(trip.trip_date).getTime();
   const end = parseLocalDate(trip.date_end || trip.trip_date).getTime();
+  // Data malformata → NaN: tutti i confronti sotto sarebbero falsi e un
+  // viaggio futuro finiva su "sei tornato?" (o "tra NaN giorni" con anni
+  // fuori scala). Meglio dirlo com'è.
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return { text: "data non valida", urgent: false, returned: false };
+  }
   const days = Math.round((start - today) / 86400000);
   if (days > 1) return { text: `tra ${days} giorni`, urgent: days <= 14, returned: false };
   if (days === 1) return { text: "domani", urgent: true, returned: false };

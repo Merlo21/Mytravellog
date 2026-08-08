@@ -11,6 +11,7 @@ import {
   deleteTrip,
   parseLocalDate,
   formatTripDate,
+  isValidDateISO,
   todayLocalISO,
   type Trip,
 } from "./storage";
@@ -295,5 +296,33 @@ describe("formatTripDate", () => {
 
   it("include l'anno nella stringa formattata", () => {
     expect(formatTripDate("2024-06-15")).toContain("2024");
+  });
+
+  it("data malformata → '—', mai 'Invalid Date'", () => {
+    expect(formatTripDate("non-una-data")).toBe("—");
+    expect(formatTripDate("20261-06-01")).toBe("—"); // refuso anno a 5 cifre
+    expect(formatTripDate("")).toBe("—");
+  });
+});
+
+describe("isValidDateISO", () => {
+  it("accetta le date reali nel range 1900-2100", () => {
+    expect(isValidDateISO("2026-08-08")).toBe(true);
+    expect(isValidDateISO("1900-01-01")).toBe(true);
+    expect(isValidDateISO("2100-12-31")).toBe(true);
+  });
+
+  it("rifiuta formato sbagliato, non-date e null/undefined", () => {
+    expect(isValidDateISO("non-una-data")).toBe(false);
+    expect(isValidDateISO("2026-13-45")).toBe(false); // mese/giorno inesistenti
+    expect(isValidDateISO("20261-06-01")).toBe(false); // anno a 5 cifre
+    expect(isValidDateISO(null)).toBe(false);
+    expect(isValidDateISO(undefined)).toBe(false);
+    expect(isValidDateISO("")).toBe(false);
+  });
+
+  it("rifiuta gli anni fuori dal range 1900-2100 anche se parsabili", () => {
+    expect(isValidDateISO("1899-12-31")).toBe(false);
+    expect(isValidDateISO("9999-01-01")).toBe(false); // valida per Date, assurda per un viaggio
   });
 });

@@ -536,6 +536,9 @@ export function TripFormFields({
           <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, marginLeft:4 }}>
             <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</span>
             <input type="date"
+              // min/max: su desktop l'anno si digita a mano e un refuso tipo
+              // "20261" produceva una data che avvelenava biglietto/timeline.
+              min="1900-01-01" max="2100-12-31"
               style={{ background:"transparent", border:"none", outline:"none",
                 color:"#f0f4ff", fontSize:12, fontWeight:600, width:"100%",
                 colorScheme:"dark", padding:0, marginTop:1 }}
@@ -561,6 +564,7 @@ export function TripFormFields({
           <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, marginLeft:2 }}>
             <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</span>
             <input type="date"
+              min="1900-01-01" max="2100-12-31"
               style={{ background:"transparent", border:"none", outline:"none",
                 color: dateEnd ? "#f0f4ff" : "rgba(255,255,255,0.35)", fontSize:12, fontWeight:600, width:"100%",
                 colorScheme:"dark", padding:0, marginTop:1 }}

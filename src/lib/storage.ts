@@ -247,6 +247,22 @@ export function parseLocalDate(iso: string): Date {
 }
 
 /**
+ * Data valida per un viaggio: formato YYYY-MM-DD, parsabile, anno 1900-2100.
+ * Il cap sugli anni non è pedanteria: su desktop l'input date permette di
+ * digitare a mano anni a 4+ cifre arbitrari ("9999", o "20261" per un refuso),
+ * e una sola data così avvelenava a cascata biglietto, timeline del globo,
+ * recap e poster (NaN/"Invalid Date"). I dati possono inoltre arrivare da
+ * backup/sync Drive o GPX, quindi la difesa serve anche a valle dei form.
+ */
+export function isValidDateISO(iso: string | null | undefined): iso is string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const t = parseLocalDate(iso).getTime();
+  if (!Number.isFinite(t)) return false;
+  const y = Number(iso.slice(0, 4));
+  return y >= 1900 && y <= 2100;
+}
+
+/**
  * Data di oggi in YYYY-MM-DD, nel fuso orario locale — non
  * `new Date().toISOString().slice(0,10)`, che legge il calendario UTC: tra
  * mezzanotte e l'ora del proprio fuso (es. le prime ~1-2 ore in Italia)
@@ -258,6 +274,10 @@ export function todayLocalISO(): string {
 }
 
 export function formatTripDate(iso: string): string {
+  // "—" invece di "Invalid Date" per le date malformate: questo formatter è
+  // l'unico sink di biglietto, flyover e poster, quindi la guardia qui li
+  // copre tutti in un colpo.
+  if (!isValidDateISO(iso)) return "—";
   return parseLocalDate(iso).toLocaleDateString("it-IT", {
     day: "2-digit",
     month: "short",

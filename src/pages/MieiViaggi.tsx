@@ -102,7 +102,12 @@ export default function MieiViaggi() {
 
   // parseLocalDate, non new Date(iso): la stringa date-only è parsata in UTC e
   // nei fusi negativi (Americhe) un viaggio del 1° gennaio finiva nell'anno prima.
-  const tripYear = (t: Trip) => t.trip_date ? parseLocalDate(t.trip_date).getFullYear().toString() : "—";
+  const tripYear = (t: Trip) => {
+    if (!t.trip_date) return "—";
+    const y = parseLocalDate(t.trip_date).getFullYear();
+    // Data malformata → getFullYear() NaN → chip filtro e intestazione "NaN".
+    return Number.isFinite(y) ? y.toString() : "—";
+  };
 
   // Anni disponibili calcolati su tutti i viaggi (non sui filtrati): i chip
   // restano stabili mentre si scrive nella ricerca, invece di sparire.

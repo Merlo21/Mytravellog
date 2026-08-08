@@ -176,10 +176,13 @@ function drawRecap(ctx: CanvasRenderingContext2D, r: YearRecap, fmt: Fmt, flag: 
     ctx.fillText("★ IL MOMENTO DELL'ANNO", P, mTop + 36);
     ls("0px");
     const md = parseLocalDate(r.moment.date);
-    const mon = md.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
+    // Data di diario malformata → "· NaN Invalid Date" sul PNG condiviso:
+    // meglio il solo titolo del viaggio.
+    const mdValid = Number.isFinite(md.getTime());
+    const mon = mdValid ? md.toLocaleDateString("it-IT", { month: "short" }).replace(".", "") : "";
     ctx.textAlign = "right";
     ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = '400 20px "Space Grotesk", sans-serif';
-    ctx.fillText(`${r.moment.tripTitle} · ${md.getDate()} ${mon}`, W - P, mTop + 36);
+    ctx.fillText(mdValid ? `${r.moment.tripTitle} · ${md.getDate()} ${mon}` : r.moment.tripTitle, W - P, mTop + 36);
     ctx.textAlign = "left";
     ctx.fillStyle = "#e6e0d2"; ctx.font = 'italic 400 27px "Space Grotesk", sans-serif';
     // maxW al netto delle virgolette: vengono aggiunte DOPO lo spezzamento, e

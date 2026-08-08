@@ -260,7 +260,10 @@ export function WorldMap({
   const dayNum = (iso: string) => new Date(iso + "T00:00:00").getTime();
   const timeRange = useMemo(() => {
     if (ordered.length < 2) return null; // <2 viaggi: niente barra del tempo
-    const ts = ordered.map(t => dayNum(t.trip_date));
+    // Le date malformate vanno scartate: un solo NaN rendeva min/max NaN e
+    // lo scrubber (input range, label, riga degli anni) moriva per TUTTI.
+    const ts = ordered.map(t => dayNum(t.trip_date)).filter(Number.isFinite);
+    if (ts.length < 2) return null;
     return { min: Math.min(...ts), max: Math.max(...ts) };
   }, [ordered]);
   const [cursor, setCursor] = useState<number>(Infinity);

@@ -117,7 +117,9 @@ export function RecapStories({ recap: r, fmt, flagUrl, onClose }: { recap: YearR
   // parole come chiusura delle stories, al posto di un numero.
   if (r.moment) {
     const md = parseLocalDate(r.moment.date);
-    const mon = md.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
+    // Data di diario malformata → la slide diceva "· NaN Invalid Date NaN".
+    const mdValid = Number.isFinite(md.getTime());
+    const mon = mdValid ? md.toLocaleDateString("it-IT", { month: "short" }).replace(".", "") : "";
     slides.push(
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "100%", textAlign: "center" }}>
         <div style={{ fontSize: 34, color: "#fbbf24", marginBottom: 14 }}>★</div>
@@ -130,7 +132,7 @@ export function RecapStories({ recap: r, fmt, flagUrl, onClose }: { recap: YearR
           «{r.moment.text}»
         </div>
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 16 }}>
-          {r.moment.tripTitle} · {md.getDate()} {mon} {md.getFullYear()}
+          {mdValid ? `${r.moment.tripTitle} · ${md.getDate()} ${mon} ${md.getFullYear()}` : r.moment.tripTitle}
         </div>
         {farewell}
       </div>

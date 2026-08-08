@@ -79,7 +79,10 @@ export function computeYearRecap(allTrips: Trip[], year: number): YearRecap {
     const d = Math.round((new Date(t.date_end).getTime() - new Date(t.trip_date).getTime()) / 86400000);
     // date_end malformata → d = NaN: senza guardia, un solo viaggio corrotto
     // rendeva NaN i giorni dell'INTERO anno ("NaN giorni" nel recap).
-    return s + (Number.isFinite(d) ? Math.max(1, d + 1) : 1); // inclusivo, come TripCardTicket/heatmap
+    // Cap a 366: una date_end valida ma assurda (es. anno 9999) gonfiava il
+    // recap a milioni di giorni; più di un anno intero in un recap ANNUALE
+    // non ha comunque senso.
+    return s + (Number.isFinite(d) ? Math.min(Math.max(1, d + 1), 366) : 1); // inclusivo, come TripCardTicket/heatmap
   }, 0);
 
   const byMode = computeKmByTransportMode(trips) as unknown as Record<string, number>;

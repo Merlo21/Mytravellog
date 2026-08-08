@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Trip, updateTrip, parseLocalDate } from "@/lib/storage";
+import { Trip, updateTrip, parseLocalDate, isValidDateISO } from "@/lib/storage";
 import { X } from "lucide-react";
 
 export interface DiaryEntry { date: string; text: string; highlight?: boolean }
@@ -31,6 +31,9 @@ function tripDays(trip: Trip): string[] {
 }
 
 function dayLabel(iso: string): { day: string; wd: string; mon: string } {
+  // Il fallback di tripDays può restituire una trip_date malformata così
+  // com'è: senza guardia il riquadro mostrava "NaN Invalid Date".
+  if (!isValidDateISO(iso)) return { day: "—", wd: "", mon: "" };
   const d = parseLocalDate(iso);
   return {
     day: String(d.getDate()),
@@ -41,6 +44,7 @@ function dayLabel(iso: string): { day: string; wd: string; mon: string } {
 
 /** Timbro-data della modalità lettura: "GIO · 04 APR". */
 function stampLabel(iso: string): string {
+  if (!isValidDateISO(iso)) return "—";
   const d = parseLocalDate(iso);
   const wd = d.toLocaleDateString("it-IT", { weekday: "short" }).replace(".", "");
   const mon = d.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
@@ -49,8 +53,9 @@ function stampLabel(iso: string): string {
 
 /** Intervallo di copertina compatto: "3–10 apr 2024" / "4 apr 2024". */
 function coverRange(trip: Trip): string {
+  if (!isValidDateISO(trip.trip_date)) return "—";
   const s = parseLocalDate(trip.trip_date);
-  const e = trip.date_end ? parseLocalDate(trip.date_end) : s;
+  const e = trip.date_end && isValidDateISO(trip.date_end) ? parseLocalDate(trip.date_end) : s;
   const mon = (d: Date) => d.toLocaleDateString("it-IT", { month: "short" }).replace(".", "");
   const y = e.getFullYear();
   if (s.getTime() === e.getTime()) return `${s.getDate()} ${mon(s)} ${y}`;
@@ -79,7 +84,10 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
   const totalDays = useMemo(() => {
     const start = parseLocalDate(trip.trip_date);
     const end = trip.date_end ? parseLocalDate(trip.date_end) : start;
-    return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+    const d = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+    // Data malformata → NaN: il banner "il viaggio ne ha NaN" non deve
+    // comparire (1 = nessun troncamento da dichiarare).
+    return Number.isFinite(d) ? d : 1;
   }, [trip]);
   const truncated = totalDays > MAX_DAYS;
 
