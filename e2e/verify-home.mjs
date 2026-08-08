@@ -7,7 +7,10 @@
  * invece renderizza sempre, quindi la verifica si può fare in autonomia e
  * soprattutto RIPETERE identica dopo ogni modifica.
  *
- *   npm run verify:home          (il dev server deve essere già avviato)
+ *   npm run verify:home                      (il dev server deve essere già avviato)
+ *   npm run verify:home -- --headed          apre una finestra vera: si vede il giro in diretta
+ *   npm run verify:home -- --headed --slow 400   rallenta ogni gesto (ms), per seguirlo a occhio
+ *   npm run verify:home -- --video           registra un filmato della sessione
  *   npm run verify:home -- --out ./tmp-shot
  *
  * Misura i re-render di React installando un finto hook dei DevTools prima del
@@ -18,8 +21,11 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 
-const argOut = process.argv.indexOf("--out");
-const OUT = argOut > -1 ? process.argv[argOut + 1] : "e2e/__shots__";
+const arg = name => { const i = process.argv.indexOf(name); return i > -1 ? process.argv[i + 1] : null; };
+const OUT = arg("--out") ?? "e2e/__shots__";
+const HEADED = process.argv.includes("--headed");
+const VIDEO = process.argv.includes("--video");
+const SLOW = Number(arg("--slow") ?? (HEADED ? 250 : 0));
 const BASE = process.env.BASE_URL ?? "http://localhost:8080";
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -79,6 +85,8 @@ const GRAB_MAP = () => {
 };
 
 const browser = await chromium.launch({
+  headless: !HEADED,
+  slowMo: SLOW,
   // WebGL via rasterizzazione software: senza questi flag il globo non parte.
   args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
 });
@@ -86,7 +94,10 @@ const browser = await chromium.launch({
 const report = {};
 
 async function run(viewport, tag) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+  const ctx = await browser.newContext({
+    viewport, deviceScaleFactor: 1,
+    ...(VIDEO ? { recordVideo: { dir: path.join(OUT, "video"), size: viewport } } : {}),
+  });
   await ctx.addInitScript(COUNT_RENDERS);
   const page = await ctx.newPage();
   const errors = [];
@@ -161,7 +172,9 @@ async function run(viewport, tag) {
 
   // "createRoot" è rumore noto dell'hot-reload di Vite, non un difetto.
   report[`${tag}.erroriConsole`] = errors.filter(e => !/createRoot|React DevTools/.test(e)).slice(0, 5);
-  await ctx.close();
+  const video = VIDEO ? page.video() : null;
+  await ctx.close(); // il filmato viene salvato solo alla chiusura del contesto
+  if (video) report[`${tag}.filmato`] = await video.path();
 }
 
 await run({ width: 1280, height: 800 }, "desktop");
