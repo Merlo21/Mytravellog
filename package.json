@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prebuild": "echo \"skipping tsc\"",
-    "verify:home": "node e2e/verify-home.mjs"
+    "verify:home": "node e2e/verify-home.mjs",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.2.8",

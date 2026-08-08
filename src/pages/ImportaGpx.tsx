@@ -6,11 +6,15 @@ import { addTrip, todayLocalISO } from "@/lib/storage";
 import { parseGpx, downsample, summarizeGpx, reverseGeocode, buildTrackPreviewSvg } from "@/lib/gpx";
 import { distanceKm } from "@/lib/geo";
 
-type Mode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
-const MODES: { v: Mode; l: string }[] = [
-  { v: "bici", l: "Bici" }, { v: "moto", l: "Moto" }, { v: "car", l: "Auto" },
-  { v: "walk", l: "A piedi" }, { v: "train", l: "Treno" }, { v: "ship", l: "Nave" }, { v: "plane", l: "Aereo" },
-];
+import { TRANSPORT, TransportMode } from "@/lib/transport";
+
+// Alias locale storico: il tipo vive ora in @/lib/transport.
+type Mode = TransportMode;
+// Etichette dalla fonte unica (@/lib/transport); l'ORDINE resta quello di
+// questa pagina: chi importa una traccia GPX di solito ha pedalato o guidato.
+const MODES: { v: Mode; l: string }[] =
+  (["bici", "moto", "car", "walk", "train", "ship", "plane"] as Mode[])
+    .map(v => ({ v, l: TRANSPORT[v].label }));
 
 const field: React.CSSProperties = {
   width: "100%", background: "#0a1628", border: "0.5px solid #1a2d4a", borderRadius: 8,

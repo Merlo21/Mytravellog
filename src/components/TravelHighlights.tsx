@@ -1,8 +1,8 @@
 // [FROZEN] — Non modificare senza esplicita richiesta
 import { useMemo, useRef } from "react";
 import React from "react";
-import { Mountain, Globe2, Sun, Snowflake, Moon, Plane, Car, Train, Ship, Footprints, Bike, ChevronLeft, ChevronRight } from "lucide-react";
-import { Motorcycle } from "@/components/icons/Motorcycle";
+import { Mountain, Globe2, Sun, Snowflake, Moon, ChevronLeft, ChevronRight } from "lucide-react";
+import { TRANSPORT, TRANSPORT_MODES, TransportMode, transportBg } from "@/lib/transport";
 import { Trip as LocalTrip } from "@/lib/storage";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { tripTotalKm, buildFlightPath, buildFlightLegs, pathLengthKm } from "@/lib/flyover";
@@ -14,7 +14,6 @@ interface Props {
 const EARTH_CIRCUMFERENCE_KM = 40075;
 const DISTANCE_TO_MOON_KM = 384400;
 
-type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
 type KmByMode = Record<TransportMode, number>;
 
 function guessMode(km: number): TransportMode {
@@ -92,14 +91,6 @@ export function TravelHighlights({ trips }: Props) {
   const aroundWorld = totalKm / EARTH_CIRCUMFERENCE_KM;
   const toMoon = totalKm / DISTANCE_TO_MOON_KM;
   const byMode = useMemo(() => computeKmByTransportMode(trips), [trips]);
-  const byPlane = byMode.plane;
-  const byTrain = byMode.train;
-  const byCar   = byMode.car;
-  const byShip  = byMode.ship;
-  const byWalk  = byMode.walk;
-  const byBici  = byMode.bici;
-  const byMoto  = byMode.moto;
-  const byRoad  = byCar;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -175,15 +166,17 @@ export function TravelHighlights({ trips }: Props) {
         {/* 5 mezzi di trasporto — i non usati (0 km) sono attenuati per far
             risaltare solo quelli effettivamente usati nei viaggi. */}
         {(() => {
-          const transportItems = ([
-            { icon: <Plane strokeWidth={1.5}/>,      color:"#378ADD", bg:"rgba(55,138,221,0.12)",  border:"rgba(55,138,221,0.3)",  km: byPlane, val: formatDistanceKm(byPlane, distanceUnit), label:"In aereo" },
-            { icon: <Train strokeWidth={1.5}/>,      color:"#BA7517", bg:"rgba(186,117,23,0.12)",  border:"rgba(186,117,23,0.3)",  km: byTrain, val: formatDistanceKm(byTrain, distanceUnit), label:"In treno" },
-            { icon: <Car strokeWidth={1.5}/>,        color:"#A855F7", bg:"rgba(168,85,247,0.12)",  border:"rgba(168,85,247,0.3)",  km: byCar,   val: formatDistanceKm(byCar,   distanceUnit), label:"In auto"  },
-            { icon: <Ship strokeWidth={1.5}/>,       color:"#0F6E56", bg:"rgba(15,110,86,0.12)",   border:"rgba(15,110,86,0.3)",   km: byShip,  val: formatDistanceKm(byShip,  distanceUnit), label:"In nave"  },
-            { icon: <Footprints strokeWidth={1.5}/>, color:"#D85A30", bg:"rgba(216,90,48,0.12)",   border:"rgba(216,90,48,0.3)",   km: byWalk,  val: formatDistanceKm(byWalk,  distanceUnit), label:"A piedi"  },
-            { icon: <Bike strokeWidth={1.5}/>,       color:"#22C55E", bg:"rgba(34,197,94,0.12)",   border:"rgba(34,197,94,0.3)",   km: byBici,  val: formatDistanceKm(byBici,  distanceUnit), label:"In bici"  },
-            { icon: <Motorcycle strokeWidth={1.5}/>, color:"#EAB308", bg:"rgba(234,179,8,0.12)",   border:"rgba(234,179,8,0.3)",   km: byMoto,  val: formatDistanceKm(byMoto,  distanceUnit), label:"In moto"  },
-          ] as const);
+          // Colori, icone ed etichette dalla fonte unica (@/lib/transport);
+          // qui la forma discorsiva "In aereo", che sta sotto i km.
+          const transportItems = TRANSPORT_MODES.map(m => {
+            const t = TRANSPORT[m];
+            return {
+              icon: <t.Icon strokeWidth={1.5}/>, color: t.color,
+              bg: transportBg(m), border: transportBg(m, 0.3),
+              km: byMode[m], val: formatDistanceKm(byMode[m], distanceUnit),
+              label: t.labelWith,
+            };
+          });
           return (
             <>
               {/* Mezzi — carosello unico ovunque (desktop = mobile): scroll
@@ -221,15 +214,8 @@ export function TravelHighlights({ trips }: Props) {
         {/* Proportional bar */}
         <div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground mb-1.5">
-            {([
-              {color:"#378ADD", label:"Aereo", pct:byPlane},
-              {color:"#BA7517", label:"Treno", pct:byTrain},
-              {color:"#A855F7", label:"Auto",  pct:byCar},
-              {color:"#0F6E56", label:"Nave",  pct:byShip},
-              {color:"#D85A30", label:"Piedi", pct:byWalk},
-              {color:"#22C55E", label:"Bici",  pct:byBici},
-              {color:"#EAB308", label:"Moto",  pct:byMoto},
-            ] as const).map(x => (
+            {/* Etichette in forma compatta ("Piedi"): la legenda è stretta. */}
+            {TRANSPORT_MODES.map(m => ({ color: TRANSPORT[m].color, label: TRANSPORT[m].labelShort, pct: byMode[m] })).map(x => (
               <span key={x.label} className={"flex items-center gap-1 " + (x.pct > 0 ? "opacity-100" : "opacity-30")}>
                 <span className="w-2 h-2 rounded-full inline-block" style={{background:x.color}}/>
                 {x.label}
@@ -237,15 +223,7 @@ export function TravelHighlights({ trips }: Props) {
             ))}
           </div>
           <div className="h-2 rounded-full overflow-hidden flex bg-muted">
-            {totalKm > 0 ? ([
-              {color:"#378ADD", w:byPlane, k:0},
-              {color:"#BA7517", w:byTrain, k:1},
-              {color:"#A855F7", w:byCar,   k:2},
-              {color:"#0F6E56", w:byShip,  k:3},
-              {color:"#D85A30", w:byWalk,  k:4},
-              {color:"#22C55E", w:byBici,  k:5},
-              {color:"#EAB308", w:byMoto,  k:6},
-            ] as const).map(x => (
+            {totalKm > 0 ? TRANSPORT_MODES.map((m, k) => ({ color: TRANSPORT[m].color, w: byMode[m], k })).map(x => (
               <div key={x.k} className="h-full transition-all duration-700" style={{flexGrow:x.w, background:x.color}}/>
             )) : <div className="h-full w-full rounded-full bg-muted"/>}
           </div>

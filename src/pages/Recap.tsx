@@ -3,17 +3,15 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Share2, Download, Play } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { loadTrips, parseLocalDate } from "@/lib/storage";
+import { transportColor, transportLabel } from "@/lib/transport";
 import { useSettings, formatDistanceKm, formatAltitudeM, formatTemperatureC } from "@/lib/settings";
 import { computeYearRecap, availableYears, YearRecap } from "@/lib/recap";
 import { RecapStories } from "@/components/RecapStories";
 
 const W = 1080, H = 1350;
-const MODE_COLOR: Record<string, string> = {
-  plane: "#378ADD", train: "#BA7517", car: "#A855F7", ship: "#0F6E56", walk: "#D85A30", bici: "#22C55E", moto: "#EAB308",
-};
-const MODE_LABEL: Record<string, string> = {
-  plane: "Aereo", train: "Treno", car: "Auto", ship: "Nave", walk: "A piedi", bici: "Bici", moto: "Moto",
-};
+// Colori ed etichette dalla fonte unica (@/lib/transport).
+const MODE_COLOR = (m: string) => transportColor(m);
+const MODE_LABEL = (m: string) => transportLabel(m, m);
 
 /** Spezza una citazione in ≤ maxLines righe che stanno in maxW; se il testo
  *  avanza, l'ultima riga viene troncata con l'ellissi (misura reale, non
@@ -113,15 +111,15 @@ function drawRecap(ctx: CanvasRenderingContext2D, r: YearRecap, fmt: Fmt, flag: 
   const total = Object.values(r.byMode).reduce((a, b) => a + b, 0);
   if (total > 0) {
     let cx = barX; ctx.save(); roundRect(ctx, barX, barY, barW, barH, 12); ctx.clip();
-    for (const [mode, km] of Object.entries(r.byMode)) { if (km <= 0) continue; const w = (km / total) * barW; ctx.fillStyle = MODE_COLOR[mode] ?? "#888"; ctx.fillRect(cx, barY, w, barH); cx += w; }
+    for (const [mode, km] of Object.entries(r.byMode)) { if (km <= 0) continue; const w = (km / total) * barW; ctx.fillStyle = MODE_COLOR(mode); ctx.fillRect(cx, barY, w, barH); cx += w; }
     ctx.restore();
   }
   let lx = barX; const ly = barY + barH + 42;
   ctx.font = '600 24px "Space Grotesk", sans-serif';
   for (const [mode, km] of Object.entries(r.byMode)) {
     if (km <= 0) continue;
-    const label = MODE_LABEL[mode] ?? mode;
-    ctx.fillStyle = MODE_COLOR[mode] ?? "#888"; ctx.beginPath(); ctx.arc(lx + 8, ly - 8, 7, 0, Math.PI * 2); ctx.fill();
+    const label = MODE_LABEL(mode);
+    ctx.fillStyle = MODE_COLOR(mode); ctx.beginPath(); ctx.arc(lx + 8, ly - 8, 7, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.fillText(label, lx + 24, ly);
     lx += 32 + ctx.measureText(label).width + 26;
   }

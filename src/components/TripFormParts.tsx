@@ -10,21 +10,17 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { GeoResult } from "@/lib/geo";
 import { parseLocalDate } from "@/lib/storage";
-import { Loader2, MapPin, Plane, Train, Car, Ship, Footprints, Bike, Route, Search, AlertCircle, X } from "lucide-react";
-import { Motorcycle } from "@/components/icons/Motorcycle";
+import { Loader2, MapPin, Plane, Route, Search, AlertCircle, X } from "lucide-react";
+import { TRANSPORT as TRANSPORT_INFO, TRANSPORT_MODES, TRANSPORT_LIST, transportBg, type TransportMode } from "@/lib/transport";
 
-export type TransportMode = "plane" | "train" | "car" | "ship" | "walk" | "bici" | "moto";
+// Il tipo vive in @/lib/transport; qui si ri-esporta perché i due form e i
+// loro test lo importano storicamente da questo modulo.
+export type { TransportMode };
 export type Waypoint = { id: string; city: string; country: string; country_code: string; lat: number; lon: number; transport_mode: TransportMode };
 
-const TRANSPORT: { value: TransportMode; label: string; color: string; bg: string }[] = [
-  { value: "plane", label: "Aereo",   color: "#378ADD", bg: "rgba(55,138,221,0.15)"  },
-  { value: "train", label: "Treno",   color: "#BA7517", bg: "rgba(186,117,23,0.15)"  },
-  { value: "car",   label: "Auto",    color: "#A855F7", bg: "rgba(168,85,247,0.15)"  },
-  { value: "ship",  label: "Nave",    color: "#0F6E56", bg: "rgba(15,110,86,0.15)"   },
-  { value: "walk",  label: "A piedi", color: "#D85A30", bg: "rgba(216,90,48,0.15)"   },
-  { value: "bici",  label: "Bici",    color: "#22C55E", bg: "rgba(34,197,94,0.15)"   },
-  { value: "moto",  label: "Moto",    color: "#EAB308", bg: "rgba(234,179,8,0.15)"   },
-];
+// Elenco per il selettore del mezzo, dalla fonte unica (@/lib/transport).
+const TRANSPORT: { value: TransportMode; label: string; color: string; bg: string }[] =
+  TRANSPORT_LIST.map(t => ({ value: t.value, label: t.label, color: t.color, bg: transportBg(t.value) }));
 
 const RATING_LABELS: Record<number, string> = {
   1: "Non memorabile", 2: "Nella media", 3: "Bello", 4: "Fantastico", 5: "Indimenticabile"
@@ -45,15 +41,13 @@ export function isReturnBeforeDeparture(dateStart: string, dateEnd: string): boo
 }
 
 // Lucide transport icons — same as statistics section
-const TRANSPORT_SVG: Record<string, (color: string, size?: number) => React.ReactElement> = {
-  plane: (c, s=24) => <Plane width={s} height={s} stroke={c} strokeWidth={1.5}/>,
-  train: (c, s=24) => <Train width={s} height={s} stroke={c} strokeWidth={1.5}/>,
-  car:   (c, s=24) => <Car   width={s} height={s} stroke={c} strokeWidth={1.5}/>,
-  ship:  (c, s=24) => <Ship  width={s} height={s} stroke={c} strokeWidth={1.5}/>,
-  walk:  (c, s=24) => <Footprints width={s} height={s} stroke={c} strokeWidth={1.5}/>,
-  bici:  (c, s=24) => <Bike  width={s} height={s} stroke={c} strokeWidth={1.5}/>,
-  moto:  (c, s=24) => <Motorcycle width={s} height={s} stroke={c} strokeWidth={1.5}/>,
-};
+// Le stesse icone della fonte unica, ma come funzioni: qui servono dentro
+// l'SVG dell'itinerario, con colore e dimensione decisi al momento del disegno.
+const TRANSPORT_SVG: Record<string, (color: string, size?: number) => React.ReactElement> =
+  Object.fromEntries(TRANSPORT_MODES.map(m => {
+    const Icon = TRANSPORT_INFO[m].Icon;
+    return [m, (c: string, s = 24) => <Icon width={s} height={s} stroke={c} strokeWidth={1.5}/>];
+  }));
 
 type Pt = { x: number; y: number };
 type ArcSeg = { p0: Pt; p1: Pt; p2: Pt; transport: string | null };

@@ -7,22 +7,13 @@ import { distanceKm } from "@/lib/geo";
 import { hasCoords } from "@/lib/coords";
 import { tripTotalKm } from "@/lib/flyover";
 import { fmtDistance, useSettings } from "@/lib/settings";
+import { TRANSPORT, isTransportMode } from "@/lib/transport";
 import { Compass, Globe, MapPin, Pencil, Plane, Plus, Video, X, ChevronDown } from "lucide-react";
 import { WorldMap, CityInfo } from "@/components/WorldMap";
 import { StarField, StarFieldController } from "@/components/StarField";
 import { TripFlyover } from "@/components/TripFlyover";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
-// Stessa palette per-mezzo di TripCardTicket/WorldMap/TripFlyover.
-const TRANSPORT_BADGE: Record<string, { color: string; label: string }> = {
-  plane: { color: "#378ADD", label: "Aereo" },
-  train: { color: "#BA7517", label: "Treno" },
-  car:   { color: "#A855F7", label: "Auto" },
-  ship:  { color: "#0F6E56", label: "Nave" },
-  walk:  { color: "#D85A30", label: "A piedi" },
-  bici:  { color: "#22C55E", label: "Bici" },
-  moto:  { color: "#EAB308", label: "Moto" },
-};
 
 /**
  * Ogni viaggio tocca anche i paesi/città delle tappe intermedie (waypoint),
@@ -338,13 +329,14 @@ function HomeInner() {
                         <span style={{color:"rgba(255,255,255,0.35)", fontWeight:400}}> → {formatTripDate(selectedTrip.date_end)}</span>
                       )}
                     </span>
-                    {selectedTrip.transport_mode && TRANSPORT_BADGE[selectedTrip.transport_mode] && (
+                    {isTransportMode(selectedTrip.transport_mode) && (
                       <span style={{
                         fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:99,
-                        color: TRANSPORT_BADGE[selectedTrip.transport_mode].color,
-                        background: TRANSPORT_BADGE[selectedTrip.transport_mode].color + "1f",
+                        color: TRANSPORT[selectedTrip.transport_mode].color,
+                        // "1f" in coda all'esadecimale = alpha ~0.12, come transportBg.
+                        background: TRANSPORT[selectedTrip.transport_mode].color + "1f",
                       }}>
-                        {TRANSPORT_BADGE[selectedTrip.transport_mode].label}
+                        {TRANSPORT[selectedTrip.transport_mode].label}
                       </span>
                     )}
                     {(() => {

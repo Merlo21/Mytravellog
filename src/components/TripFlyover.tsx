@@ -6,21 +6,13 @@ import { buildFlightPath, buildFlightLegs, tripTotalKm, buildPerTripRouteCoords,
 import { fetchMapStyle } from "@/components/WorldMap";
 import { saveReliefImage } from "@/lib/photoStorage";
 import { buildPosterSvg, loadCountryRings, routeBounds, unwrapSegments } from "@/lib/posterSvg";
-import { X, Share2, Loader2, Download, Frame, Plane, Train, Car, Ship, Footprints, Bike } from "lucide-react";
+import { X, Share2, Loader2, Download, Frame } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Motorcycle } from "@/components/icons/Motorcycle";
+import { TRANSPORT } from "@/lib/transport";
 
-// Icona + colore del mezzo, IDENTICI alle card (TripCardTicket TRANSPORT_STYLE):
-// il medaglione sulla tappa finale usa la stessa simbologia.
-const TRANSPORT_MAP: Record<string, { color: string; Icon: any }> = {
-  plane: { color: "#378ADD", Icon: Plane },
-  train: { color: "#BA7517", Icon: Train },
-  car:   { color: "#A855F7", Icon: Car },
-  ship:  { color: "#0F6E56", Icon: Ship },
-  walk:  { color: "#D85A30", Icon: Footprints },
-  bici:  { color: "#22C55E", Icon: Bike },
-  moto:  { color: "#EAB308", Icon: Motorcycle },
-};
+// Icona + colore del mezzo dalla fonte unica (@/lib/transport): il medaglione
+// sulla tappa finale usa la stessa simbologia di biglietto e globo.
+const TRANSPORT_MAP: Record<string, { color: string; Icon: any }> = TRANSPORT;
 
 /** Rasterizza un'icona (lucide o Motorcycle) in un'immagine, via SVG data URI. */
 function loadModeIcon(Icon: any, color: string): Promise<HTMLImageElement> {

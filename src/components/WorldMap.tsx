@@ -4,6 +4,7 @@ import { Trip } from "@/lib/storage";
 import { AutoRotate } from "@/lib/settings";
 import { unwrapPath } from "@/lib/lonWrap";
 import { hasCoords } from "@/lib/coords";
+import { TRANSPORT, TRANSPORT_MODES, TRANSPORT_FALLBACK_COLOR } from "@/lib/transport";
 import { Play, Square, Hand } from "lucide-react";
 
 export interface CityInfo {
@@ -150,9 +151,8 @@ function GlobeHalo() {
   );
 }
 
-const TRANSPORT_EMOJI: Record<string, string> = {
-  plane: "✈️", train: "🚆", car: "🚗", ship: "🚢", walk: "🚶", bici: "🚲", moto: "🏍️",
-};
+const TRANSPORT_EMOJI: Record<string, string> =
+  Object.fromEntries(TRANSPORT_MODES.map(m => [m, TRANSPORT[m].emoji]));
 
 /**
  * Registra su MapLibre (via addImage) una piccola icona per ogni mezzo di
@@ -502,9 +502,8 @@ export function WorldMap({
     if (!ordered.length) return;
 
     // Per-trip lines: pink for single, colored by transport for multi-tappa
-    const TRANSPORT_COLORS_MAP: Record<string, string> = {
-      plane: "#378ADD", train: "#BA7517", car: "#A855F7", ship: "#0F6E56", walk: "#D85A30", bici: "#22C55E", moto: "#EAB308"
-    };
+    const TRANSPORT_COLORS_MAP: Record<string, string> =
+      Object.fromEntries(TRANSPORT_MODES.map(m => [m, TRANSPORT[m].color]));
     // Espressione MapLibre condivisa: colora un pallino in base al mezzo di
     // trasporto della tappa (property "transport"), stessa palette ovunque
     // nell'app (linee, badge, marker del flyover).
@@ -517,7 +516,7 @@ export function WorldMap({
       "walk",  TRANSPORT_COLORS_MAP.walk,
       "bici",  TRANSPORT_COLORS_MAP.bici,
       "moto",  TRANSPORT_COLORS_MAP.moto,
-      "#60a5fa"
+      TRANSPORT_FALLBACK_COLOR
     ];
     // Espressione gemella: sceglie l'icona (immagine registrata via addImage,
     // vedi ensureTransportIcons) invece del colore, stessa property "transport".
@@ -545,7 +544,7 @@ export function WorldMap({
       if (map.getLayer(lineId)) map.removeLayer(lineId);
       if (map.getSource(lineId)) map.removeSource(lineId);
       if (!hasWp) return;
-      const lineColor = TRANSPORT_COLORS_MAP[t.transport_mode ?? "plane"] ?? "#60a5fa";
+      const lineColor = TRANSPORT_COLORS_MAP[t.transport_mode ?? "plane"] ?? TRANSPORT_FALLBACK_COLOR;
       const coords = buildRouteCoords(t);
       map.addSource(lineId, {
         type: "geojson",

@@ -3,15 +3,14 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { YearRecap } from "@/lib/recap";
 import { parseLocalDate } from "@/lib/storage";
+import { transportColor, transportLabel } from "@/lib/transport";
 
 interface Fmt { dist: (km: number) => string; alt: (m: number) => string; temp: (c: number) => string }
 
-const MODE_COLOR: Record<string, string> = {
-  plane: "#378ADD", train: "#BA7517", car: "#A855F7", ship: "#0F6E56", walk: "#D85A30", bici: "#22C55E", moto: "#EAB308",
-};
-const MODE_LABEL: Record<string, string> = {
-  plane: "aereo", train: "treno", car: "auto", ship: "nave", walk: "a piedi", bici: "bici", moto: "moto",
-};
+// Colori ed etichette dalla fonte unica (@/lib/transport). Qui le etichette
+// vanno in minuscolo: è il tono delle storie di fine anno.
+const MODE_COLOR = (m: string) => transportColor(m);
+const MODE_LABEL = (m: string) => transportLabel(m, m).toLowerCase();
 const EARTH_KM = 40075;
 
 const kicker: React.CSSProperties = { fontSize: 13, letterSpacing: 2, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase" };
@@ -60,13 +59,13 @@ export function RecapStories({ recap: r, fmt, flagUrl, onClose }: { recap: YearR
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", height: "100%" }}>
         <div style={kicker}>Come ti sei mosso</div>
         <div style={{ display: "flex", height: 14, borderRadius: 8, overflow: "hidden", marginTop: 20, background: "rgba(255,255,255,0.06)" }}>
-          {usedModes.map(([m, v]) => <div key={m} style={{ flexGrow: v, background: MODE_COLOR[m] ?? "#888" }} />)}
+          {usedModes.map(([m, v]) => <div key={m} style={{ flexGrow: v, background: MODE_COLOR(m) }} />)}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 22 }}>
           {usedModes.map(([m, v]) => (
             <div key={m} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 12, height: 12, borderRadius: "50%", background: MODE_COLOR[m] ?? "#888" }} />
-              <span style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>{MODE_LABEL[m] ?? m}</span>
+              <span style={{ width: 12, height: 12, borderRadius: "50%", background: MODE_COLOR(m) }} />
+              <span style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>{MODE_LABEL(m)}</span>
               <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{Math.round((v / total) * 100)}%</span>
             </div>
           ))}
