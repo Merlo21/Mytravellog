@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Trip, updateTrip } from "@/lib/storage";
+import { Trip, updateTrip, parseLocalDate, isValidDateISO } from "@/lib/storage";
 import { CUR } from "@/lib/plans";
 import { X, Plus, Trash2 } from "lucide-react";
 import { useModalFocus } from "@/lib/useModalFocus";
@@ -46,9 +46,12 @@ export function TripExpenses({ trip, onClose, onSaved }: Props) {
   const preventivo = useMemo(() => rows.reduce((s, r) => s + (r.amount || 0), 0), [rows]);
 
   // Giorni del viaggio, per il "al giorno" — inclusivi come ovunque nell'app.
+  // parseLocalDate e non new Date(): la stringa YYYY-MM-DD sarebbe letta in UTC
+  // e nei fusi negativi il conto slitterebbe di un giorno (stessa trappola già
+  // corretta in biglietto, heatmap e recap).
   const days = useMemo(() => {
-    if (!trip.date_end) return 1;
-    const d = Math.round((new Date(trip.date_end).getTime() - new Date(trip.trip_date).getTime()) / 86400000) + 1;
+    if (!isValidDateISO(trip.trip_date) || !trip.date_end || !isValidDateISO(trip.date_end)) return 1;
+    const d = Math.round((parseLocalDate(trip.date_end).getTime() - parseLocalDate(trip.trip_date).getTime()) / 86400000) + 1;
     return Number.isFinite(d) && d > 0 ? d : 1;
   }, [trip.trip_date, trip.date_end]);
 

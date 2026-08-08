@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { searchPlaces, GeoResult } from "@/lib/geo";
-import { Trip, loadPlans, addPlan, formatTripDate } from "@/lib/storage";
-import { planCountdown, CUR } from "@/lib/plans";
+import { Trip, loadPlans, addPlan } from "@/lib/storage";
 import { TripPlanner } from "@/components/TripPlanner";
 import { PlanCard } from "@/components/PlanCard";
 import { isReturnBeforeDeparture } from "@/components/TripFormParts";
-import { CalendarClock, Plus, MapPin, X, Check } from "lucide-react";
+import { CalendarClock, Plus, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 
 type PlanWaypoint = Trip["waypoints"][number];
@@ -27,10 +26,6 @@ function buildPlan(
     hottest_temp_c: null, hottest_city: null, coldest_temp_c: null, coldest_city: null,
     region: null, region_details: null,
   };
-}
-
-function dateRange(t: Trip): string {
-  return t.date_end ? `${formatTripDate(t.trip_date)} – ${formatTripDate(t.date_end)}` : formatTripDate(t.trip_date);
 }
 
 const InProgramma = () => {

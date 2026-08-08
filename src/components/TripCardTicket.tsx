@@ -434,6 +434,12 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
       <TripDiary trip={trip} entries={diary} onClose={() => setShowDiary(false)} onSaved={setDiary} />
     )}
 
+    {/* Spese: come per il diario, il pannello riceve i dati FRESCHI dallo stato
+        locale (la prop trip resta quella caricata dalla lista). */}
+    {showExpenses && (
+      <TripExpenses trip={{ ...trip, budget: expenses }} onClose={() => setShowExpenses(false)} onSaved={setExpenses} />
+    )}
+
     {reliefOpen && reliefUrl && createPortal(
       <div onClick={() => setReliefOpen(false)}
         style={{
