@@ -159,7 +159,9 @@ function HomeInner() {
   // Clean up legacy visited cities data
   useEffect(() => { localStorage.removeItem("atlas.visited.v1"); }, []);
   const refresh = () => setTrips(loadTrips());
-  useEffect(() => { refresh(); }, []);
+  // NB: nessun refresh() al mount — lo stato è già inizializzato in modo
+  // sincrono da loadTrips() qui sopra; rileggerlo subito forzava un secondo
+  // render con un array di identità diversa (e a cascata ordered/stats).
 
   // Esc chiude il popup città (modale) e la mini-card del viaggio selezionato:
   // prima erano chiudibili solo col mouse (click fuori / X).
@@ -345,9 +347,13 @@ function HomeInner() {
                         {TRANSPORT_BADGE[selectedTrip.transport_mode].label}
                       </span>
                     )}
-                    {tripTotalKm(selectedTrip) > 0 && (
-                      <span style={{fontSize:11, color:"rgba(255,255,255,0.35)"}}>{fmtDistance(tripTotalKm(selectedTrip), distanceUnit)}</span>
-                    )}
+                    {(() => {
+                      // Una sola invocazione (itera su tutti i waypoint), non due.
+                      const km = tripTotalKm(selectedTrip);
+                      return km > 0 && (
+                        <span style={{fontSize:11, color:"rgba(255,255,255,0.35)"}}>{fmtDistance(km, distanceUnit)}</span>
+                      );
+                    })()}
                   </div>
 
                   <div style={{display:"flex", gap:8}}>
