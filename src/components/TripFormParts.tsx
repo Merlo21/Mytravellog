@@ -351,7 +351,8 @@ function RouteHero({
                   <path d={`M ${hx} ${hy} Q ${xR+46} ${(hy+dy)/2} ${dx} ${dy}`}
                     stroke="#1a2d4a" strokeWidth="1.5" strokeDasharray="6 4" fill="none"/>
                   <circle cx={hx} cy={hy} r="26" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="3 2"/>
-                  <g style={{cursor:"pointer"}} onClick={onEditHome}>
+                  <g style={{cursor:"pointer"}} onClick={onEditHome}
+                    {...svgButton("Cambia la città di partenza", onEditHome)}>
                     <circle cx={hx+22} cy={hy-22} r="20" fill="transparent"/>
                     <circle cx={hx+22} cy={hy-22} r="10" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1.5"/>
                     <text x={hx+22} y={hy-18} fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
@@ -363,7 +364,9 @@ function RouteHero({
                 </svg>
               );
             })()}
-            <div style={{ position:"absolute", left:(xL/VBW)*100+"%", top:padTop-14, transform:"translateX(-50%)",
+            {/* L'emoji casa è cliccabile: aria-hidden perché il controllo vero
+                (con nome) è la ✎ qui sopra — non va annunciata due volte. */}
+            <div aria-hidden="true" style={{ position:"absolute", left:(xL/VBW)*100+"%", top:padTop-14, transform:"translateX(-50%)",
               width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center",
               fontSize:22, cursor:"pointer" }} onClick={onEditHome}>🏠</div>
           </div>

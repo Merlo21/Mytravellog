@@ -65,6 +65,17 @@ describe("Itinerario — azionabile da tastiera", () => {
     expect(p.onChangeTransport).toHaveBeenCalledWith(0, "train");
   });
 
+  // Il form NUOVO parte senza tappe e mostra un disegno diverso, con i suoi
+  // controlli: la prima versione del fix copriva solo l'itinerario pieno, e
+  // dal vivo il form vuoto risultava ancora inaccessibile.
+  it("anche l'itinerario VUOTO ha la partenza raggiungibile da tastiera", () => {
+    const p = setup({ waypoints: [] });
+    const casa = screen.getByRole("button", { name: /Cambia la città di partenza/i });
+    expect(casa).toHaveProperty("tabIndex", 0);
+    fireEvent.keyDown(casa, { key: "Enter" });
+    expect(p.onEditHome).toHaveBeenCalled();
+  });
+
   it("Escape chiude il selettore del mezzo", () => {
     setup();
     const arco = screen.getAllByRole("button", { name: /Cambia il mezzo per arrivare a/i })[0];
