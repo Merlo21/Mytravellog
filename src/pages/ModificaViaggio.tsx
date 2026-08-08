@@ -15,7 +15,11 @@ import {
 import { TripPurposeCompanions } from "@/components/TripPurposeCompanions";
 
 async function fetchNominatimRegion(lat: number, lon: number): Promise<RegionInfo> {
-  if (!lat || !lon) return { name: null, code: null };
+  // hasCoords, non !lat || !lon: una tappa sull'equatore o sul meridiano di
+  // Greenwich (UNA coordinata 0, l'altra valida) perdeva la regione. Il punto
+  // (0,0) esatto resta invece escluso: è la sentinella "coordinate mancanti"
+  // degli initializer (`?? 0`), e sta in mezzo all'Atlantico.
+  if (!hasCoords(lat, lon) || (lat === 0 && lon === 0)) return { name: null, code: null };
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=6&addressdetails=1`;
     const r = await fetch(url, { headers: { "Accept-Language": "it", "User-Agent": "NAV-TA/1.0" } });
@@ -92,7 +96,10 @@ const ModificaViaggio = () => {
   const [wpTransport, setWpTransport] = useState<TransportMode>("plane");
   const homeCity = s.homeCity;
   const [home, setHome] = useState<{ lat: number; lon: number; label: string } | null>(
-    trip?.home_latitude ? { lat: trip.home_latitude, lon: trip.home_longitude!, label: trip.home_label ?? "" }
+    // hasCoords, non il truthy: una casa salvata a lat 0 veniva scartata e
+    // sostituita da quella delle impostazioni.
+    hasCoords(trip?.home_latitude, trip?.home_longitude)
+      ? { lat: trip!.home_latitude!, lon: trip!.home_longitude!, label: trip!.home_label ?? "" }
     : homeCity ? { lat: homeCity.lat, lon: homeCity.lon, label: homeCity.label } : null
   );
   const [editingHome, setEditingHome] = useState(false);
@@ -238,8 +245,10 @@ const ModificaViaggio = () => {
     });
     const routeGeometriesPromise = Promise.all(routePromises);
     const [...rest] = await Promise.all([
-      ...allStopsWithCoords.map(s => s.lat ? fetchTemperature(s.lat, s.lon, dateStart) : Promise.resolve(null)),
-      ...allStopsWithCoords.map(s => s.lat ? fetchElevation(s.lat, s.lon) : Promise.resolve(null)),
+      // hasCoords, non il truthy su s.lat: a lat 0 la tappa perdeva meteo e
+      // altitudine (e il gemello NuovoViaggio chiama senza alcuna guardia).
+      ...allStopsWithCoords.map(s => hasCoords(s.lat, s.lon) ? fetchTemperature(s.lat, s.lon, dateStart) : Promise.resolve(null)),
+      ...allStopsWithCoords.map(s => hasCoords(s.lat, s.lon) ? fetchElevation(s.lat, s.lon) : Promise.resolve(null)),
     ]);
     const routeGeometries = await routeGeometriesPromise;
     const n = allStopsWithCoords.length;
@@ -265,8 +274,10 @@ const ModificaViaggio = () => {
       notes: notes.trim() || null,
       transport_mode: dest.transport_mode,
       waypoints: waypoints.slice(0, -1).map((w, i) => ({ id: w.id, city: w.city, country: w.country, country_code: w.country_code, transport_mode: w.transport_mode, lat: w.lat, lon: w.lon, route_geometry: routeGeometries[i] ?? null })),
-      latitude: dest.lat || trip?.latitude || 0,
-      longitude: dest.lon || trip?.longitude || 0,
+      // Niente fallback ||: una destinazione a lat/lon 0 veniva sostituita
+      // dalla vecchia coordinata del viaggio. Allineato a NuovoViaggio.
+      latitude: dest.lat,
+      longitude: dest.lon,
       route_geometry: routeGeometries[routeGeometries.length - 1] ?? null,
       home_latitude: home?.lat ?? null, home_longitude: home?.lon ?? null, home_label: home?.label ?? null,
       distance_from_home_km: dist, max_distance_from_home_km: maxDist, max_distance_city: maxDistCity, altitude_m: alt, max_altitude_m: highestStop?.alt ?? null, max_altitude_city: highestStop?.city ?? null, temperature_c: temp, hottest_temp_c: hottestStop?.temp ?? null, hottest_city: hottestStop?.city ?? null, coldest_temp_c: coldestStop?.temp ?? null, coldest_city: coldestStop?.city ?? null, region: region ?? null, region_details: regionDetails,
