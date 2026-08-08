@@ -5,8 +5,9 @@ import { toast } from "sonner";
 import { AppHeader } from "@/components/AppHeader";
 import { TripCardTicket } from "@/components/TripCardTicket";
 import { TripFlyover } from "@/components/TripFlyover";
+import { PlanCard } from "@/components/PlanCard";
+import { TripPlanner } from "@/components/TripPlanner";
 import { loadTrips, loadPlans, deleteTrip, parseLocalDate, Trip } from "@/lib/storage";
-import { planCountdown } from "@/lib/plans";
 import { deletePhotosForTrip } from "@/lib/photoStorage";
 import { Search, X, Video, Plane, Plus, Sparkles, Globe2, CalendarClock, ArrowRight } from "lucide-react";
 
@@ -18,7 +19,10 @@ const UNDO_GRACE_MS = 5000;
 
 export default function MieiViaggi() {
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [plans, setPlans] = useState<Trip[]>([]); // viaggi "in programma": solo per la striscia-ponte in alto
+  // Viaggi "in programma": vivono in un bucket separato (fuori da statistiche,
+  // globo e recap) ma si vedono e si aprono QUI, in cima ai ricordi.
+  const [plans, setPlans] = useState<Trip[]>([]);
+  const [openPlanId, setOpenPlanId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
@@ -151,6 +155,7 @@ export default function MieiViaggi() {
             <h2 className="text-2xl font-bold">I miei viaggi</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {trips.length} {trips.length === 1 ? "viaggio" : "viaggi"}
+              {plans.length > 0 && ` · ${plans.length} in programma`}
             </p>
           </div>
           {trips.length > 0 && (
@@ -170,24 +175,21 @@ export default function MieiViaggi() {
             separato (non compaiono qui sotto né nelle statistiche), ma questo è
             l'hub dell'utente — senza questo richiamo la sezione non si scopre.
             Mostra il piano più imminente (o "sei tornato?" se già concluso). */}
-        {plans.length > 0 && (() => {
-          const next = plans[0]; // loadPlans ordina per partenza crescente
-          const cd = planCountdown(next);
-          return (
-            <Link to="/in-programma"
-              style={{display:"flex",alignItems:"center",gap:10, background:"rgba(96,165,250,0.10)", border:"0.5px solid rgba(96,165,250,0.3)", borderRadius:10, padding:"10px 14px", marginBottom:20, textDecoration:"none", color:"#f0f4ff"}}>
-              <CalendarClock style={{width:17,height:17,color:"#93c5fd",flexShrink:0}}/>
-              <div style={{flex:1,minWidth:0,fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                <span style={{fontWeight:600}}>{next.title || next.city}</span>{" "}
-                <span style={{color: cd.returned ? "#34d399" : cd.urgent ? "#fbbf24" : "rgba(255,255,255,0.55)"}}>· {cd.text}</span>
-                {plans.length > 1 && <span style={{color:"rgba(255,255,255,0.6)"}}> ＋ {plans.length - 1} {plans.length - 1 === 1 ? "altro" : "altri"}</span>}
-              </div>
-              <span style={{flexShrink:0,fontSize:11,fontWeight:600,color:"#93c5fd",display:"inline-flex",alignItems:"center",gap:4}}>
-                In programma <ArrowRight style={{width:12,height:12}}/>
-              </span>
-            </Link>
-          );
-        })()}
+        {plans.length > 0 && (
+          <div style={{marginBottom:24}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <CalendarClock style={{width:15,height:15,color:"#93c5fd",flexShrink:0}}/>
+              <span style={{fontSize:11,letterSpacing:"1.5px",color:"#93c5fd",fontWeight:600}}>IN PROGRAMMA</span>
+              <div style={{flex:1,height:1,background:"rgba(147,197,253,0.25)"}}/>
+              <Link to="/in-programma" style={{flexShrink:0,fontSize:11,fontWeight:600,color:"#93c5fd",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:4}}>
+                Programma <ArrowRight style={{width:12,height:12}}/>
+              </Link>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {plans.map(p => <PlanCard key={p.id} plan={p} onOpen={() => setOpenPlanId(p.id)} />)}
+            </div>
+          </div>
+        )}
 
         {/* Search — sticky sotto l'AppHeader (sticky top:0, alto 65px) mentre si
             scorre l'elenco, con sfondo pieno per non far intravedere il
@@ -317,6 +319,16 @@ export default function MieiViaggi() {
       )}
       {showLifeMap && (
         <TripFlyover trips={trips} lifeMap onClose={() => setShowLifeMap(false)} />
+      )}
+      {/* Budget e cose da organizzare del viaggio in programma, senza cambiare
+          pagina. onChanged ricarica ANCHE i viaggi: "Segna come fatto" sposta
+          il piano nel diario, e la lista qui sotto deve accorgersene. */}
+      {openPlanId && plans.some(p => p.id === openPlanId) && (
+        <TripPlanner
+          plan={plans.find(p => p.id === openPlanId)!}
+          onClose={() => setOpenPlanId(null)}
+          onChanged={() => { setPlans(loadPlans()); setTrips(loadTrips()); }}
+        />
       )}
     </main>
   );
