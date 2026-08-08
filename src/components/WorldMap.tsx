@@ -238,6 +238,12 @@ export function WorldMap({
   // viaggi corrente invece di una chiusura stantia.
   const tripLayerHandlersRef = useRef<Set<string>>(new Set());
   const orderedRef = useRef<Trip[]>([]);
+  // Selezione applicata in modo INCREMENTALE (setPaintProperty/setData), non
+  // col rebuild di tutti i layer: selectedIdRef dà il valore corrente al
+  // rebuild asincrono, appliedSelRef ricorda cosa c'è già sulla mappa.
+  const selectedIdRef = useRef<string | null>(null);
+  const appliedSelRef = useRef<string | null>(null);
+  useEffect(() => { selectedIdRef.current = selectedId ?? null; });
   useEffect(() => { onSelectCityRef.current = onSelectCity; }, [onSelectCity]);
   useEffect(() => { onSelectTripRef.current = onSelectTrip; }, [onSelectTrip]);
 
@@ -527,19 +533,19 @@ export function WorldMap({
       "transport-icon-plane"
     ];
     ensureTransportIcons(map);
+    // Solo le rotte SEMPRE visibili (multi-tappa), con paint di base: la
+    // selezione (rotta rosa dei viaggi secchi, spessore/opacità) viene
+    // applicata in modo incrementale da applySelection, senza rebuild.
     ordered.forEach((t) => {
       // hasCoords, non check falsy: la forma negata (!lat || !lon) scartava lo
       // zero — casa a Greenwich o destinazione sull'equatore = rotta mai disegnata.
       if (!hasCoords(t.home_latitude, t.home_longitude) || !hasCoords(t.latitude, t.longitude)) return;
       const hasWp = t.waypoints && t.waypoints.length > 0;
-      const sel = t.id === selectedId;
       const lineId = "route-" + t.id;
       if (map.getLayer(lineId)) map.removeLayer(lineId);
       if (map.getSource(lineId)) map.removeSource(lineId);
-      if (!hasWp && !sel) return;
-      const lineColor = hasWp
-        ? (TRANSPORT_COLORS_MAP[t.transport_mode ?? "plane"] ?? "#60a5fa")
-        : "#f472b6";
+      if (!hasWp) return;
+      const lineColor = TRANSPORT_COLORS_MAP[t.transport_mode ?? "plane"] ?? "#60a5fa";
       const coords = buildRouteCoords(t);
       map.addSource(lineId, {
         type: "geojson",
@@ -547,8 +553,8 @@ export function WorldMap({
       });
       map.addLayer({
         id: lineId, type: "line", source: lineId,
-        paint: { "line-color": lineColor, "line-width": sel ? 2.5 : 1.8,
-          "line-opacity": sel ? 0.9 : 0.55, "line-dasharray": [4, 3] },
+        paint: { "line-color": lineColor, "line-width": 1.8,
+          "line-opacity": 0.55, "line-dasharray": [4, 3] },
       });
     });
 
@@ -566,11 +572,12 @@ export function WorldMap({
 
     // Trip markers — use native WebGL circle layers (stay fixed on globe)
     // Build GeoJSON for single-destination trips (colored by transport mode)
+    // (niente property "selected": non era letta da alcuna paint expression)
     const singleFeatures = ordered
       .filter((t: any) => !t.waypoints?.length)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane", td: dayNum(t.trip_date) },
+        properties: { id: t.id, transport: t.transport_mode ?? "plane", td: dayNum(t.trip_date) },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
@@ -579,7 +586,7 @@ export function WorldMap({
       .filter((t: any) => t.waypoints?.length > 0)
       .map((t: any) => ({
         type: "Feature",
-        properties: { id: t.id, selected: t.id === selectedId, transport: t.transport_mode ?? "plane", td: dayNum(t.trip_date) },
+        properties: { id: t.id, transport: t.transport_mode ?? "plane", td: dayNum(t.trip_date) },
         geometry: { type: "Point", coordinates: [t.longitude, t.latitude] }
       }));
 
@@ -619,10 +626,9 @@ export function WorldMap({
           if (!e.features?.length) return;
           const tripId = e.features[0].properties.id;
           const trip = orderedRef.current.find((t: any) => t.id === tripId);
-          if (trip) {
-            onSelectTripRef.current?.(trip);
-            map.flyTo({ center: [trip.longitude, trip.latitude], zoom: Math.max(map.getZoom(), 5), duration: 800 });
-          }
+          // Niente flyTo qui: ci pensa l'effect su selectedId (prima partivano
+          // DUE animazioni sovrapposte per lo stesso click, 800ms + 1000ms).
+          if (trip) onSelectTripRef.current?.(trip);
         });
         map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
         map.on("mouseleave", id, () => { map.getCanvas().style.cursor = ""; });
@@ -632,54 +638,30 @@ export function WorldMap({
     addCircleLayer("trips-single", singleFeatures, TRANSPORT_MATCH_EXPR);
     addCircleLayer("trips-multi",  multiFeatures,  TRANSPORT_MATCH_EXPR);
 
-    // City name labels for selected trip stops
+    // City name labels: source e layer PERSISTONO (vuoti quando nulla è
+    // selezionato) — la selezione li riempie con setData, senza rebuild.
     if (map.getLayer("trips-labels")) map.removeLayer("trips-labels");
     if (map.getSource("trips-labels")) map.removeSource("trips-labels");
-    const selectedTrip = ordered.find((t: any) => t.id === selectedId);
-    if (selectedTrip) {
-      const labelFeatures: any[] = [
-        // Home label
-        ...(hasCoords(selectedTrip.home_latitude, selectedTrip.home_longitude) ? [{
-          type: "Feature",
-          properties: { name: selectedTrip.home_label?.split(",")[0] ?? "Casa" },
-          geometry: { type: "Point", coordinates: [selectedTrip.home_longitude, selectedTrip.home_latitude] }
-        }] : []),
-        // Waypoint labels
-        ...(selectedTrip.waypoints ?? [])
-          .filter((w: any) => hasCoords(w.lat, w.lon))
-          .map((w: any) => ({
-            type: "Feature",
-            properties: { name: w.city },
-            geometry: { type: "Point", coordinates: [w.lon, w.lat] }
-          })),
-        // Destination label
-        {
-          type: "Feature",
-          properties: { name: selectedTrip.city },
-          geometry: { type: "Point", coordinates: [selectedTrip.longitude, selectedTrip.latitude] }
-        }
-      ];
-      map.addSource("trips-labels", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: labelFeatures }
-      });
-      map.addLayer({
-        id: "trips-labels", type: "symbol", source: "trips-labels",
-        layout: {
-          "text-field": ["get", "name"],
-          "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
-          "text-size": 13,
-          "text-anchor": "top",
-          "text-offset": [0, 0.8],
-          "text-allow-overlap": true,
-        },
-        paint: {
-          "text-color": "#ffffff",
-          "text-halo-color": "rgba(0,0,0,0.9)",
-          "text-halo-width": 2,
-        }
-      });
-    }
+    map.addSource("trips-labels", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] }
+    });
+    map.addLayer({
+      id: "trips-labels", type: "symbol", source: "trips-labels",
+      layout: {
+        "text-field": ["get", "name"],
+        "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+        "text-size": 13,
+        "text-anchor": "top",
+        "text-offset": [0, 0.8],
+        "text-allow-overlap": true,
+      },
+      paint: {
+        "text-color": "#ffffff",
+        "text-halo-color": "rgba(0,0,0,0.9)",
+        "text-halo-width": 2,
+      }
+    });
 
     // Waypoint intermediate stop markers (smaller dots, colored by transport)
     const waypointFeatures = ordered.flatMap((t: any) =>
@@ -715,8 +697,91 @@ export function WorldMap({
       });
     }
 
+    // Layer nuovi di zecca: la selezione va riapplicata da zero.
+    appliedSelRef.current = null;
+    applySelection(map, selectedIdRef.current);
     // I layer appena ricreati non hanno filtro: riapplico il cursore corrente.
     applyCursor(map);
+  }
+
+  // ── Selezione incrementale ─────────────────────────────────────────────────
+  // Ciò che dipende dalla selezione è poco: la rotta rosa dei viaggi senza
+  // tappe (esiste solo da selezionati), spessore/opacità della rotta dei
+  // multi-tappa, e le etichette città. Applicarlo con setPaintProperty/setData
+  // evita il teardown+rebuild di TUTTE le source a ogni tap sul globo (gesto
+  // più frequente della Home, e causa storica del leak WebGL).
+  function applySelection(map: any, selId: string | null) {
+    if (!map || !map.getSource("trips-labels")) return; // rebuild non ancora passato
+    const prev = appliedSelRef.current;
+    if (prev === selId) return;
+
+    const routePaint = (id: string, sel: boolean) => {
+      map.setPaintProperty(id, "line-width", sel ? 2.5 : 1.8);
+      map.setPaintProperty(id, "line-opacity", sel ? 0.9 : 0.55);
+    };
+
+    // Spegni la selezione precedente
+    if (prev) {
+      const prevTrip = orderedRef.current.find((t: any) => t.id === prev);
+      const prevId = "route-" + prev;
+      if (prevTrip?.waypoints?.length) {
+        if (map.getLayer(prevId)) routePaint(prevId, false);
+      } else {
+        // Viaggio secco (o eliminato): la sua rotta rosa esiste solo da selezionato
+        if (map.getLayer(prevId)) map.removeLayer(prevId);
+        if (map.getSource(prevId)) map.removeSource(prevId);
+      }
+    }
+
+    // Accendi la nuova
+    const trip = selId ? orderedRef.current.find((t: any) => t.id === selId) : null;
+    if (trip && hasCoords(trip.home_latitude, trip.home_longitude) && hasCoords(trip.latitude, trip.longitude)) {
+      const lineId = "route-" + trip.id;
+      if (trip.waypoints?.length) {
+        if (map.getLayer(lineId)) routePaint(lineId, true);
+      } else if (!map.getLayer(lineId)) {
+        map.addSource(lineId, {
+          type: "geojson",
+          data: { type: "Feature", geometry: { type: "LineString", coordinates: buildRouteCoords(trip) } },
+        });
+        // beforeId: sotto i pallini, stessa pila del rebuild (le rotte
+        // venivano aggiunte prima dei circle layer).
+        const beforeId = ["trips-single", "trips-multi", "trips-labels"].find(id => map.getLayer(id));
+        map.addLayer({
+          id: lineId, type: "line", source: lineId,
+          paint: { "line-color": "#f472b6", "line-width": 2.5,
+            "line-opacity": 0.9, "line-dasharray": [4, 3] },
+        }, beforeId);
+        // Il layer appena nato deve rispettare il cursore temporale corrente.
+        const c = cursorRef.current;
+        map.setLayoutProperty(lineId, "visibility",
+          (!Number.isFinite(c) || dayNum(trip.trip_date) <= c) ? "visible" : "none");
+      }
+    }
+
+    // Etichette città (vuote se nulla è selezionato)
+    const labelFeatures: any[] = trip ? [
+      ...(hasCoords(trip.home_latitude, trip.home_longitude) ? [{
+        type: "Feature",
+        properties: { name: trip.home_label?.split(",")[0] ?? "Casa" },
+        geometry: { type: "Point", coordinates: [trip.home_longitude, trip.home_latitude] }
+      }] : []),
+      ...(trip.waypoints ?? [])
+        .filter((w: any) => hasCoords(w.lat, w.lon))
+        .map((w: any) => ({
+          type: "Feature",
+          properties: { name: w.city },
+          geometry: { type: "Point", coordinates: [w.lon, w.lat] }
+        })),
+      {
+        type: "Feature",
+        properties: { name: trip.city },
+        geometry: { type: "Point", coordinates: [trip.longitude, trip.latitude] }
+      }
+    ] : [];
+    map.getSource("trips-labels").setData({ type: "FeatureCollection", features: labelFeatures });
+
+    appliedSelRef.current = selId;
   }
 
   // Applica il cursore temporale ai layer dei viaggi: nasconde marker/tratte con
@@ -822,7 +887,9 @@ export function WorldMap({
   }
 
 
-  // Rebuild markers when map is ready AND trips change
+  // Rebuild markers when map is ready AND trips change.
+  // NB: selectedId NON è più una dipendenza — il tap su un pallino (il gesto
+  // più frequente della Home) non deve rifare N+6 source/layer da zero.
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     import("maplibre-gl").then(ml => {
@@ -830,14 +897,24 @@ export function WorldMap({
       addTripsToMap(mapRef.current, maplibregl);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, ordered, selectedId]);
+  }, [mapReady, ordered]);
 
-  // Focus selected trip
+  // Selezione: solo ritocchi incrementali (paint, rotta rosa, etichette).
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    applySelection(mapRef.current, selectedId ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, selectedId]);
+
+  // Focus selected trip. Deps SOLO su selectedId: con ordered in dipendenza,
+  // ogni backfill/refresh dei viaggi rilanciava un flyTo di 1s a caso.
   useEffect(() => {
     if (!selectedId || !mapRef.current) return;
-    const t = ordered.find(x => x.id === selectedId); if (!t) return;
+    const t = orderedRef.current.find(x => x.id === selectedId) ?? ordered.find(x => x.id === selectedId);
+    if (!t) return;
     mapRef.current.flyTo({ center:[t.longitude,t.latitude], zoom:Math.max(mapRef.current.getZoom(),5), duration:1000 });
-  }, [selectedId, ordered]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   // ── Replay ─────────────────────────────────────────────────────────────────
   const startReplay = () => {
