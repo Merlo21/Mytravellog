@@ -52,6 +52,22 @@ const TRANSPORT_SVG: Record<string, (color: string, size?: number) => React.Reac
 type Pt = { x: number; y: number };
 type ArcSeg = { p0: Pt; p1: Pt; p2: Pt; transport: string | null };
 
+/**
+ * Rende azionabile da tastiera un gruppo SVG che ha solo onClick: gli <g> non
+ * sono focalizzabili né rispondono a Invio/Spazio come farebbe un <button>.
+ * Stesso pattern già usato sui paesi della mappa in ContinentsMap.
+ */
+function svgButton(label: string, activate: () => void) {
+  return {
+    tabIndex: 0,
+    role: "button" as const,
+    "aria-label": label,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
+    },
+  };
+}
+
 /** Mezzo che scorre di continuo lungo l'intera catena di archi (serpentina
  *  verticale). Legge gli stessi archi bézier 2D disegnati dai nodi. */
 function ContinuousFlyer({ arcs, vbw }: { arcs: ArcSeg[]; vbw: number }) {
@@ -149,6 +165,15 @@ function RouteHero({
     return () => obs.disconnect();
   }, []);
 
+  // Il selettore del mezzo si chiudeva solo ri-toccando l'arco o scegliendo:
+  // da tastiera non c'era via d'uscita.
+  React.useEffect(() => {
+    if (activeArc == null) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setActiveArc(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeArc]);
+
   const homeLabel = home?.label?.split(",")[0] ?? "Casa";
   const stops = [
     { label: homeLabel, countryCode: null as string | null, isHome: true, transport: null as TransportMode | null },
@@ -202,7 +227,9 @@ function RouteHero({
                     <path d={d} stroke={t.color} strokeWidth="2" strokeDasharray="5 3"
                       fill="none" opacity="0.6" markerEnd={`url(#tf-arr-${t.value})`}/>
                     <path d={d} stroke="transparent" strokeWidth="22" fill="none" style={{cursor:"pointer"}}
-                      onClick={() => setActiveArc(activeArc === k + 1 ? null : k + 1)}/>
+                      onClick={() => setActiveArc(activeArc === k + 1 ? null : k + 1)}
+                      {...svgButton(`Cambia il mezzo per arrivare a ${stops[k + 1]?.label ?? "questa tappa"}`,
+                        () => setActiveArc(activeArc === k + 1 ? null : k + 1))}/>
                   </g>
                 );
               })}
@@ -222,13 +249,15 @@ function RouteHero({
                     <circle cx={x} cy={y} r={r} fill={bgFill} stroke={borderColor}
                       strokeWidth={isLast ? 2.5 : 1.5} strokeDasharray={stop.isHome ? "3 2" : "none"}/>
                     {stop.isHome ? (
-                      <g style={{cursor:"pointer"}} onClick={onEditHome}>
+                      <g style={{cursor:"pointer"}} onClick={onEditHome}
+                        {...svgButton("Cambia la città di partenza", onEditHome)}>
                         <circle cx={x+r-4} cy={y-r+4} r="20" fill="transparent"/>
                         <circle cx={x+r-4} cy={y-r+4} r="10" fill="#0d1f3c" stroke="#fbbf24" strokeWidth="1.5"/>
                         <text x={x+r-4} y={y-r+8} fontSize="11" textAnchor="middle" fill="#fbbf24">✎</text>
                       </g>
                     ) : (
-                      <g style={{cursor:"pointer"}} onClick={() => onRemoveWaypoint(i-1)}>
+                      <g style={{cursor:"pointer"}} onClick={() => onRemoveWaypoint(i-1)}
+                        {...svgButton(`Rimuovi la tappa ${stop.label}`, () => onRemoveWaypoint(i-1))}>
                         <circle cx={x+r-3} cy={y-r+3} r="20" fill="transparent"/>
                         <circle cx={x+r-3} cy={y-r+3} r="9" fill="#060e1e"
                           stroke={isLast ? borderColor : "#1a2d4a"} strokeWidth="1.5"/>
@@ -252,14 +281,15 @@ function RouteHero({
                 const midX = VBW / 2;
                 const py = Math.max(6, (a.p0.y + a.p2.y) / 2 - 30);
                 return (
-                  <g onClick={e => e.stopPropagation()}>
+                  <g onClick={e => e.stopPropagation()} role="group" aria-label="Scegli il mezzo">
                     <rect x={midX-119} y={py} width="238" height="60" rx="10" fill="#0d1f3c" stroke="#1a2d4a" strokeWidth="0.5"/>
                     <text x={midX} y={py+18} fontSize="9" textAnchor="middle" fill="rgba(255,255,255,0.4)">Cambia mezzo</text>
                     {TRANSPORT.map((opt, j) => {
                       const bx = midX - 96 + j * 32, by = py + 40;
                       return (
-                        <g key={opt.value} style={{cursor:"pointer"}}
-                          onClick={() => { onChangeTransport(activeArc-1, opt.value); setActiveArc(null); }}>
+                        <g key={opt.value} style={{cursor:"pointer"}} aria-pressed={stop.transport === opt.value}
+                          onClick={() => { onChangeTransport(activeArc-1, opt.value); setActiveArc(null); }}
+                          {...svgButton(opt.label, () => { onChangeTransport(activeArc-1, opt.value); setActiveArc(null); })}>
                           <rect x={bx-16} y={by-18} width="32" height="36" fill="transparent"/>
                           <rect x={bx-14} y={by-14} width="28" height="28" rx="8"
                             fill={stop.transport === opt.value ? opt.bg : "rgba(255,255,255,0.05)"}
@@ -600,21 +630,30 @@ export function TripFormFields({
           textTransform:"uppercase", display:"block", marginBottom:8 }}>
           Valutazione <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
         </label>
-        <div style={{ display:"flex", gap:4 }}>
+        {/* Cinque bottoni il cui unico contenuto era "★": uno screen reader
+            leggeva cinque volte lo stesso nome. Ora ognuno dice quante stelle
+            assegna e se è quella scelta. */}
+        <div style={{ display:"flex", gap:4 }} role="group" aria-label="Valutazione del viaggio">
           {[1,2,3,4,5].map(i => (
             <button key={i} type="button"
+              aria-label={`${i} ${i === 1 ? "stella" : "stelle"} su 5`}
+              aria-pressed={rating === i}
               onMouseEnter={() => setHoverRating(i)}
               onMouseLeave={() => setHoverRating(0)}
+              onFocus={() => setHoverRating(i)}
+              onBlur={() => setHoverRating(0)}
               onClick={() => setRating(rating === i ? 0 : i)}
               style={{ fontSize:26, background:"none", border:"none", cursor:"pointer", padding:0,
                 color: i <= (hoverRating||rating) ? "#fbbf24" : "rgba(255,255,255,0.15)",
                 transform: i <= (hoverRating||rating) ? "scale(1.15)" : "scale(1)",
-                transition:"color 0.1s, transform 0.1s" }}>★</button>
+                transition:"color 0.1s, transform 0.1s" }}><span aria-hidden="true">★</span></button>
           ))}
         </div>
-        {(hoverRating||rating) > 0 && (
-          <div style={{ fontSize:11, color:"#fbbf24", marginTop:6 }}>{RATING_LABELS[hoverRating||rating]}</div>
-        )}
+        {/* aria-live: il giudizio cambia senza che il focus si sposti, quindi
+            va annunciato o resta muto per chi non vede. */}
+        <div aria-live="polite" style={{ fontSize:11, color:"#fbbf24", marginTop:6, minHeight:(hoverRating||rating) > 0 ? undefined : 0 }}>
+          {(hoverRating||rating) > 0 ? RATING_LABELS[hoverRating||rating] : ""}
+        </div>
       </div>
     </>
   );

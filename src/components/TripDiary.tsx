@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trip, updateTrip, parseLocalDate, isValidDateISO } from "@/lib/storage";
 import { X } from "lucide-react";
+import { useModalFocus } from "@/lib/useModalFocus";
 
 export interface DiaryEntry { date: string; text: string; highlight?: boolean }
 
@@ -77,6 +78,9 @@ const BRAND = '"Space Grotesk", system-ui, sans-serif';
  * cambiano). Scroll della pagina bloccato con il pattern iOS-proof.
  */
 export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
+  // Il pannello dichiara aria-modal: il focus deve restarci dentro e tornare
+  // al pulsante "Diario" alla chiusura.
+  const modalRef = useModalFocus<HTMLDivElement>();
   const days = useMemo(() => tripDays(trip), [trip]);
 
   // Giorni totali del range: se superano MAX_DAYS il troncamento va DETTO
@@ -277,7 +281,7 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={`Diario — ${trip.title || trip.city}`}
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label={`Diario — ${trip.title || trip.city}`}
       style={{
         position: "fixed", inset: 0, zIndex: 200, background: "#060e1e",
         display: "flex", flexDirection: "column",

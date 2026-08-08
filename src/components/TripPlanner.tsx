@@ -8,6 +8,7 @@ import { useSettings } from "@/lib/settings";
 import { ItineraryPanel, Waypoint, TransportMode } from "@/components/TripFormParts";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
+import { useModalFocus } from "@/lib/useModalFocus";
 
 export interface BudgetRow { label: string; amount: number; paid?: number }
 export interface ChecklistRow { text: string; done: boolean }
@@ -43,6 +44,9 @@ function fmt(n: number): string {
  * il viaggio nel diario (promotePlanToTrip). Scroll pagina bloccato (iOS-proof).
  */
 export function TripPlanner({ plan, onClose, onChanged }: Props) {
+  // Il pannello dichiara aria-modal: focus dentro finché è aperto, e ritorno
+  // al pulsante che l'ha aperto alla chiusura.
+  const modalRef = useModalFocus<HTMLDivElement>();
   const navigate = useNavigate();
   const s = useSettings();
   // "dirty": l'utente ha toccato qualcosa. Senza questo flag, aprire e chiudere
@@ -234,7 +238,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={`Pianifica — ${plan.title || plan.city}`}
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label={`Pianifica — ${plan.title || plan.city}`}
       style={{ position: "fixed", inset: 0, zIndex: 200, background: "#060e1e", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.1)", background: "rgba(6,14,30,0.95)" }}>
