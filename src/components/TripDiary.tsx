@@ -197,7 +197,7 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
       <div key={iso} style={{ display: "flex", gap: 10, marginBottom: 12 }}>
         <div style={{ flexShrink: 0, width: 54, textAlign: "center", background: "rgba(96,165,250,0.12)", border: "0.5px solid rgba(96,165,250,0.3)", borderRadius: 8, padding: "7px 0" }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#60a5fa", lineHeight: 1 }}>{day}</div>
-          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: ".5px", marginTop: 3 }}>{wd} {mon}</div>
+          <div style={{ fontSize: 8, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: ".5px", marginTop: 3 }}>{wd} {mon}</div>
         </div>
         <textarea
           ref={growRef}
@@ -231,7 +231,7 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
     }
     return (
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "4px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>diario di bordo</div>
+        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "4px", color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>diario di bordo</div>
         <div style={{ color: "#f0f4ff", fontFamily: BRAND, fontSize: 26, fontWeight: 700, lineHeight: 1.1, margin: "9px 0 5px" }}>{trip.title || trip.city}</div>
         <div style={{ fontFamily: MONO, fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 22 }}>
           {coverRange(trip)} · {readEntries.length} {readEntries.length === 1 ? "giorno scritto" : "giorni scritti"}
@@ -291,7 +291,7 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
           <div style={{ fontWeight: 700, fontSize: 15, color: "#f0f4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             📖 Diario — {trip.title || trip.city}
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
             {mode === "read" ? "Il tuo racconto, giorno per giorno" : "Scrivi il racconto giorno per giorno · si salva da solo"}
           </div>
         </div>
@@ -320,13 +320,13 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
         <div style={{ maxWidth: 640, margin: "0 auto" }}>
           {days.map(renderDay)}
           {truncated && (
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: "2px 0 14px" }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: "2px 0 14px" }}>
               Mostro i primi {MAX_DAYS} giorni — il viaggio ne ha {totalDays}.
             </div>
           )}
           {beyondCapDates.length > 0 && (
             <>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase", margin: "18px 0 10px" }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: "1.5px", textTransform: "uppercase", margin: "18px 0 10px" }}>
                 Giorni scritti oltre il {MAX_DAYS}° (dentro le date del viaggio)
               </div>
               {beyondCapDates.map(renderDay)}
@@ -334,7 +334,7 @@ export function TripDiary({ trip, entries, onClose, onSaved }: Props) {
           )}
           {orphanDates.length > 0 && (
             <>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase", margin: "18px 0 10px" }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: "1.5px", textTransform: "uppercase", margin: "18px 0 10px" }}>
                 Altri giorni (fuori dalle date attuali del viaggio)
               </div>
               {orphanDates.map(renderDay)}

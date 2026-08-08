@@ -22,7 +22,7 @@ const NotFound = () => {
           </div>
           <div className="font-mono" style={{ fontSize: 40, fontWeight: 800, color: "#f0f4ff", lineHeight: 1 }}>404</div>
           <div className="font-display" style={{ fontSize: 16, fontWeight: 700, color: "#f0f4ff", marginTop: 10 }}>Pagina non trovata</div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, margin: "6px 0 18px" }}>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: "6px 0 18px" }}>
             Questa rotta non esiste. Torna alla home e riparti dal globo.
           </p>
           <Link to="/"

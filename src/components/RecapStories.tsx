@@ -66,7 +66,7 @@ export function RecapStories({ recap: r, fmt, flagUrl, onClose }: { recap: YearR
             <div key={m} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 12, height: 12, borderRadius: "50%", background: MODE_COLOR(m) }} />
               <span style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>{MODE_LABEL(m)}</span>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{Math.round((v / total) * 100)}%</span>
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{Math.round((v / total) * 100)}%</span>
             </div>
           ))}
         </div>
@@ -86,7 +86,7 @@ export function RecapStories({ recap: r, fmt, flagUrl, onClose }: { recap: YearR
         <div style={kicker}>I tuoi record</div>
         {records.map(([lab, val, city]) => (
           <div key={lab}>
-            <div style={{ fontSize: 11, letterSpacing: 1, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>{lab}</div>
+            <div style={{ fontSize: 11, letterSpacing: 1, color: "rgba(255,255,255,0.6)", textTransform: "uppercase" }}>{lab}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
               <span style={big(30, "#fbbf24")}>{val}</span>
               {city && <span style={{ fontSize: 14, color: "rgba(255,255,255,0.55)" }}>{city}</span>}

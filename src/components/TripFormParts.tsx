@@ -346,7 +346,7 @@ function RouteHero({
             <span style={{ fontSize:14, color:"#fbbf24" }}>🏠</span>
             <input autoFocus style={{ background:"transparent", border:"none", outline:"none", color:"#f0f4ff", fontSize:13, flex:1 }}
               value={homeQuery} onChange={e => setHomeQuery(e.target.value)} placeholder="La tua città…"/>
-            <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+            <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.6)", flexShrink:0 }}/>
             {homeResults.length > 0 && (
               <div style={{ position:"absolute", bottom:"100%", left:0, right:0, background:"#0d1f3c",
                 border:"0.5px solid #1a2d4a", borderRadius:8, zIndex:10, overflow:"hidden", marginBottom:4 }}>
@@ -355,7 +355,7 @@ function RouteHero({
                     style={{ width:"100%", textAlign:"left", padding:"9px 14px", fontSize:13,
                       color:"#f0f4ff", background:"none", border:"none", cursor:"pointer",
                       display:"flex", alignItems:"center", gap:8, borderBottom:"0.5px solid #1a2d4a" }}>
-                    <MapPin className="w-3.5 h-3.5" style={{ color:"rgba(255,255,255,0.3)" }}/>{r.name}, {r.country}
+                    <MapPin className="w-3.5 h-3.5" style={{ color:"rgba(255,255,255,0.6)" }}/>{r.name}, {r.country}
                   </button>
                 ))}
               </div>
@@ -370,7 +370,7 @@ function RouteHero({
           <div style={{ background:"#0a1e38", border:"0.5px solid #1a2d4a", borderRadius:10, overflow:"hidden" }}>
             <div style={{ padding:"10px 14px 8px", borderBottom:"0.5px solid #1a2d4a",
               display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-              <span style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1px",
+              <span style={{ fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"1px",
                 textTransform:"uppercase", marginRight:4 }}>Mezzo</span>
               {TRANSPORT.map(t => (
                 <button key={t.value} type="button" onClick={() => setWpTransport(t.value)}
@@ -387,15 +387,15 @@ function RouteHero({
             </div>
             <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:8 }}>
               {wpLoading
-                ? <Loader2 className="w-4 h-4 animate-spin" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
-                : <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.3)", flexShrink:0 }}/>
+                ? <Loader2 className="w-4 h-4 animate-spin" style={{ color:"rgba(255,255,255,0.6)", flexShrink:0 }}/>
+                : <Search className="w-4 h-4" style={{ color:"rgba(255,255,255,0.6)", flexShrink:0 }}/>
               }
               <input autoFocus style={{ background:"transparent", border:"none", outline:"none",
                 color:"#f0f4ff", fontSize:13, flex:1 }}
                 value={wpQuery} onChange={e => setWpQuery(e.target.value)} placeholder="Cerca città…"/>
               <button type="button" onClick={() => { setWpQuery(""); setWpOpen(false); }}
                 aria-label="Chiudi ricerca tappa"
-                style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.3)", display:"flex", alignItems:"center", flexShrink:0 }}>
+                style={{ background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.6)", display:"flex", alignItems:"center", flexShrink:0 }}>
                 <X className="w-4 h-4"/>
               </button>
             </div>
@@ -444,7 +444,7 @@ export function ItineraryPanel(props: RouteHeroProps) {
         </div>
         <div>
           <div className="font-display" style={{ fontSize:15, fontWeight:700, color:"#f0f4ff" }}>Itinerario</div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:1 }}>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:1 }}>
             Clicca 🏠 per cambiare città di partenza
           </div>
         </div>
@@ -476,7 +476,7 @@ export function TripFormFields({
     <>
       {/* Nome */}
       <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
-        <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+        <label style={{ fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"1.5px",
           textTransform:"uppercase", display:"block", marginBottom:6 }}>Nome del viaggio</label>
         <input style={{ background:"#060e1e", border:"0.5px solid #1a2d4a", borderRadius:8,
           padding:"9px 12px", fontSize:13, color:"#f0f4ff", width:"100%",
@@ -492,13 +492,13 @@ export function TripFormFields({
 
         {/* Riga superiore: Titolo a sinistra, Durata a destra */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px", textTransform:"uppercase", display:"block", margin: 0 }}>
+          <label style={{ fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"1.5px", textTransform:"uppercase", display:"block", margin: 0 }}>
             Periodo
           </label>
 
           {days && (
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Durata</span>
+              <span style={{ fontSize: 8, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 1 }}>Durata</span>
               <div style={{
                 background: "rgba(96, 165, 250, 0.15)", color: "#60a5fa",
                 fontWeight: 700, fontSize: 11, padding: "2px 8px",
@@ -528,7 +528,7 @@ export function TripFormFields({
 
           {/* PARTENZA */}
           <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, marginLeft:4 }}>
-            <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</span>
+            <span style={{ fontSize:9, color:"rgba(255,255,255,0.6)", textTransform:"uppercase", letterSpacing:1 }}>Partenza</span>
             <input type="date"
               // min/max: su desktop l'anno si digita a mano e un refuso tipo
               // "20261" produceva una data che avvelenava biglietto/timeline.
@@ -556,7 +556,7 @@ export function TripFormFields({
 
           {/* RITORNO */}
           <div style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, marginLeft:2 }}>
-            <span style={{ fontSize:9, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</span>
+            <span style={{ fontSize:9, color:"rgba(255,255,255,0.6)", textTransform:"uppercase", letterSpacing:1 }}>Ritorno</span>
             <input type="date"
               min="1900-01-01" max="2100-12-31"
               style={{ background:"transparent", border:"none", outline:"none",
@@ -578,7 +578,7 @@ export function TripFormFields({
 
       {/* Note */}
       <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
-        <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+        <label style={{ fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"1.5px",
           textTransform:"uppercase", display:"block", marginBottom:6 }}>
           Note <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
         </label>
@@ -596,7 +596,7 @@ export function TripFormFields({
 
       {/* Valutazione */}
       <div style={{ background:"#0a1628", border:"0.5px solid #1a2d4a", borderRadius:8, padding:"14px 16px" }}>
-        <label style={{ fontSize:9, color:"rgba(255,255,255,0.35)", letterSpacing:"1.5px",
+        <label style={{ fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"1.5px",
           textTransform:"uppercase", display:"block", marginBottom:8 }}>
           Valutazione <span style={{ opacity:0.4, fontSize:9, textTransform:"none" }}>(opzionale)</span>
         </label>
@@ -633,7 +633,7 @@ export function TripFormActions({ saving, confirmDiscard, onSave }: {
         <Link to="/" onClick={saving ? (e) => e.preventDefault() : confirmDiscard}
           aria-disabled={saving}
           style={{ flex:1, textAlign:"center", padding:"10px", borderRadius:10,
-          fontSize:13, color:"rgba(255,255,255,0.4)", border:"0.5px solid #1a2d4a",
+          fontSize:13, color:"rgba(255,255,255,0.6)", border:"0.5px solid #1a2d4a",
           textDecoration:"none", background:"transparent",
           opacity: saving ? 0.4 : 1, pointerEvents: saving ? "none" : "auto" }}>
           Annulla
@@ -649,7 +649,7 @@ export function TripFormActions({ saving, confirmDiscard, onSave }: {
       {/* Un viaggio con più tappe può richiedere qualche secondo: senza
           questa riga il form sembra bloccato invece che al lavoro. */}
       {saving && (
-        <p style={{ fontSize:11, color:"rgba(255,255,255,0.35)", textAlign:"center", margin:0 }}>
+        <p style={{ fontSize:11, color:"rgba(255,255,255,0.6)", textAlign:"center", margin:0 }}>
           Recupero regione, meteo e altitudine delle tappe…
         </p>
       )}

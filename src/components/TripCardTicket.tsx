@@ -195,7 +195,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button aria-label="Azioni viaggio"
-                style={{width:26,height:26,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.4)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                style={{width:26,height:26,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.6)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 <MoreVertical style={{width:16,height:16}}/>
               </button>
             </DropdownMenuTrigger>
@@ -222,7 +222,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
                 <div key={i} style={{display:"flex",alignItems:"center",gap:4,flex:i < stops.length-1 ? 1 : 0}}>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
                     <div style={{width:i===0?8:i===stops.length-1?8:6,height:i===0?8:i===stops.length-1?8:6,borderRadius:"50%",background:i===0?"#fbbf24":i===stops.length-1?ts.color:"#60a5fa"}}/>
-                    <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>{abbr(stop)}</div>
+                    <div style={{fontSize:9,color:"rgba(255,255,255,0.75)"}}>{abbr(stop)}</div>
                   </div>
                   {i < stops.length-1 && (
                     <div style={{flex:1,borderTop:"1.5px dashed rgba(96,165,250,0.3)",marginBottom:12}}/>
@@ -232,8 +232,8 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
             </div>
             <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               {stops.map((stop, i) => (
-                <span key={i} style={{fontSize:10,color:"rgba(255,255,255,0.4)"}}>
-                  {stop}{i < stops.length-1 && <span style={{color:"rgba(255,255,255,0.2)",margin:"0 2px"}}>→</span>}
+                <span key={i} style={{fontSize:10,color:"rgba(255,255,255,0.6)"}}>
+                  {stop}{i < stops.length-1 && <span style={{color:"rgba(255,255,255,0.6)",margin:"0 2px"}}>→</span>}
                 </span>
               ))}
             </div>
@@ -242,7 +242,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:"#fbbf24"}}/>
-              <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>{abbr(trip.home_label?.split(",")[0] || "Casa")}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.75)"}}>{abbr(trip.home_label?.split(",")[0] || "Casa")}</div>
             </div>
             <div style={{flex:1,display:"flex",alignItems:"center",gap:4}}>
               <div style={{flex:1,borderTop:"1.5px dashed "+ts.color+"60"}}/>
@@ -251,7 +251,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
             </div>
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:"#f472b6"}}/>
-              <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>{abbr(trip.city)}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.75)"}}>{abbr(trip.city)}</div>
             </div>
           </div>
         )}
@@ -272,7 +272,7 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
             {formatTripDate(trip.trip_date)}
           </span>
           {trip.date_end && trip.date_end !== trip.trip_date && (
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}> → {formatTripDate(trip.date_end)}</span>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}> → {formatTripDate(trip.date_end)}</span>
           )}
           {days && days > 0 && (
             <span style={{fontSize:11,color:ts.color,fontWeight:600}}> · {days}g</span>
@@ -289,13 +289,13 @@ export function TripCardTicket({ trip, onDeleteRequested }: Props) {
         {tripKm > 0 && (
           <>
             <div style={{width:1,height:10,background:"#1a2d4a"}}/>
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}>{fmtDistance(tripKm, distanceUnit)}</span>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}>{fmtDistance(tripKm, distanceUnit)}</span>
           </>
         )}
         {trip.temperature_c != null && (
           <>
             <div style={{width:1,height:10,background:"#1a2d4a"}}/>
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.35)"}}>{fmtTemp(trip.temperature_c, temperatureUnit)}</span>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}>{fmtTemp(trip.temperature_c, temperatureUnit)}</span>
           </>
         )}
       </div>

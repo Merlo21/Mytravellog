@@ -102,7 +102,7 @@ function StatCard({ icon, label, value, accent, bg, i = 0 }: StatCardProps) {
       </div>
       <div>
         <div className="font-mono" style={{fontSize:20,fontWeight:700,color:"#f0f4ff",lineHeight:1.1}}>{value}</div>
-        <div style={{fontSize:10,letterSpacing:"1.2px",textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginTop:3}}>{label}</div>
+        <div style={{fontSize:10,letterSpacing:"1.2px",textTransform:"uppercase",color:"rgba(255,255,255,0.6)",marginTop:3}}>{label}</div>
       </div>
     </div>
   );
@@ -216,7 +216,7 @@ function HomeInner() {
                     <button type="button" className="flex flex-col items-center w-full py-1.5 gap-0.5"
                       aria-label={statsOpen ? "Nascondi le tue statistiche" : "Mostra le tue statistiche"}>
                       <span style={{width:30,height:3,borderRadius:2,background:"rgba(255,255,255,0.25)"}}/>
-                      <ChevronDown className="w-3 h-3 transition-transform" style={{ color:"rgba(255,255,255,0.35)", transform: statsOpen ? "rotate(180deg)" : "none" }}/>
+                      <ChevronDown className="w-3 h-3 transition-transform" style={{ color:"rgba(255,255,255,0.6)", transform: statsOpen ? "rotate(180deg)" : "none" }}/>
                     </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="pt-2">
@@ -274,7 +274,7 @@ function HomeInner() {
                     <Plane style={{width:22, height:22, color:"#60a5fa"}}/>
                   </div>
                   <div className="font-display" style={{fontSize:15, fontWeight:700, color:"#f0f4ff"}}>Benvenuto su NAV·TA</div>
-                  <p style={{fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.5, margin:"6px 0 16px"}}>
+                  <p style={{fontSize:12, color:"rgba(255,255,255,0.6)", lineHeight:1.5, margin:"6px 0 16px"}}>
                     Aggiungi il tuo primo viaggio e guarda il globo prendere vita.
                   </p>
                   <button onClick={() => navigate("/nuovo-viaggio")}
@@ -287,7 +287,7 @@ function HomeInner() {
                   </button>
                   {!homeCity && (
                     <button onClick={() => navigate("/impostazioni")}
-                      style={{marginTop:10, fontSize:11, background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.4)", textDecoration:"underline"}}>
+                      style={{marginTop:10, fontSize:11, background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.6)", textDecoration:"underline"}}>
                       Prima imposta la tua città di casa
                     </button>
                   )}
@@ -314,10 +314,10 @@ function HomeInner() {
                       <div style={{fontSize:13, fontWeight:700, color:"#f0f4ff", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>
                         {selectedTrip.title && selectedTrip.title !== selectedTrip.city ? selectedTrip.title : selectedTrip.city}
                       </div>
-                      <div style={{fontSize:11, color:"rgba(255,255,255,0.4)"}}>{selectedTrip.city}, {selectedTrip.country}</div>
+                      <div style={{fontSize:11, color:"rgba(255,255,255,0.6)"}}>{selectedTrip.city}, {selectedTrip.country}</div>
                     </div>
                     <button onClick={() => setSelectedId(null)} aria-label="Chiudi scheda viaggio"
-                      style={{width:24, height:24, background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}>
+                      style={{width:24, height:24, background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,0.6)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}>
                       <X style={{width:14, height:14}}/>
                     </button>
                   </div>
@@ -326,7 +326,7 @@ function HomeInner() {
                     <span style={{fontSize:11, color:"rgba(255,255,255,0.55)", fontWeight:600}}>
                       {formatTripDate(selectedTrip.trip_date)}
                       {selectedTrip.date_end && selectedTrip.date_end !== selectedTrip.trip_date && (
-                        <span style={{color:"rgba(255,255,255,0.35)", fontWeight:400}}> → {formatTripDate(selectedTrip.date_end)}</span>
+                        <span style={{color:"rgba(255,255,255,0.6)", fontWeight:400}}> → {formatTripDate(selectedTrip.date_end)}</span>
                       )}
                     </span>
                     {isTransportMode(selectedTrip.transport_mode) && (
@@ -343,7 +343,7 @@ function HomeInner() {
                       // Una sola invocazione (itera su tutti i waypoint), non due.
                       const km = tripTotalKm(selectedTrip);
                       return km > 0 && (
-                        <span style={{fontSize:11, color:"rgba(255,255,255,0.35)"}}>{fmtDistance(km, distanceUnit)}</span>
+                        <span style={{fontSize:11, color:"rgba(255,255,255,0.6)"}}>{fmtDistance(km, distanceUnit)}</span>
                       );
                     })()}
                   </div>

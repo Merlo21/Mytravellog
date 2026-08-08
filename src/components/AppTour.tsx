@@ -140,7 +140,7 @@ export function AppTour() {
         boxShadow: "0 20px 60px rgba(0,0,0,0.5)", color: "#f0f4ff",
       }}>
         <button type="button" onClick={done} aria-label="Salta il tutorial"
-          style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, borderRadius: 8, background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, borderRadius: 8, background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <X style={{ width: 16, height: 16 }} />
         </button>
 
@@ -158,7 +158,7 @@ export function AppTour() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {!last && (
-              <button type="button" onClick={done} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 12, cursor: "pointer" }}>Salta</button>
+              <button type="button" onClick={done} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", fontSize: 12, cursor: "pointer" }}>Salta</button>
             )}
             <button type="button" onClick={next} autoFocus
               style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#60a5fa", border: "none", borderRadius: 9, padding: "8px 14px", fontSize: 13, fontWeight: 700, color: "#04203f", cursor: "pointer" }}>

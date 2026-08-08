@@ -937,11 +937,11 @@ export function WorldMap({
                 style={{ flex: 1, accentColor: "#60a5fa", cursor: "pointer" }} />
               <div style={{ flexShrink: 0, textAlign: "right", minWidth: 78 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f4ff", textTransform: "capitalize" }}>{label}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{count} {count === 1 ? "viaggio" : "viaggi"}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)" }}>{count} {count === 1 ? "viaggio" : "viaggi"}</div>
               </div>
             </div>
             {years.length <= 12 && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 9, color: "rgba(255,255,255,0.35)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 9, color: "rgba(255,255,255,0.6)" }}>
                 {years.map(y => <span key={y}>{y}</span>)}
               </div>
             )}

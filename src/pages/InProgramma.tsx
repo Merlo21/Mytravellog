@@ -157,7 +157,7 @@ const InProgramma = () => {
                     {results.map((r, i) => (
                       <button key={i} type="button" onMouseDown={() => { setDest(r); setResults([]); if (!title) setTitle(r.name); }}
                         style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", borderTop: i ? "0.5px solid #16233d" : "none", padding: "9px 11px", fontSize: 13, color: "#f0f4ff", cursor: "pointer" }}>
-                        {r.name} <span style={{ color: "rgba(255,255,255,0.4)" }}>· {r.country}</span>
+                        {r.name} <span style={{ color: "rgba(255,255,255,0.6)" }}>· {r.country}</span>
                       </button>
                     ))}
                   </div>
@@ -190,7 +190,7 @@ const InProgramma = () => {
 
         {/* Lista piani */}
         {plans.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "50px 20px", color: "rgba(255,255,255,0.4)" }}>
+          <div style={{ textAlign: "center", padding: "50px 20px", color: "rgba(255,255,255,0.6)" }}>
             <CalendarClock style={{ width: 40, height: 40, margin: "0 auto 12px", opacity: 0.4 }} />
             <div style={{ fontSize: 14 }}>Nessun viaggio in programma.</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>Programma la tua prossima avventura e organizza budget e da-fare.</div>
@@ -212,7 +212,7 @@ const InProgramma = () => {
                     </div>
                     <div style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: cd.returned ? "#34d399" : cd.urgent ? "#fbbf24" : "rgba(255,255,255,0.5)" }}>{cd.text}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{dateRange(p)} · in programma</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{dateRange(p)} · in programma</div>
                   {(p.waypoints?.length ?? 0) > 0 && (
                     <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#93c5fd", marginTop: 6, minWidth: 0 }}>
                       <MapPin style={{ width: 12, height: 12, flexShrink: 0 }} />
@@ -229,20 +229,20 @@ const InProgramma = () => {
 
                   <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 14 }}>
                     <div style={{ flex: 1, minWidth: 140 }}>
-                      <div style={{ fontSize: 9, letterSpacing: ".06em", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>BUDGET PREVENTIVO</div>
+                      <div style={{ fontSize: 9, letterSpacing: ".06em", color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>BUDGET PREVENTIVO</div>
                       <div style={{ fontSize: 17, fontWeight: 600 }}>{total > 0 ? `${CUR} ${total.toLocaleString("it-IT")}` : "—"}</div>
                       {total > 0 && (
                         <>
                           <div style={{ height: 5, borderRadius: 999, background: "#16233d", marginTop: 6, overflow: "hidden" }}>
                             <div style={{ width: `${Math.min(100, Math.round((paid / total) * 100))}%`, height: "100%", background: "#34d399" }} />
                           </div>
-                          {paid > 0 && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>già pagato {CUR} {paid.toLocaleString("it-IT")}</div>}
+                          {paid > 0 && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>già pagato {CUR} {paid.toLocaleString("it-IT")}</div>}
                         </>
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 140 }}>
-                      <div style={{ fontSize: 9, letterSpacing: ".06em", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>DA ORGANIZZARE</div>
-                      <div style={{ fontSize: 17, fontWeight: 600 }}>{cl.length ? `${done} / ${cl.length}` : "—"} {cl.length > 0 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 400 }}>fatte</span>}</div>
+                      <div style={{ fontSize: 9, letterSpacing: ".06em", color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>DA ORGANIZZARE</div>
+                      <div style={{ fontSize: 17, fontWeight: 600 }}>{cl.length ? `${done} / ${cl.length}` : "—"} {cl.length > 0 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 400 }}>fatte</span>}</div>
                       {cl.length > 0 && (
                         <div style={{ height: 5, borderRadius: 999, background: "#16233d", marginTop: 6, overflow: "hidden" }}>
                           <div style={{ width: `${Math.round((done / cl.length) * 100)}%`, height: "100%", background: "#60a5fa" }} />

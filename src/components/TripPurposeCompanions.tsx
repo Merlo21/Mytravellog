@@ -16,7 +16,7 @@ const box: React.CSSProperties = {
   background: "#0a1628", border: "0.5px solid #1a2d4a", borderRadius: 8, padding: "14px 16px",
 };
 const label: React.CSSProperties = {
-  fontSize: 9, color: "rgba(255,255,255,0.35)", letterSpacing: "1.5px", textTransform: "uppercase",
+  fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: "1.5px", textTransform: "uppercase",
   display: "block", marginBottom: 9,
 };
 const smallInput: React.CSSProperties = {

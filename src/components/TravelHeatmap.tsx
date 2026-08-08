@@ -110,7 +110,7 @@ export function TravelHeatmap({ trips }: Props) {
           </div>
           <div>
             <div className="font-mono" style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>{totalTravelDays}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>giorni in viaggio</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>giorni in viaggio</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -121,7 +121,7 @@ export function TravelHeatmap({ trips }: Props) {
             <div className="font-mono" style={{ fontSize: 24, fontWeight: 700, color: "#f0f4ff", lineHeight: 1 }}>
               {abstinence == null ? "—" : abstinence}
             </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>giorni senza viaggiare</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>giorni senza viaggiare</div>
           </div>
         </div>
       </div>
@@ -135,11 +135,11 @@ export function TravelHeatmap({ trips }: Props) {
         <div style={{ display: "grid", gridTemplateColumns: "34px repeat(12,1fr)", gap: 4, alignItems: "center", minWidth: 460 }}>
           <div />
           {MONTH_LABELS.map(m => (
-            <div key={m} style={{ fontSize: 9, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>{m}</div>
+            <div key={m} style={{ fontSize: 9, textAlign: "center", color: "rgba(255,255,255,0.6)" }}>{m}</div>
           ))}
           {years.map(year => (
             <Fragment key={year}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{year}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)" }}>{year}</div>
               {MONTH_LABELS.map((label, m) => {
                 const days = monthlyDays.get(`${year}-${m}`) ?? 0;
                 const isSelected = selectedCell?.year === year && selectedCell?.month === m;
@@ -169,11 +169,11 @@ export function TravelHeatmap({ trips }: Props) {
 
       {years.length > 0 && (
       <div className="flex items-center justify-end gap-1.5 mt-3.5">
-        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>0</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.6)" }}>0</span>
         {[0, 0.25, 0.5, 0.75, 1].map(a => (
           <div key={a} style={{ width: 10, height: 10, borderRadius: 3, background: a === 0 ? "rgba(255,255,255,0.06)" : `rgba(96,165,250,${a})` }} />
         ))}
-        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>{maxDays} giorni</span>
+        <span style={{ fontSize: 9, color: "rgba(255,255,255,0.6)" }}>{maxDays} giorni</span>
       </div>
       )}
 
@@ -187,7 +187,7 @@ export function TravelHeatmap({ trips }: Props) {
               })()}
             </span>
             <button type="button" onClick={() => setSelectedCell(null)} aria-label="Chiudi"
-              style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", display: "flex" }}>
+              style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", display: "flex" }}>
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -195,7 +195,7 @@ export function TravelHeatmap({ trips }: Props) {
             {selectedMonthTrips.map(t => (
               <div key={t.id} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                 {t.city}
-                <span style={{ color: "rgba(255,255,255,0.35)" }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>
                   {" · " + formatTripDate(t.trip_date)}
                   {t.date_end && t.date_end !== t.trip_date ? ` → ${formatTripDate(t.date_end)}` : ""}
                 </span>

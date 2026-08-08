@@ -180,7 +180,7 @@ export default function MieiViaggi() {
               <div style={{flex:1,minWidth:0,fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                 <span style={{fontWeight:600}}>{next.title || next.city}</span>{" "}
                 <span style={{color: cd.returned ? "#34d399" : cd.urgent ? "#fbbf24" : "rgba(255,255,255,0.55)"}}>· {cd.text}</span>
-                {plans.length > 1 && <span style={{color:"rgba(255,255,255,0.4)"}}> ＋ {plans.length - 1} {plans.length - 1 === 1 ? "altro" : "altri"}</span>}
+                {plans.length > 1 && <span style={{color:"rgba(255,255,255,0.6)"}}> ＋ {plans.length - 1} {plans.length - 1 === 1 ? "altro" : "altri"}</span>}
               </div>
               <span style={{flexShrink:0,fontSize:11,fontWeight:600,color:"#93c5fd",display:"inline-flex",alignItems:"center",gap:4}}>
                 In programma <ArrowRight style={{width:12,height:12}}/>
@@ -195,7 +195,7 @@ export default function MieiViaggi() {
             di AppHeader.tsx (FROZEN): se quella cambia, va rimisurato. */}
         <div className="mb-6" style={{position:"sticky",top:65,zIndex:10,background:"#060e1e",paddingTop:8,paddingBottom:8}}>
           <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.05)",borderRadius:10,padding:"8px 14px",maxWidth:400}}>
-            <Search className="w-4 h-4" style={{color:"rgba(255,255,255,0.3)",flexShrink:0}}/>
+            <Search className="w-4 h-4" style={{color:"rgba(255,255,255,0.6)",flexShrink:0}}/>
             <input
               style={{background:"transparent",border:"none",outline:"none",color:"#f0f4ff",fontSize:13,flex:1}}
               value={search}
@@ -203,7 +203,7 @@ export default function MieiViaggi() {
               placeholder="Cerca città, paese, titolo…"
             />
             {search && (
-              <button onClick={() => setSearch("")} aria-label="Cancella la ricerca" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)"}}>
+              <button onClick={() => setSearch("")} aria-label="Cancella la ricerca" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.6)"}}>
                 <X className="w-3.5 h-3.5"/>
               </button>
             )}
@@ -259,7 +259,7 @@ export default function MieiViaggi() {
                   <Plane style={{width:22, height:22, color:"#60a5fa"}}/>
                 </div>
                 <div className="font-display" style={{fontSize:15, fontWeight:700, color:"#f0f4ff"}}>Nessun viaggio ancora</div>
-                <p style={{fontSize:12, color:"rgba(255,255,255,0.45)", lineHeight:1.5, margin:"6px 0 16px"}}>
+                <p style={{fontSize:12, color:"rgba(255,255,255,0.6)", lineHeight:1.5, margin:"6px 0 16px"}}>
                   Aggiungi il tuo primo viaggio: comparirà qui, sul globo e nelle statistiche.
                 </p>
                 <Link to="/nuovo-viaggio"
@@ -274,12 +274,12 @@ export default function MieiViaggi() {
             {years.map(year => (
               <div key={year}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:11,fontWeight:700,letterSpacing:"2px",textTransform:"uppercase",color:"rgba(255,255,255,0.3)"}}>{year}</span>
+                  <span style={{fontSize:11,fontWeight:700,letterSpacing:"2px",textTransform:"uppercase",color:"rgba(255,255,255,0.6)"}}>{year}</span>
                   <div style={{flex:1,height:"0.5px",background:"#1a2d4a"}}/>
-                  <span style={{fontSize:11,color:"rgba(255,255,255,0.25)"}}>{byYear[year].length}</span>
+                  <span style={{fontSize:11,color:"rgba(255,255,255,0.6)"}}>{byYear[year].length}</span>
                   {byYear[year].length > 1 && (
                     <button type="button" onClick={() => setFlyoverYear(year)} aria-label={`Rivivi il ${year} in 3D`}
-                      style={{width:22,height:22,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      style={{width:22,height:22,background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.6)",display:"flex",alignItems:"center",justifyContent:"center"}}>
                       <Video style={{width:13,height:13}}/>
                     </button>
                   )}

@@ -690,7 +690,7 @@ export default function QuadroEditor() {
               background: "#0b1a33", border: "0.5px solid #2a3f5f", borderRadius: 12,
               padding: 14, boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
             }}>
-              <div style={{ fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Formato</div>
+              <div style={{ fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>Formato</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                 {PRINT_FORMATS.map(f => (
                   <button key={f.id} type="button" onClick={() => setFmtId(f.id)}
@@ -705,7 +705,7 @@ export default function QuadroEditor() {
                 ))}
               </div>
 
-              <div style={{ fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Colore</div>
+              <div style={{ fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>Colore</div>
               <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
                 {PALETTES.map(p => (
                   <button key={p.id} type="button" onClick={() => setPalId(p.id)} title={p.label}
@@ -732,7 +732,7 @@ export default function QuadroEditor() {
                   SVG
                 </button>
               </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 8 }}>
                 PNG {fmt.w}×{fmt.h}px, pronto per la stampa. SVG vettoriale per Illustrator.
               </div>
             </div>
@@ -741,7 +741,7 @@ export default function QuadroEditor() {
       </div>
 
       {/* Suggerimento */}
-      <div style={{ padding: "6px 14px", fontSize: 11.5, color: "rgba(255,255,255,0.45)", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ padding: "6px 14px", fontSize: 11.5, color: "rgba(255,255,255,0.6)", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
         {mode === "frame"
           ? "Trascina dentro una tela per inquadrare · rotellina, pizzico o ＋− per lo zoom · «Disponi» per spostare e ridimensionare"
           : "Trascina una tela per spostarla · angoli per ridimensionare · rotellina, pizzico o ＋− per lo zoom · «Inquadra» per il pan del contenuto"}

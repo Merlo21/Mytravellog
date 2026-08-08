@@ -50,7 +50,7 @@ setStorageErrorHandler(() => {
 function RouteFallback() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <Loader2 className="w-6 h-6 animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />
+      <Loader2 className="w-6 h-6 animate-spin" style={{ color: "rgba(255,255,255,0.6)" }} />
     </div>
   );
 }

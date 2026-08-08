@@ -158,7 +158,7 @@ export function WelcomeGate() {
         <p style={{ marginTop: 18, fontSize: 11.5, lineHeight: 1.6, color: "rgba(255,255,255,0.5)" }}>
           🔒 I dati restano nel tuo account Google. Nessun altro può vederli.
         </p>
-        <p style={{ marginTop: 6, fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.35)" }}>
+        <p style={{ marginTop: 6, fontSize: 11, lineHeight: 1.6, color: "rgba(255,255,255,0.6)" }}>
           Da ospite puoi collegarti quando vuoi dalle Impostazioni.
         </p>
       </div>

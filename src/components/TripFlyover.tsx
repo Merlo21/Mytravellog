@@ -1065,7 +1065,7 @@ export function TripFlyover({ trips, onClose, lifeMap = false }: Props) {
                     <div className="font-mono" style={{
                       fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1.1,
                     }}>{s.v}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", letterSpacing: 0.6, marginTop: 2 }}>{s.l}</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 0.6, marginTop: 2 }}>{s.l}</div>
                   </div>
                 ))}
               </div>

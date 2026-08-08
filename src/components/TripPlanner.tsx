@@ -230,7 +230,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
     padding: "6px 8px", fontSize: 12, color: "#f0f4ff", outline: "none", textAlign: "right", fontFamily: "inherit",
   };
   const sectionTitle: React.CSSProperties = {
-    fontSize: 9, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", margin: "0 0 10px",
+    fontSize: 9, letterSpacing: "1.5px", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", margin: "0 0 10px",
   };
 
   return createPortal(
@@ -242,7 +242,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
           <div style={{ fontWeight: 700, fontSize: 15, color: "#f0f4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             🧭 Pianifica — {plan.title || plan.city}
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
             Budget e cose da organizzare · si salva da solo
           </div>
         </div>
@@ -288,7 +288,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
               <input value={r.label} onChange={e => setBudgetRow(i, { label: e.target.value })} placeholder="Categoria" aria-label="Categoria di spesa"
                 style={{ flex: 1, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "0.5px solid #1a2d4a", borderRadius: 7, padding: "6px 10px", fontSize: 13, color: "#f0f4ff", outline: "none", fontFamily: "inherit" }} />
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <span style={{ position: "absolute", left: 8, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{CUR}</span>
+                <span style={{ position: "absolute", left: 8, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{CUR}</span>
                 <input type="number" inputMode="decimal" min={0} value={r.amount || ""} onChange={e => setBudgetRow(i, { amount: parseFloat(e.target.value) || 0 })}
                   placeholder="0" title="Preventivo" aria-label="Importo preventivo" style={{ ...numInput, paddingLeft: 18 }} />
               </div>
@@ -298,7 +298,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
                   placeholder="pagato" aria-label="Già pagato" style={{ ...numInput, paddingLeft: 22, color: "#6ee7b7" }} />
               </div>
               <button type="button" onClick={() => mutBudget(rows => rows.filter((_, idx) => idx !== i))} aria-label="Rimuovi categoria"
-                style={{ flexShrink: 0, background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: 4 }}>
+                style={{ flexShrink: 0, background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", padding: 4 }}>
                 <Trash2 style={{ width: 15, height: 15 }} />
               </button>
             </div>
@@ -311,12 +311,12 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
           {/* Totali */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 14, paddingTop: 12, borderTop: "0.5px solid #2a3f5f" }}>
             <div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>Totale preventivo</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)" }}>Totale preventivo</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "#f0f4ff" }}>{CUR} {fmt(total)}</div>
             </div>
             {paidTotal > 0 && (
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>Già pagato</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)" }}>Già pagato</div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#6ee7b7" }}>{CUR} {fmt(paidTotal)}</div>
               </div>
             )}
@@ -342,7 +342,7 @@ export function TripPlanner({ plan, onClose, onChanged }: Props) {
                 placeholder="Cosa c'è da fare?" aria-label="Voce da organizzare"
                 style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", borderBottom: "0.5px solid #1a2d4a", padding: "5px 2px", fontSize: 13, color: c.done ? "rgba(255,255,255,0.4)" : "#f0f4ff", textDecoration: c.done ? "line-through" : "none", outline: "none", fontFamily: "inherit" }} />
               <button type="button" onClick={() => mutChecklist(rows => rows.filter((_, idx) => idx !== i))} aria-label="Rimuovi voce"
-                style={{ flexShrink: 0, background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: 4 }}>
+                style={{ flexShrink: 0, background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", padding: 4 }}>
                 <Trash2 style={{ width: 15, height: 15 }} />
               </button>
             </div>

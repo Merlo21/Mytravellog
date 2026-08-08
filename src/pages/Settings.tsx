@@ -69,7 +69,7 @@ function Group({ icon, title, desc, children }: { icon: React.ReactNode; title: 
 /** Intestazione di sezione: dà gerarchia a una pagina che prima era un elenco piatto di card. */
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", margin: "22px 4px 10px" }}>
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "rgba(255,255,255,0.6)", margin: "22px 4px 10px" }}>
       {children}
     </div>
   );

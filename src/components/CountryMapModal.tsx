@@ -471,7 +471,7 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
           )}
           <div className="font-display" style={{ fontSize: 16, fontWeight: 700, color: "#f0f4ff", flex: 1 }}>{countryName}</div>
           <button onClick={onClose} aria-label="Chiudi mappa del paese"
-            style={{ width: 28, height: 28, background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
+            style={{ width: 28, height: 28, background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
             <X style={{ width: 16, height: 16 }}/>
           </button>
         </div>
@@ -480,8 +480,8 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         {!loading && !error && totalRegions > 0 && (
           <div style={{ textAlign: "center", paddingTop: 16 }}>
             <span style={{ fontSize: 30, fontWeight: 700, color: "#60a5fa" }}>{pct}%</span>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>del paese visitato</span>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginLeft: 8 }}>del paese visitato</span>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
               {visitedRegions.length} region{visitedRegions.length === 1 ? "e" : "i"} su {totalRegions}
             </div>
           </div>
@@ -490,10 +490,10 @@ export function CountryMapModal({ countryCode, countryName, trips, onClose }: Pr
         {/* Map */}
         <div style={{ flex: 1, padding: 16, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
           {loading && (
-            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Caricamento mappa…</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>Caricamento mappa…</div>
           )}
           {error && (
-            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>🗺️</div>
               <div>Mappa non disponibile per questo paese.</div>
               {visitedList.length > 0 && (
