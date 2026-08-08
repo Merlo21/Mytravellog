@@ -32,6 +32,11 @@ const smallInput: React.CSSProperties = {
  */
 export function TripPurposeCompanions({ purpose, setPurpose, companions, setCompanions }: Props) {
   const [nameInput, setNameInput] = useState("");
+  // Suggerimento evidenziato da tastiera (-1 = nessuno) e chiusura con Esc.
+  // I bottoni dei suggerimenti usano onMouseDown (per battere il blur), che
+  // Enter/Spazio non attivano: senza le frecce la lista era solo-mouse.
+  const [hi, setHi] = useState(-1);
+  const [hideSug, setHideSug] = useState(false);
 
   // Autocomplete compagni: nomi già usati negli altri viaggi (dedup).
   const knownNames = useMemo(() => {
@@ -46,12 +51,14 @@ export function TripPurposeCompanions({ purpose, setPurpose, companions, setComp
     setNameInput("");
   };
 
-  const suggestions = nameInput.trim()
+  const suggestions = nameInput.trim() && !hideSug
     ? knownNames.filter(n =>
         n.toLowerCase().includes(nameInput.trim().toLowerCase()) &&
         !companions.some(c => c.toLowerCase() === n.toLowerCase()),
       ).slice(0, 5)
     : [];
+  // La lista può accorciarsi mentre si digita: l'indice va riagganciato.
+  const hiEff = hi >= 0 && hi < suggestions.length ? hi : -1;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -100,23 +107,41 @@ export function TripPurposeCompanions({ purpose, setPurpose, companions, setComp
         )}
         <input
           value={nameInput}
-          onChange={e => setNameInput(e.target.value)}
+          onChange={e => { setNameInput(e.target.value); setHideSug(false); setHi(-1); }}
+          role="combobox" aria-expanded={suggestions.length > 0} aria-autocomplete="list"
+          aria-controls="companion-suggestions"
           onKeyDown={e => {
-            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addName(nameInput); }
+            // Combobox da tastiera: il focus resta sull'input (spostarlo sui
+            // bottoni farebbe scattare il blur che committa il testo parziale).
+            if (e.key === "ArrowDown" && suggestions.length) {
+              e.preventDefault(); setHi((hiEff + 1) % suggestions.length);
+            } else if (e.key === "ArrowUp" && suggestions.length) {
+              e.preventDefault(); setHi((hiEff - 1 + suggestions.length) % suggestions.length);
+            } else if (e.key === "Escape" && suggestions.length) {
+              e.preventDefault(); setHideSug(true); setHi(-1);
+            } else if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              addName(hiEff >= 0 ? suggestions[hiEff] : nameInput);
+              setHi(-1);
+            }
           }}
           onBlur={() => addName(nameInput)}
           placeholder="Aggiungi un nome e premi Invio…"
           style={smallInput}
         />
         {suggestions.length > 0 && (
-          <div style={{ marginTop: 6, background: "#0b1524", border: "0.5px solid #1a2d4a", borderRadius: 8, overflow: "hidden" }}>
-            {suggestions.map(n => (
-              <button key={n} type="button"
+          <div id="companion-suggestions" role="listbox"
+            style={{ marginTop: 6, background: "#0b1524", border: "0.5px solid #1a2d4a", borderRadius: 8, overflow: "hidden" }}>
+            {suggestions.map((n, i) => (
+              <button key={n} type="button" role="option" aria-selected={i === hiEff}
                 // onMouseDown (non onClick): parte PRIMA del blur dell'input.
                 onMouseDown={e => { e.preventDefault(); addName(n); }}
+                onMouseEnter={() => setHi(i)}
                 style={{
                   display: "block", width: "100%", textAlign: "left", padding: "8px 12px",
-                  fontSize: 12, color: "rgba(255,255,255,0.8)", background: "none", border: "none", cursor: "pointer",
+                  fontSize: 12, cursor: "pointer", border: "none",
+                  color: i === hiEff ? "#60a5fa" : "rgba(255,255,255,0.8)",
+                  background: i === hiEff ? "rgba(96,165,250,0.12)" : "none",
                 }}>
                 {n} <span style={{ opacity: 0.4 }}>· già usato</span>
               </button>
