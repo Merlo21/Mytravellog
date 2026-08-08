@@ -38,10 +38,12 @@ export function useModalFocus<T extends HTMLElement = HTMLDivElement>(active = t
     const focusables = () =>
       Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(visible);
 
-    // Sposta il focus dentro: il primo controllo, o il pannello stesso.
-    const first = focusables()[0];
-    if (first) first.focus();
-    else { node.setAttribute("tabindex", "-1"); node.focus(); }
+    // Il focus va sul PANNELLO, non sul suo primo controllo: quello è quasi
+    // sempre la X in alto, e partire da lì sembra un invito a chiudere. Su
+    // telefono, poi, dare il focus a un campo aprirebbe subito la tastiera
+    // coprendo mezzo schermo. Da qui il primo Tab entra comunque nei controlli.
+    node.setAttribute("tabindex", "-1");
+    node.focus();
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
