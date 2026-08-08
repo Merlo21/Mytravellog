@@ -106,7 +106,11 @@ export function GoogleDriveProvider({ children }: { children: ReactNode }) {
     // Foto/rilievi dei viaggi uccisi dal merge (cancellati altrove): senza
     // questa pulizia i blob restavano orfani in IndexedDB per sempre.
     const mergedIds = new Set(merged.map(t => t.id));
-    for (const t of local) if (!mergedIds.has(t.id)) deletePhotosForTrip(t.id).catch(() => { /* best effort */ });
+    // NB: si passa il VIAGGIO, non il suo id. Con l'id la funzione leggeva
+    // `trip.id` da una stringa (undefined) e cancellava chiavi inesistenti
+    // tipo "undefined:relief": nessun errore, nessuna pulizia — il .catch qui
+    // sotto non scattava mai e il difetto era invisibile.
+    for (const t of local) if (!mergedIds.has(t.id)) deletePhotosForTrip(t).catch(() => { /* best effort */ });
     // Il backup remoto si scrive COMUNQUE (protegge i dati anche se il locale
     // è pieno); ma se il salvataggio locale è fallito per quota, non si dichiara
     // "sincronizzato": LS_TS e hash non avanzano e lo stato diventa errore.

@@ -364,7 +364,12 @@ export default function QuadroEditor() {
   // ---- interazione drag (move / resize / pan) + PIZZICO a due dita
   const dragRef = useRef<
     | null
-    | { kind: "move" | "pan"; id: string; start: { x: number; y: number }; p0: EditorPanel }
+    // "move" e "pan" sono due rami DISTINTI anche se hanno gli stessi campi:
+    // messi insieme come `kind: "move" | "pan"`, TypeScript non riusciva a
+    // escludere questo ramo dopo i due return e considerava `corner`
+    // inesistente nel caso "resize".
+    | { kind: "move"; id: string; start: { x: number; y: number }; p0: EditorPanel }
+    | { kind: "pan"; id: string; start: { x: number; y: number }; p0: EditorPanel }
     | { kind: "resize"; id: string; corner: Corner; p0: EditorPanel }
   >(null);
   // Dita attive sul canvas (coordinate-canvas correnti per pointerId).
@@ -431,7 +436,9 @@ export default function QuadroEditor() {
         if (!gestureBaseRef.current) { gestureBaseRef.current = panelsRef.current; gestureDirtyRef.current = false; }
         setSelectedId(p.id);
         bringToFront(p.id);
-        dragRef.current = { kind: mode === "frame" ? "pan" : "move", id: p.id, start: c, p0: p };
+        dragRef.current = mode === "frame"
+          ? { kind: "pan", id: p.id, start: c, p0: p }
+          : { kind: "move", id: p.id, start: c, p0: p };
         return;
       }
     }

@@ -26,5 +26,7 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "//": "sw.ts sta fuori: dichiara `lib=webworker` e da qui dentro contaminava i tipi di tutta l'app. Ha il suo tsconfig.sw.json, compilato anch'esso da `npm run typecheck`.",
+  "exclude": ["src/sw.ts"]
 }

@@ -59,6 +59,20 @@ describe("photoStorage", () => {
     expect(await getPhotosForTrip("trip-2")).toHaveLength(1);
   });
 
+  // Il rilievo 3D è l'immagine che sopravvive alla rimozione delle foto utente:
+  // è quella che restava orfana in IndexedDB quando un viaggio veniva
+  // cancellato su un altro dispositivo e il merge di Drive lo toglieva qui.
+  it("deletePhotosForTrip rimuove anche il rilievo 3D del biglietto", async () => {
+    const trip = { id: "trip-1", waypoints: [] };
+    await savePhoto(reliefPhotoKey(trip.id), makeBlob());
+    await savePhoto("trip-2", makeBlob());
+
+    await deletePhotosForTrip(trip);
+
+    expect(await getPhotosForTrip(reliefPhotoKey(trip.id))).toEqual([]);
+    expect(await getPhotosForTrip("trip-2")).toHaveLength(1);
+  });
+
   it("deletePhotosForTrip rimuove anche le foto di casa e di ogni tappa con id", async () => {
     const trip = { id: "trip-1", waypoints: [{ id: "wp-1", city: "Torino", country: "Italia", transport_mode: "train" as const }] };
     await savePhoto(destinationPhotoKey(trip.id), makeBlob());
